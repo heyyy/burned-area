@@ -9,12 +9,15 @@ import commands
 import time
 import datetime
 import csv
+import tempfile
+import multiprocessing, Queue
 from optparse import OptionParser
 from HDF_scene import *
 from TIF_scene import *
 from spectral_indices import *
 from spectral_index_from_tif import *
 from log_it import *
+from parallel_worker import *
 
 
 #############################################################################
@@ -38,6 +41,7 @@ class temporalBAStack():
     make_histos = False       # should we make the histograms
     spatial_extent = None     # dictionary for spatial extent corners
     log_handler = None        # file handler for the log file
+    num_processors = 1        # default is no parallel processing
 
     def __init__ (self):
         pass
@@ -506,17 +510,49 @@ class temporalBAStack():
             logIt (msg, self.log_handler)
             os.makedirs (self.mask_dir)
 
-        # process each scene in the stack - convert from HDF to GeoTIFF,
-        # create histograms and pyramids, and calculate the spectral indices
-        # GAIL - can we run multiprocessor with parallel python?  Basically
-        # the code in the for loop could be another module and that module
-        # could be run in parallel for all the scenes in the stack.
+########
+##        # process each scene in the stack - convert from HDF to GeoTIFF,
+##        # create histograms and pyramids, and calculate the spectral indices
+##        # GAIL - can we run multiprocessor with parallel python?  Basically
+##        # the code in the for loop could be another module and that module
+##        # could be run in parallel for all the scenes in the stack.
+##        for scene in enumerate (stack):
+##            hdf_file = scene[1][header_row.index('file')]
+##            status = self.sceneHDFToTiff (hdf_file)
+##            if status != SUCCESS:
+##                msg = 'Error converting the HDF file (%s) to GeoTIFF. ' \
+##                    'Processing will terminate.' % hdf_file
+##                logIt (msg, self.log_handler)
+##                return ERROR
+########
+
+        # load up the work queue for processing scenes in parallel
+        work_queue = multiprocessing.Queue()
+        num_scenes = 0
         for scene in enumerate (stack):
             hdf_file = scene[1][header_row.index('file')]
-            status = self.sceneHDFToTiff (hdf_file)
+            work_queue.put(hdf_file)
+            num_scenes += 1
+
+        # create a queue to pass to workers to store the processing status
+        result_queue = multiprocessing.Queue()
+ 
+        # spawn workers to process each scene in the stack - convert from HDF
+        # to GeoTIFF, create histograms and pyramids, and calculate the
+        # spectral indices
+        msg = 'Spawning %d scenes for processing via %d processors ....' %  \
+            (num_scenes, self.num_processors)
+        logIt (msg, self.log_handler)
+        for i in range(self.num_processors):
+            worker = parallelWorker(work_queue, result_queue, self)
+            worker.start()
+ 
+        # collect the results off the queue
+        for i in range(num_scenes):
+            status = result_queue.get()
             if status != SUCCESS:
-                msg = 'Error converting the HDF file (%s) to GeoTIFF. ' \
-                    'Processing will terminate.' % hdf_file
+                msg = 'Error converting the HDF file (%d in stack) to ' \
+                    'GeoTIFF.' % i
                 logIt (msg, self.log_handler)
                 return ERROR
 
@@ -546,19 +582,25 @@ class temporalBAStack():
     def sceneHDFToTiff(self, hdf_file):
         startTime0 = time.time()
    
-        # generate the HDF, GeoTIFF, and temporary GeoTIFF filename
+        # generate the HDF, GeoTIFF, and temporary GeoTIFF filename.  use
+        # tempfile to get a unique filename and then close it right away.
+        # use the filename itself to process the string like we did with
+        # just temp.tif.  we have to have unique filenames for running in
+        # parallel.
         msg = '############################################################'
         logIt (msg, self.log_handler)
         tif_file = hdf_file.replace('.hdf', '.tif')
         tif_file = self.refl_dir + os.path.basename (tif_file)
-        temp_file = self.refl_dir + "temp.tif"
-        
+        temp_file = tempfile.NamedTemporaryFile(mode='w', prefix='temp',  \
+            suffix='.tif', dir=self.refl_dir, delete=True)
+        temp_file.close()
+
         # convert .hdf to .tif
         startTime = time.time()
         msg = '   Converting HDF (%s) to GeoTIFF (%s)' % (hdf_file, \
-            temp_file)
+            temp_file.name)
         logIt (msg, self.log_handler)
-        status = self.hdf2tif (hdf_file, temp_file)
+        status = self.hdf2tif (hdf_file, temp_file.name)
         if status != SUCCESS:
             msg = 'Error converting the HDF file to GeoTIFF. Processing ' \
                 'will terminate.'
@@ -570,10 +612,10 @@ class temporalBAStack():
 
         # resample the .tif file to our maximum bounding coords
         startTime = time.time()
-        msg = '   Resizing temp (%s) to max bounds (%s)' % (temp_file, \
+        msg = '   Resizing temp (%s) to max bounds (%s)' % (temp_file.name, \
             tif_file)
         logIt (msg, self.log_handler)
-        cmd = 'gdal_merge.py -o ' + tif_file + ' -co "INTERLEAVE=BAND" -co "TILED=YES" -init -9999 -n -9999 -a_nodata -9999 -ul_lr ' + str(self.spatial_extent['West']) + ' ' + str(self.spatial_extent['North']) + ' ' + str(self.spatial_extent['East']) + ' ' + str(self.spatial_extent['South']) + ' ' + temp_file
+        cmd = 'gdal_merge.py -o ' + tif_file + ' -co "INTERLEAVE=BAND" -co "TILED=YES" -init -9999 -n -9999 -a_nodata -9999 -ul_lr ' + str(self.spatial_extent['West']) + ' ' + str(self.spatial_extent['North']) + ' ' + str(self.spatial_extent['East']) + ' ' + str(self.spatial_extent['South']) + ' ' + temp_file.name
         msg = '    ' + cmd
         logIt (msg, self.log_handler)
         os.system(cmd)
@@ -583,7 +625,7 @@ class temporalBAStack():
         logIt (msg, self.log_handler)
    
         # remove the temp file since it is no longer needed
-        os.remove (temp_file)
+        os.remove (temp_file.name)
 
         # open the tif, calculate histograms for each band in the .tif
         # file, and build pyramids -- if the user specifies this should
@@ -985,6 +1027,9 @@ class temporalBAStack():
             parser.add_option ("--make_histos", dest="make_histos",
                 default=False, action="store_true",
                 help="process histograms and overviews for each of the GeoTIFFs generated by this application")
+            parser.add_option ("-p", "--num_processors", type="int",
+                dest="num_processors",
+                help="how many processors should be used for parallel processing sections of the application (default = 1, single threaded")
             parser.add_option ("--usebin", dest="usebin", default=False,
                 action="store_true",
                 help="use BIN environment variable as the location of external burned area apps")
@@ -1000,6 +1045,9 @@ class temporalBAStack():
             if input_dir == None:
                 parser.error ("missing input directory command-line argument");
                 return ERROR
+
+            # number of processors
+            self.num_processors = options.num_processors
 
         # open the log file if it exists; use line buffering for the output
         self.log_handler = None
