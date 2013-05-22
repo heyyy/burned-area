@@ -17,7 +17,9 @@ from log_it import *
 # file and generating spectral indices.
 #
 # History:
-#
+#   Updated on 5/21/2013 by Gail Schmidt, USGS/EROS LSRD Project
+#       Modified to process all the indices one line  at a time (vs. the
+#       entire band) since this is faster.
 ############################################################################
 class spectralIndex:
     # Data attributes
@@ -32,14 +34,6 @@ class spectralIndex:
     input_band6 = None   # pointer to GeoTIFF band
     input_band7 = None   # pointer to GeoTIFF band
     input_band_qa = None  # pointer to GeoTIFF QA
-    b1 = None            # band1 data from GeoTIFF file
-    b2 = None            # band2 data from GeoTIFF file
-    b3 = None            # band3 data from GeoTIFF file
-    b4 = None            # band4 data from GeoTIFF file
-    b5 = None            # band5 data from GeoTIFF file
-    b6 = None            # band6 data from GeoTIFF file
-    b7 = None            # band7 data from GeoTIFF file
-    qa = None            # QA data from GeoTIFF file
 
     ########################################################################
     # Description: spectralIndex class constructor opens the input GeoTIFF
@@ -111,18 +105,11 @@ class spectralIndex:
         self.input_band6 = None
         self.input_band7 = None
         self.input_band_qa = None
-        self.b1 = None
-        self.b2 = None
-        self.b3 = None
-        self.b4 = None
-        self.b5 = None
-        self.b6 = None
-        self.b7 = None
 
 
     ########################################################################
-    # Description: createSpectralIndex creates the desired spectral index
-    #     product.  If mask is specified, then a combined mask file is
+    # Description: createSpectralIndices creates the desired spectral index
+    #     products.  If mask is specified, then a combined mask file is
     #     generated using the various input masks.
     #
     # History:
@@ -132,113 +119,165 @@ class spectralIndex:
     #       Modified to utilize a class structure and only read the bands
     #       if they haven't been read already.  This saves from duplication
     #       of reading the same band over and over for different indices.
+    #   Updated on 5/21/2013 by Gail Schmidt, USGS/EROS LSRD Project
+    #       Modified to process all the indices one line  at a time (vs. the
+    #       entire band) since this is faster.
     #
     # Inputs:
-    #   output_file - name of spectral index file to create
-    #   index - name of the index product to be generated (ndvi, nbr, nbr2,
-    #       ndmi, mask)
+    #   index_dict - dictionary of index types (ndvi, nbr, nbr2, ndmi, mask)
+    #       and the associated filename for the index file
     #   make_histos - should histograms and overview pyramids be generated
     #       for each of the output GeoTIFF files?
     #   log_handler - open log file for logging or None for stdout
     #
     # Returns:
-    #     ERROR - error generating the spectral index or mask
+    #     ERROR - error generating the spectral indices or mask
     #     SUCCESS - successful processing
     #
     # Notes:
     #######################################################################
-    def createSpectralIndex (self, output_file, index, make_histos=False, \
+    def createSpectralIndices (self, index_dict, make_histos=False,  \
         log_handler=None):
-        startTime = time.time()
-        print '    Processing index: ' + index
+        num_indices = len(index_dict)
+        print '    Processing ' + str(num_indices) + ' indices: '
+        for index in index_dict.keys():
+            print '      ' + index
     
         # ignore divide by zero and invalid (NaN) values when doing array
         # division.  these will be handled on our own.
         seterr(divide='ignore', invalid='ignore')
 
-        # figure out which spectral index to generate
-        if not (index in ['ndvi','nbr','nbr2','ndmi','mask']):
-            msg = 'Algorithm for ' + index + ' is not implemented'
-            logIt (msg, log_handler)
-            return ERROR
-
-        # create the output folder if it does not exist
-        output_dir = os.path.dirname(output_file)
-        if not os.path.exists(output_dir):
-            msg = 'Creating output directory ' + output_dir
-            logIt (msg, log_handler)
-            os.makedirs(output_dir)
-            
-        # create the output file; spectral indices are multiplied by 1000.0
-        # and the mask file is as-is.
-        driver = gdal.GetDriverByName("GTiff")
-        output_ds = driver.Create( output_file, self.input_ds.RasterXSize, \
-            self.input_ds.RasterYSize, 1, gdal.GDT_Int16)
-        output_ds.SetGeoTransform( self.input_ds.GetGeoTransform() )
-        output_ds.SetProjection( self.input_ds.GetProjection() )
-        output_band = output_ds.GetRasterBand(1)    
-    
         # grab the noData value from the input GeoTIFF file
+        ncol = self.input_ds.RasterXSize
+        nrow = self.input_ds.RasterYSize
         nodata = self.input_band1.GetNoDataValue()
         if nodata is None:
             nodata = -9999
             
-        # read the QA data if it hasn't been read already
-        if self.qa == None:
-            self.qa = self.input_band_qa.ReadAsArray()
-
-        # calculate the spectral index
-        if index == 'nbr':
-            if self.b4 == None:
-                self.b4 = self.input_band4.ReadAsArray()
-            if self.b7 == None:
-                self.b7 = self.input_band7.ReadAsArray()
-            newVals = 1000.0 * NBR(self.b4, self.b7, nodata)
-            newVals[ self.qa < 0 ] = nodata
-        elif index == 'nbr2':
-            if self.b5 == None:
-                self.b5 = self.input_band5.ReadAsArray()
-            if self.b7 == None:
-                self.b7 = self.input_band7.ReadAsArray()
-            newVals = 1000.0 * NBR2(self.b5, self.b7, nodata)
-            newVals[ self.qa < 0 ] = nodata
-        elif index == 'ndmi':
-            if self.b4 == None:
-                self.b4 = self.input_band4.ReadAsArray()
-            if self.b5 == None:
-                self.b5 = self.input_band5.ReadAsArray()
-            newVals = 1000.0 * NDMI(self.b4, self.b5, nodata)
-            newVals[ self.qa < 0 ] = nodata
-        elif index == 'ndvi':
-            if self.b4 == None:
-                self.b4 = self.input_band4.ReadAsArray()
-            if self.b3 == None:
-                self.b3 = self.input_band3.ReadAsArray()
-            newVals = 1000.0 * NDVI(self.b3, self.b4, nodata)
-            newVals[ self.qa < 0 ] = nodata
-        else:   # save the mask
-            newVals = self.qa
+        # loop through the indices specified to be processed and create the
+        # output GeoTIFF files
+        driver = {}
+        output_ds = {}
+        output_band = {}
+        for index in index_dict.keys():
+            # figure out which spectral index to generate
+            if not (index in ['ndvi','nbr','nbr2','ndmi','mask']):
+                msg = 'Algorithm for ' + index + ' is not implemented'
+                logIt (msg, log_handler)
+                return ERROR
+    
+            # create the output folder if it does not exist
+            output_dir = os.path.dirname(index_dict.get(index))
+            if not os.path.exists(output_dir):
+                msg = 'Creating output directory ' + output_dir
+                logIt (msg, log_handler)
+                os.makedirs(output_dir)
             
-        # write the output 
-        output_band.WriteArray(newVals)
-        output_band.SetNoDataValue(nodata)
+            # create the output file; spectral indices are multiplied by 1000.0
+            # and the mask file is as-is.
+            mydriver = gdal.GetDriverByName("GTiff")
+            driver[index] = mydriver
+            my_ds = mydriver.Create(index_dict.get(index),  \
+                self.input_ds.RasterXSize, self.input_ds.RasterYSize, 1,  \
+                gdal.GDT_Int16)
+            my_ds.SetGeoTransform(self.input_ds.GetGeoTransform())
+            my_ds.SetProjection(self.input_ds.GetProjection())
+            output_ds[index] = my_ds
+            my_band = my_ds.GetRasterBand(1)    
+            my_band.SetNoDataValue(nodata)
+            output_band[index] = my_band
+        
+        # loop through each line in the image and process
+        for y in range (0, nrow):
+            # read the QA data
+            qa = self.input_band_qa.ReadAsArray(0, y, ncol, 1)
+    
+            # loop through the indices specified and process each index product
+            # reusing the line from each band where possible
+            b3 = b4 = b5 = b7 = None
+            for index in index_dict.keys():
+                # calculate the spectral index
+                if index == 'nbr':
+                    if b4 == None:
+                        b4 = self.input_band4.ReadAsArray(0, y, ncol,1)
+                    if b7 == None:
+                        b7 = self.input_band7.ReadAsArray(0, y, ncol, 1)
+                    newVals = 1000.0 * NBR(b4, b7, nodata)
+                    newVals[qa < 0] = nodata
+
+                    # write the output 
+                    my_output_band = output_band.get(index)
+                    my_output_band.WriteArray(newVals, 0, y)
+
+                elif index == 'nbr2':
+                    if b5 == None:
+                        b5 = self.input_band5.ReadAsArray(0, y, ncol, 1)
+                    if b7 == None:
+                        b7 = self.input_band7.ReadAsArray(0, y, ncol, 1)
+                    newVals = 1000.0 * NBR2(b5, b7, nodata)
+                    newVals[qa < 0] = nodata
+
+                    # write the output 
+                    my_output_band = output_band.get(index)
+                    my_output_band.WriteArray(newVals, 0, y)
+
+                elif index == 'ndmi':
+                    if b4 == None:
+                        b4 = self.input_band4.ReadAsArray(0, y, ncol, 1)
+                    if b5 == None:
+                        b5 = self.input_band5.ReadAsArray(0, y, ncol, 1)
+                    newVals = 1000.0 * NDMI(b4, b5, nodata)
+                    newVals[qa < 0] = nodata
+
+                    # write the output 
+                    my_output_band = output_band.get(index)
+                    my_output_band.WriteArray(newVals, 0, y)
+
+                elif index == 'ndvi':
+                    if b4 == None:
+                        b4 = self.input_band4.ReadAsArray(0, y, ncol, 1)
+                    if b3 == None:
+                        b3 = self.input_band3.ReadAsArray(0, y, ncol, 1)
+                    newVals = 1000.0 * NDVI(b3, b4, nodata)
+                    newVals[qa < 0] = nodata
+
+                    # write the output 
+                    my_output_band = output_band.get(index)
+                    my_output_band.WriteArray(newVals, 0, y)
+
+                else:   # save the mask
+                    newVals = qa
+                    
+                    # write the output 
+                    my_output_band = output_band.get(index)
+                    my_output_band.WriteArray(newVals, 0, y)
+                # end if
+            # end for index
+        # end for y
+
+        # cleanup the bands
+        b3 = b4 = b5 = b7 = None
 
         # create histograms and pyramids
         if make_histos:
-            # make histogram
-            histogram = output_band.GetDefaultHistogram()
-            if not histogram == None:
-                output_band.SetDefaultHistogram(histogram[0], histogram[1], \
-                histogram[3])
+            # loop through the indices specified and process histograms
+            for index in index_dict.keys():
+                # make histogram
+                my_output_band = output_band.get(index)
+                histogram = my_output_band.GetDefaultHistogram()
+                if not histogram == None:
+                    my_output_band.SetDefaultHistogram(histogram[0], \
+                        histogram[1], histogram[3])
     
-            # build pyramids
-            gdal.SetConfigOption('HFA_USE_RRD', 'YES')
-            output_ds.BuildOverviews(overviewlist=[3,9,27,81,243,729])
+                # build pyramids
+                gdal.SetConfigOption('HFA_USE_RRD', 'YES')
+                my_output_ds = output_ds.get(index)
+                my_output_ds.BuildOverviews(  \
+                    overviewlist=[3,9,27,81,243,729])
     
         # cleanup
-        output_band = None
-        output_ds = None
+        del (output_band)
+        del (output_ds)
+        del (driver)
 
-        endTime = time.time()
-        msg = '    Processing time = ' + str(endTime-startTime) + ' seconds'
-        logIt (msg, log_handler)
+        return SUCCESS
