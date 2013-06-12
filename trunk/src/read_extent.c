@@ -74,6 +74,14 @@ int read_extent
     *south = lr_corner[1];
     *north = ul_corner[1];
 
+    /* Detach from the grid */
+    if (GDdetach (gd_id) == HDF_ERROR)
+    {
+        sprintf (errmsg, "Error detaching from the current grid");
+        error_handler (false, FUNC_NAME, errmsg);
+        return (ERROR);
+    }
+
     /* Close the HDF-EOS file */
     if (GDclose (gd_file_id) == HDF_ERROR) 
     {
