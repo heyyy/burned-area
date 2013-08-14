@@ -87,8 +87,8 @@ bool DateInit(Date_t *di, char *s, Date_format_t iformat) {
         RETURN_ERROR("bad day of year", "DateInit", false);
       for (di->month = 0; di->month < 12; di->month++) {
         idoy_nonleap = idoy[di->month];
-	if (di->month > 1) idoy_nonleap--;
-	if (di->doy < idoy_nonleap) break;
+    if (di->month > 1) idoy_nonleap--;
+    if (di->doy < idoy_nonleap) break;
       }
     }
   }
@@ -167,12 +167,12 @@ bool FormatDate(Date_t *df, Date_format_t iformat, char *s) {
   if (iformat == DATE_FORMAT_DATEA_TIME) {
     if (sprintf(s, "%4d-%02d-%02dT%02d:%02d:%09.6fZ", 
                 df->year, df->month, df->day,
-		df->hour, df->minute, df->second) < 0)
+        df->hour, df->minute, df->second) < 0)
       RETURN_ERROR("formating date/time", "FormatDate", false);
   } else if (iformat == DATE_FORMAT_DATEB_TIME) {
     if (sprintf(s, "%4d-%03dT%02d:%02d:%09.6fZ", 
                 df->year, df->doy,
-		df->hour, df->minute, df->second) < 0)
+        df->hour, df->minute, df->second) < 0)
       RETURN_ERROR("formating date/time", "FormatDate", false);
   } else if (iformat == DATE_FORMAT_DATEA) {
     if (sprintf(s, "%4d-%02d-%02d", 

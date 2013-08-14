@@ -132,8 +132,8 @@ bool StringParse(char *s, Key_t *key)
 
 !Description: 'StringParse' parsing an input "key = value" string with multiple 
               values seperated by commas or spaces. 
-	      Quoted values are allowed.  Keyword only strings are allowed 
-	      (zero values).
+          Quoted values are allowed.  Keyword only strings are allowed 
+          (zero values).
  
 !Input Parameters:
  s              input string
@@ -232,9 +232,9 @@ bool StringParse(char *s, Key_t *key)
       case S0: break;
       case C0: break;
       case K0: /* begin key */
-	key->key = s;
-	key->len_key = 1;
-	break;
+    key->key = s;
+    key->len_key = 1;
+    break;
       case K1: /* non-blank in key */
         key->len_key++;
         break;
@@ -242,31 +242,31 @@ bool StringParse(char *s, Key_t *key)
       case Q0: break;
       case V0: /* begin string */
       case Q1: /* begin quoted string (b) */
-	if (key->nval >= MAX_NUM_VALUE) 
-	  RETURN_ERROR("too many values", "StringParse", false);
+    if (key->nval >= MAX_NUM_VALUE) 
+      RETURN_ERROR("too many values", "StringParse", false);
         key->nval++;
-	n1 = key->nval - 1;
+    n1 = key->nval - 1;
         break;
       case V1: /* begin non-blank value (a) */
       case Q2: /* continue quoted string (b) */
-	key->value[n1] = s;
-	key->len_value[n1] = 1;
-	break;
+    key->value[n1] = s;
+    key->len_value[n1] = 1;
+    break;
       case V2: /* non-blank in value */
       case Q3: /* continue quoted string (b) */
-	key->len_value[n1]++;
-	break;
+    key->len_value[n1]++;
+    break;
       case V3: break;
       case Q4: break;
       case V4: break;
       case V5: /* begin non-blank value (b) */
-	if (key->nval >= MAX_NUM_VALUE) 
-	  RETURN_ERROR("too many values", "StringParse", false);
+    if (key->nval >= MAX_NUM_VALUE) 
+      RETURN_ERROR("too many values", "StringParse", false);
         key->nval++;
-	n1 = key->nval - 1;
-	key->value[n1] = s;
-	key->len_value[n1] = 1;
-	break;
+    n1 = key->nval - 1;
+    key->value[n1] = s;
+    key->len_value[n1] = 1;
+    break;
       case E0: 
         RETURN_ERROR("invalid character in key", "StringParse", false);
       case E1: 

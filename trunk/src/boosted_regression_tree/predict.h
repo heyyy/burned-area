@@ -18,6 +18,14 @@
 
 using namespace std;
 
+// define the pixel values for cloud, cloud shadow, and water for the output
+// prediction scenes
+#define PBA_CLOUD_WATER 1001
 
+// define the pixel values for fill for the output prediction scenes
+#define PBA_FILL -1001
+
+// define the fill value for the input surface reflectance products
+#define LNDSR_FILL -9999
 
 #endif /* PREDICT_H_ */
