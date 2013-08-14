@@ -80,6 +80,8 @@
 bool CreateOutput(char *file_name, char *input_header, char *output_header)
 {
   int32 hdf_file_id;
+  char errmsg[1000];
+
   /* Create the file with HDF open */
   hdf_file_id = Hopen(file_name, DFACC_CREATE, DEF_NDDS); 
   if (hdf_file_id == HDF_ERROR) {
@@ -91,6 +93,10 @@ bool CreateOutput(char *file_name, char *input_header, char *output_header)
 
   // Copy input header file
   std::ifstream  src(input_header);
+  if (!src) {
+    sprintf (errmsg, "input header file doesn't exist (%s)", input_header);
+    RETURN_ERROR(errmsg, "CreateOutput", false); 
+  }
   std::ofstream  dst(output_header);
 
    dst << src.rdbuf();
@@ -127,7 +133,6 @@ Output_t *OpenOutput(char *file_name, int nband, int nband_qa,
   Myhdf_dim_t *dim[MYHDF_MAX_RANK];
   Myhdf_sds_t *sds = NULL;
   int ir, ib;
-  //float *buf = NULL;
   int16 *buf = NULL;
   uint8 *qa_buf = NULL;
 
@@ -270,8 +275,8 @@ Output_t *OpenOutput(char *file_name, int nband, int nband_qa,
   }  /* end for QA bands */
 
   /* Allocate output buffers */
- // buf = (float *)calloc((size_t)(ds_output->size.s * ds_output->nband), sizeof(float));
-  buf = (int16 *)calloc((size_t)(ds_output->size.s * ds_output->nband), sizeof(int16));
+  buf = (int16 *)calloc((size_t)(ds_output->size.s * ds_output->nband),
+    sizeof(int16));
   if (buf == NULL)
     error_string = (char *) "allocating output buffer";
   else {
@@ -540,7 +545,7 @@ bool PutMetadata(Output_t *ds_output, int nband, Input_meta_t *meta, Param_t *pa
                    (none)
  (returns)      status:
                   'true' = okay
-		  'false' = error return
+          'false' = error return
 
 !Team Unique Header:
 
@@ -690,7 +695,7 @@ bool PutMetadata(Output_t *ds_output, int nband, Input_meta_t *meta, Param_t *pa
   
   if (!Names(meta->sat, meta->inst, "SR", &meta->acq_date, 
              meta->wrs_sys, meta->ipath, meta->irow, 
-	     short_name, local_granule_id, production_date))
+         short_name, local_granule_id, production_date))
     RETURN_ERROR("creating the short name and local granule id", 
                  "PutMetadata", false);
 
@@ -809,7 +814,7 @@ bool PutMetadata(Output_t *ds_output, int nband, Input_meta_t *meta, Param_t *pa
     attr.nval = 1;
     attr.name = OUTPUT_SATU_VALUE;
     dval[0] = (double)lut->out_satu;
-	if (ib != nband+ATMOS_OPACITY) /* doesn't apply for atmos opacity */
+    if (ib != nband+ATMOS_OPACITY) /* doesn't apply for atmos opacity */
       if (!PutAttrDouble(ds_output->sds_sr[ib].id, &attr, dval))
         RETURN_ERROR("writing attribute (saturate value ref)","PutMetadata",false);
 

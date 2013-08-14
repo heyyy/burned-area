@@ -17,26 +17,6 @@
 
 using namespace std;
 
-
-//#define SDS_PREFIX ("band")
-//#define INPUT_PROVIDER ("DataProvider")
-//#define INPUT_SAT ("Satellite")
-//#define INPUT_INST ("Instrument")
-//#define INPUT_ACQ_DATE ("AcquisitionDate")
-//#define INPUT_PROD_DATE ("Level1ProductionDate")
-//#define INPUT_SUN_ZEN ("SolarZenith")
-//#define INPUT_SUN_AZ ("SolarAzimuth")
-//#define INPUT_WRS_SYS ("WRS_System")
-//#define INPUT_WRS_PATH ("WRS_Path")
-//#define INPUT_WRS_ROW ("WRS_Row")
-//#define INPUT_WBC ("WestBoundingCoordinate")
-//#define INPUT_EBC ("EastBoundingCoordinate")
-//#define INPUT_NBC ("NorthBoundingCoordinate")
-//#define INPUT_SBC ("SouthBoundingCoordinate")
-//#define INPUT_NBAND ("NumberOfBands")
-//#define INPUT_BANDS ("BandNumbers")
-//#define INPUT_FILL_VALUE ("_FillValue")
-
 const char *SDS_PREFIX = "band";
 const char *INPUT_PROVIDER = "DataProvider";
 const char *INPUT_SAT = "Satellite";
@@ -82,7 +62,6 @@ cd
 ******************************************************************************/
 Input_t *OpenInput(char *file_name)
 {
-// Input_t *input;
   Myhdf_attr_t attr;
   const char *error_string = NULL;
   char sds_name[40];
@@ -94,7 +73,6 @@ Input_t *OpenInput(char *file_name)
   uint8 *qa_buf = NULL;
 
   /* Create the Input data structure */
-//  ds_input = (Input_t *)malloc(sizeof(Input_t));
   Input_t* ds_input = new Input_t();
   if (ds_input == NULL)
     RETURN_ERROR("allocating Input data structure", "OpenInput", NULL);
@@ -102,27 +80,22 @@ Input_t *OpenInput(char *file_name)
   /* Populate the data structure */
   ds_input->file_name = DupString(file_name);
   if (ds_input->file_name == NULL) {
-   // free(input);
-	  delete ds_input;
+      delete ds_input;
     RETURN_ERROR("duplicating file name", "OpenInput", NULL);
   }
 
   /* Open file for SD access */
   ds_input->sds_file_id = SDstart((char *)file_name, DFACC_RDONLY);
   if (ds_input->sds_file_id == HDF_ERROR) {
-	  delete ds_input;
-  //  free(input->file_name);
-  //  free(input);
+      delete ds_input;
     RETURN_ERROR("opening input file", "OpenInput", NULL);
   }
   ds_input->open = true;
 
   /* Get the input metadata */
   if (!GetInputMeta(ds_input)) {
-	  delete ds_input->file_name;
-	  delete ds_input;
-   // free(ds_input->file_name);
-    //free(ds_input);
+      delete ds_input->file_name;
+      delete ds_input;
     RETURN_ERROR("getting input metadata", "OpenInput", NULL);
   }
 
@@ -170,7 +143,6 @@ Input_t *OpenInput(char *file_name)
       error_string = "invalid rank";
       break;
     }
-
 
     /* Check SDS type */
     if (ds_input->sds[ib].type != DFNT_INT16) {
@@ -403,35 +375,29 @@ bool FreeInput(Input_t *ds_input)
     for (ib = 0; ib < ds_input->nband; ib++) {
       for (ir = 0; ir < ds_input->sds[ib].rank; ir++) {
         if (ds_input->sds[ib].dim[ir].name != NULL)
-          //free(ds_input->sds[ib].dim[ir].name);
-        	delete ds_input->sds[ib].dim[ir].name;
+          delete ds_input->sds[ib].dim[ir].name;
       }
       if (ds_input->sds[ib].name != NULL)
-        //free(ds_input->sds[ib].name);
-    	  delete ds_input->sds[ib].name;
+        delete ds_input->sds[ib].name;
     }
 
     /* Free QA band SDSs */
     for (ib = 0; ib < ds_input->nqa_band; ib++) {
       for (ir = 0; ir < ds_input->qa_sds[ib].rank; ir++) {
         if (ds_input->qa_sds[ib].dim[ir].name != NULL)
-          //free(ds_input->qa_sds[ib].dim[ir].name);
-        	delete ds_input->qa_sds[ib].dim[ir].name;
+          delete ds_input->qa_sds[ib].dim[ir].name;
       }
       if (ds_input->qa_sds[ib].name != NULL)
-        //free(ds_input->qa_sds[ib].name);
-    	  delete ds_input->qa_sds[ib].name;
+        delete ds_input->qa_sds[ib].name;
     }
 
     /* Free thermal band SDS */
     for (ir = 0; ir < ds_input->therm_sds.rank; ir++) {
       if (ds_input->therm_sds.dim[ir].name != NULL)
-        //free(ds_input->therm_sds.dim[ir].name);
-      delete ds_input->therm_sds.dim[ir].name;
+        delete ds_input->therm_sds.dim[ir].name;
     }
     if (ds_input->therm_sds.name != NULL)
-     // free(ds_input->therm_sds.name);
-    	delete ds_input->therm_sds.name;
+      delete ds_input->therm_sds.name;
 
     /* Free the data buffers */
     if (ds_input->buf[0] != NULL)
@@ -451,7 +417,7 @@ bool FreeInput(Input_t *ds_input)
 
 
 /******************************************************************************
-!Description: 'GetInputLine' reads the surface reflectance data for the current
+!Description: 'GetInputData' reads the surface reflectance data for the current
    band
 
 !Input Parameters:
@@ -459,7 +425,7 @@ bool FreeInput(Input_t *ds_input)
  iband          current band to be read (0-based)
 
 !Output Parameters:
-predMat			cv::Mat that holds the data.
+predMat            cv::Mat that holds the data.
 
  (returns)      status:
                   'true' = okay
@@ -473,10 +439,8 @@ predMat			cv::Mat that holds the data.
 bool PredictBurnedArea::GetInputData(Input_t *ds_input, int iband, int iline)
 {
   int32 start[MYHDF_MAX_RANK], nval[MYHDF_MAX_RANK];
-
   int16 *data;
 
-  //data = new int16[arrSize];
   data = new int16[ds_input->size.s];
 
   /* Check the parameters */
@@ -493,30 +457,32 @@ bool PredictBurnedArea::GetInputData(Input_t *ds_input, int iband, int iline)
   nval[0] = 1;
   nval[1] = ds_input->size.s;
 
-
   if (SDreaddata(ds_input->sds[iband].id, start, NULL, nval, (VOIDP)data) == HDF_ERROR)
     RETURN_ERROR("reading input", "GetInputLine", false)
 
 
-    //Grabbing bands 1-5 & 7 and putting value into predMat
-    for (int i=0; i<ds_input->size.s; i++) {
-	 predMat.at<float>(i,iband) = data[i];
-    	//predMat.at<int>(i,iband) = data[i];
-
+  /* Grabbing bands 1-5 & 7 and putting value into predMat */
+  for (int i=0; i<ds_input->size.s; i++) {
+    predMat.at<float>(i,iband) = data[i];
   }
 
   return true;
 }
 
 /******************************************************************************
-!Description: 'calcBands' reads the metadata for the image and puts it into the cv::Mat object
+!Description: 'calcBands' computes the NDVI, NDMI, NBR, and NBR2 for the
+ input data and places it in predMat using the following zero-based bands:
+ band 6 = NDVI
+ band 7 = NDMI
+ band 8 = NBR
+ band 9 = NBR2
 
 !Input Parameters:
  arrSz          number of rows
- ds_input		metadata from Landsat image
+ ds_input        metadata from Landsat image
 
 !Output Parameters:
-predMat			cv::Mat that holds the data.
+predMat            cv::Mat that holds the data.
 
  (returns)      status:
                   'true' = okay
@@ -527,39 +493,34 @@ predMat			cv::Mat that holds the data.
 !Design Notes:
 ******************************************************************************/
 
-//bool PredictBurnedArea::calcBands(int32 arrSz, Input_t *ds_input) {
 bool PredictBurnedArea::calcBands(Input_t *ds_input) {
+    for (int i = 0; i < ds_input->size.s; i++) {
+        if (predMat.at<float>(i,3) + predMat.at<float>(i,2) == 0) {
+            predMat.at<float>(i,6) = 0; //avoid division by 0
+        } else {
+            predMat.at<float>(i,6) = ((predMat.at<float>(i,3) - predMat.at<float>(i,2))/(predMat.at<float>(i,3) + predMat.at<float>(i,2))) * 1000; //NDVI - using bands 4 and 3
+        }
 
-	for (int i = 0; i < ds_input->size.s; i++) {
+        if (predMat.at<float>(i,3) + predMat.at<float>(i,4) == 0) {
+            predMat.at<float>(i,7) = 0; //avoid division by 0
+        } else {
+            predMat.at<float>(i,7) = ((predMat.at<float>(i,3) - predMat.at<float>(i,4))/(predMat.at<float>(i,3) + predMat.at<float>(i,4))) * 1000; //NDMI - using bands 4 and 5
+        }
 
-		if (predMat.at<float>(i,3) + predMat.at<float>(i,2) == 0) {
-			predMat.at<float>(i,6) = 0; //avoid division by 0
-		} else {
-			predMat.at<float>(i,6) = ((predMat.at<float>(i,3) - predMat.at<float>(i,2))/(predMat.at<float>(i,3) + predMat.at<float>(i,2))) * 1000; //NDVI - using bands 4 and 3
-		}
+        if (predMat.at<float>(i,3) + predMat.at<float>(i,5) == 0) {
+            predMat.at<float>(i,8) = 0; //avoid division by 0
+        } else {
+            predMat.at<float>(i,8) = ((predMat.at<float>(i,3) - predMat.at<float>(i,5))/(predMat.at<float>(i,3) + predMat.at<float>(i,5))) * 1000; //NBR - using bands 4 and 7
+        }
 
-		if (predMat.at<float>(i,3) + predMat.at<float>(i,4) == 0) {
-			predMat.at<float>(i,7) = 0; //avoid division by 0
-		} else {
-			predMat.at<float>(i,7) = ((predMat.at<float>(i,3) - predMat.at<float>(i,4))/(predMat.at<float>(i,3) + predMat.at<float>(i,4))) * 1000; //NDMI - using bands 4 and 5
-		}
+        if (predMat.at<float>(i,4) + predMat.at<float>(i,5) == 0) {
+            predMat.at<float>(i,9) = 0; //avoid division by 0
+        } else {
+            predMat.at<float>(i,9) = ((predMat.at<float>(i,4) - predMat.at<float>(i,5))/(predMat.at<float>(i,4) + predMat.at<float>(i,5))) * 1000; //NBR2 - using bands 5 and 7
+        }
+    }
 
-		if (predMat.at<float>(i,3) + predMat.at<float>(i,5) == 0) {
-			predMat.at<float>(i,8) = 0; //avoid division by 0
-		} else {
-			predMat.at<float>(i,8) = ((predMat.at<float>(i,3) - predMat.at<float>(i,5))/(predMat.at<float>(i,3) + predMat.at<float>(i,5))) * 1000; //NBR - using bands 4 and 7
-		}
-
-		if (predMat.at<float>(i,4) + predMat.at<float>(i,5) == 0) {
-			predMat.at<float>(i,9) = 0; //avoid division by 0
-		} else {
-			predMat.at<float>(i,9) = ((predMat.at<float>(i,4) - predMat.at<float>(i,5))/(predMat.at<float>(i,4) + predMat.at<float>(i,5))) * 1000; //NBR2 - using bands 5 and 7
-		}
-
-	}
-
-
-	return true;
+    return true;
 }
 
 
@@ -589,6 +550,7 @@ bool PredictBurnedArea::GetInputQALine(Input_t *ds_input, int iband, int iline)
 
   uint8 *data;
   data = new uint8[ds_input->size.s];
+
   /* Check the parameters */
   if (ds_input == (Input_t *)NULL)
     RETURN_ERROR("invalid input structure", "GetIntputQALine", false);
@@ -609,22 +571,23 @@ bool PredictBurnedArea::GetInputQALine(Input_t *ds_input, int iband, int iline)
     RETURN_ERROR("reading input", "GetInputQALine", false);
 
   if (strcmp(ds_input->qa_sds[iband].name, "cloud_QA") ==0) {
-	  for (int i=0; i<ds_input->size.s; i++) {
-	  	 cloudMat.at<int>(i,0) = data[i];
-	   }
+      for (int i=0; i<ds_input->size.s; i++) {
+           cloudMat.at<int>(i,0) = data[i];
+      }
   }
 
   if (strcmp(ds_input->qa_sds[iband].name, "cloud_shadow_QA") ==0) {
-  	  for (int i=0; i<ds_input->size.s; i++) {
-  	  	 cloudShadMat.at<int>(i,0) = data[i];
-  	   }
-    }
+      for (int i=0; i<ds_input->size.s; i++) {
+           cloudShadMat.at<int>(i,0) = data[i];
+      }
+  }
 
   if (strcmp(ds_input->qa_sds[iband].name, "land_water_QA") ==0) {
-    	  for (int i=0; i<ds_input->size.s; i++) {
-    	  	 landWaterMat.at<int>(i,0) = data[i];
-    	   }
+      for (int i=0; i<ds_input->size.s; i++) {
+           landWaterMat.at<int>(i,0) = data[i];
       }
+  }
+
   return true;
 }
 
@@ -819,53 +782,53 @@ bool GetInputMeta(Input_t *ds_input)
       RETURN_ERROR("band number out of range", "GetInputMeta", false);
   }
 
-   attr.type = DFNT_FLOAT32;
-   attr.nval = 1;
-   attr.name = (char *) INPUT_WBC;
-   if (!GetAttrDouble(ds_input->sds_file_id, &attr, dval))
-     RETURN_ERROR("reading attribute (west bound coord)", "GetInputMeta", false);
-   if (attr.nval != 1)
-     RETURN_ERROR("invalid number of values (west bound coord)",
-                  "GetInputMeta", false);
-   if (dval[0] < -180.0  ||  dval[0] > 180.0)
-     RETURN_ERROR("west bound coord out of range", "GetInputMeta", false);
-   meta->wbc = dval[0];
+  attr.type = DFNT_FLOAT32;
+  attr.nval = 1;
+  attr.name = (char *) INPUT_WBC;
+  if (!GetAttrDouble(ds_input->sds_file_id, &attr, dval))
+    RETURN_ERROR("reading attribute (west bound coord)", "GetInputMeta", false);
+  if (attr.nval != 1)
+    RETURN_ERROR("invalid number of values (west bound coord)",
+                 "GetInputMeta", false);
+  if (dval[0] < -180.0  ||  dval[0] > 180.0)
+    RETURN_ERROR("west bound coord out of range", "GetInputMeta", false);
+  meta->wbc = dval[0];
 
-	attr.type = DFNT_FLOAT32;
-	attr.nval = 1;
-	attr.name = (char *) INPUT_EBC;
-	if (!GetAttrDouble(ds_input->sds_file_id, &attr, dval))
-	RETURN_ERROR("reading attribute (east bound coord)", "GetInputMeta", false);
-	if (attr.nval != 1)
-	RETURN_ERROR("invalid number of values (east bound coord)",
-				 "GetInputMeta", false);
-	if (dval[0] < -180.0  ||  dval[0] > 180.0)
-	RETURN_ERROR("east bound coord out of range", "GetInputMeta", false);
-	meta->ebc = dval[0];
+  attr.type = DFNT_FLOAT32;
+  attr.nval = 1;
+  attr.name = (char *) INPUT_EBC;
+  if (!GetAttrDouble(ds_input->sds_file_id, &attr, dval))
+    RETURN_ERROR("reading attribute (east bound coord)", "GetInputMeta", false);
+  if (attr.nval != 1)
+    RETURN_ERROR("invalid number of values (east bound coord)",
+                "GetInputMeta", false);
+  if (dval[0] < -180.0  ||  dval[0] > 180.0)
+    RETURN_ERROR("east bound coord out of range", "GetInputMeta", false);
+  meta->ebc = dval[0];
 
-	attr.type = DFNT_FLOAT32;
-	attr.nval = 1;
-	attr.name = (char *) INPUT_NBC;
-	if (!GetAttrDouble(ds_input->sds_file_id, &attr, dval))
-	RETURN_ERROR("reading attribute (north bound coord)", "GetInputMeta", false);
-	if (attr.nval != 1)
-	RETURN_ERROR("invalid number of values (north bound coord)",
-				"GetInputMeta", false);
-	if (dval[0] < -90.0  ||  dval[0] > 90.0)
-	RETURN_ERROR("north bound coord out of range", "GetInputMeta", false);
-	meta->nbc = dval[0];
+  attr.type = DFNT_FLOAT32;
+  attr.nval = 1;
+  attr.name = (char *) INPUT_NBC;
+  if (!GetAttrDouble(ds_input->sds_file_id, &attr, dval))
+    RETURN_ERROR("reading attribute (north bound coord)", "GetInputMeta", false);
+  if (attr.nval != 1)
+    RETURN_ERROR("invalid number of values (north bound coord)",
+                 "GetInputMeta", false);
+  if (dval[0] < -90.0  ||  dval[0] > 90.0)
+    RETURN_ERROR("north bound coord out of range", "GetInputMeta", false);
+  meta->nbc = dval[0];
 
-	attr.type = DFNT_FLOAT32;
-	attr.nval = 1;
-	attr.name = (char *) INPUT_SBC;
-	if (!GetAttrDouble(ds_input->sds_file_id, &attr, dval))
-	  RETURN_ERROR("reading attribute (south bound coord)", "GetInputMeta", false);
-	if (attr.nval != 1)
-	  RETURN_ERROR("invalid number of values (south bound coord)",
-				   "GetInputMeta", false);
-	if (dval[0] < -90.0  ||  dval[0] > 90.0)
-	  RETURN_ERROR("south bound coord out of range", "GetInputMeta", false);
-	meta->sbc = dval[0];
+  attr.type = DFNT_FLOAT32;
+  attr.nval = 1;
+  attr.name = (char *) INPUT_SBC;
+  if (!GetAttrDouble(ds_input->sds_file_id, &attr, dval))
+    RETURN_ERROR("reading attribute (south bound coord)", "GetInputMeta", false);
+  if (attr.nval != 1)
+    RETURN_ERROR("invalid number of values (south bound coord)",
+                 "GetInputMeta", false);
+  if (dval[0] < -90.0  ||  dval[0] > 90.0)
+    RETURN_ERROR("south bound coord out of range", "GetInputMeta", false);
+  meta->sbc = dval[0];
 
   /* Set the number of QA bands */
   ds_input->nqa_band = NUM_QA_BAND;
@@ -891,7 +854,3 @@ bool GetInputMeta(Input_t *ds_input)
 
   return true;
 }
-
-
-
-

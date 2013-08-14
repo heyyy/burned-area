@@ -25,7 +25,7 @@ typedef struct {
 
 /* Structure to store information about the HDF attribute */
 typedef struct {
-  int32 id, type, nval;	 /* id, data type and number of values */
+  int32 id, type, nval;  /* id, data type and number of values */
   char *name;            /* attribute name */
 } Myhdf_attr_t;
 

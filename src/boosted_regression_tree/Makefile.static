@@ -32,7 +32,7 @@ OBJ = $(SRC:.cpp=.o)
 #        -L$(ZLIBLIB) -lz -L$(SZIPLIB) -lsz -lm
 #EOSLIB = -L$(HDFEOS_LIB) -lhdfeos -L$(HDFEOS_GCTPLIB) -lGctp
 
-LIB   = -L$(BOOST_LIB) -lboost_program_options -L$(GDAL_LIB) -lgdal \
+LIB   = -L$(BOOST_LIB) -lboost_program_options \
         -L$(HDFEOS_LIB) -lhdfeos -L$(HDFLIB) -lmfhdf -ldf -lxdr \
         -L$(JPEGLIB) -ljpeg -L$(TIFFLIB) -ltiff -ltiffxx \
         -L$(OPENCVLIB) -lopencv_ml -lopencv_highgui -lopencv_core

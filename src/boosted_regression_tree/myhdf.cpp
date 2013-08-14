@@ -91,7 +91,7 @@ bool GetSDSInfo(int32 sds_file_id, Myhdf_sds_t *sds)
                   index, name, id, rank, type, nattr
  (returns)      Status:
                   'true' = okay
-		  'false' = error reading the SDS information
+          'false' = error reading the SDS information
 
 !Team Unique Header:
 
@@ -142,7 +142,7 @@ bool GetSDSDimInfo(int32 sds_id, Myhdf_dim_t *dim, int irank)
                    id, nval, type, nattr, name
  (returns)      Status:
                   'true' = okay
-		  'false' = error reading the dimension information
+          'false' = error reading the dimension information
 
 !Team Unique Header:
 
@@ -162,7 +162,7 @@ bool GetSDSDimInfo(int32 sds_id, Myhdf_dim_t *dim, int irank)
 
   if (SDdiminfo(dim->id, dim_name,
                 &dim->nval, &dim->type, 
-	        &dim->nattr) == HDF_ERROR)
+            &dim->nattr) == HDF_ERROR)
       RETURN_ERROR("getting dimension information", "GetSDSDimInfo", false);
 
   dim->name = DupString(dim_name);
@@ -188,7 +188,7 @@ bool PutSDSInfo(int32 sds_file_id, Myhdf_sds_t *sds)
                    id, index
  (returns)      Status:
                   'true' = okay
-		  'false' = error writing the SDS information
+          'false' = error writing the SDS information
 
 !Team Unique Header:
 
@@ -239,7 +239,7 @@ bool PutSDSDimInfo(int32 sds_id, Myhdf_dim_t *dim, int irank)
                    id
  (returns)      Status:
                   'true' = okay
-		  'false' = error writing the dimension information
+          'false' = error writing the dimension information
 
 !Team Unique Header:
 
@@ -286,7 +286,7 @@ bool GetAttrDouble(int32 sds_id, Myhdf_attr_t *attr, double *val)
                   native type to type 'double'.
  (returns)      Status:
                   'true' = okay
-		  'false' = error reading the attribute information
+          'false' = error reading the attribute information
 
 !Team Unique Header:
 
@@ -404,7 +404,7 @@ bool PutAttrDouble(int32 sds_id, Myhdf_attr_t *attr, double *val)
                   type 'double' to the native type
  (returns)      Status:
                   'true' = okay
-		      'false' = error writing the attribute information
+              'false' = error writing the attribute information
 
 !Team Unique Header:
 
@@ -553,7 +553,7 @@ bool GetAttrString(int32 sds_id, Myhdf_attr_t *attr, char *string)
                   native type to type 'double'.
  (returns)      Status:
                   'true' = okay
-		  'false' = error reading the attribute information
+          'false' = error reading the attribute information
 
 !Team Unique Header:
 
@@ -623,7 +623,7 @@ bool PutAttrString(int32 sds_id, Myhdf_attr_t *attr, char *string)
                   type 'double' to the native type
  (returns)      Status:
                   'true' = okay
-		      'false' = error writing the attribute information
+              'false' = error writing the attribute information
 
 !Team Unique Header:
 
