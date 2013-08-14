@@ -306,96 +306,6 @@ class temporalBAStack():
         output_band7.SetNoDataValue(-9999)
         output_band_QA.SetNoDataValue(-9999)
     
-        # read and write each band, including the QA band, converting from HDF
-        # to GeoTIFF; the QA band is a combination of all the QA values
-        # (negative values flag any non-clear pixels and -9999 represents the
-        # fill pixels).
-##        logIt ('    Band 1...', self.log_handler)
-##        vals = hdfAttr.getBandValues ('band1', self.log_handler)
-##        if vals == None:
-##            msg = 'Error reading band1 from HDF file'
-##            logIt (msg, self.log_handler)
-##            os.makedirs (output_dirname)
-##        output_band1.WriteArray (vals)
-##
-##        logIt ('    Band 2...', self.log_handler)
-##        vals = hdfAttr.getBandValues ('band2', self.log_handler)
-##        if vals == None:
-##            msg = 'Error reading band2 from HDF file'
-##            logIt (msg, self.log_handler)
-##            os.makedirs (output_dirname)
-##        output_band2.WriteArray (vals)
-##
-##        logIt ('    Band 3...', self.log_handler)
-##        vals = hdfAttr.getBandValues ('band3', self.log_handler)
-##        if vals == None:
-##            msg = 'Error reading band3 from HDF file'
-##            logIt (msg, self.log_handler)
-##            os.makedirs (output_dirname)
-##        output_band3.WriteArray (vals)
-##
-##        logIt ('    Band 4...', self.log_handler)
-##        vals = hdfAttr.getBandValues ('band4', self.log_handler)
-##        if vals == None:
-##            msg = 'Error reading band4 from HDF file'
-##            logIt (msg, self.log_handler)
-##            os.makedirs (output_dirname)
-##        output_band4.WriteArray (vals)
-##
-##        logIt ('    Band 5...', self.log_handler)
-##        vals = hdfAttr.getBandValues ('band5', self.log_handler)
-##        if vals == None:
-##            msg = 'Error reading band5 from HDF file'
-##            logIt (msg, self.log_handler)
-##            os.makedirs (output_dirname)
-##        output_band5.WriteArray (vals)
-##
-##        logIt ('    Band 6...', self.log_handler)
-##        vals = hdfAttr.getBandValues ('band6', self.log_handler)
-##        if vals == None:
-##            msg = 'Error reading band6 from HDF file'
-##            logIt (msg, self.log_handler)
-##            os.makedirs (output_dirname)
-##        output_band6.WriteArray (vals)
-##
-##        logIt ('    Band 7...', self.log_handler)
-##        vals = hdfAttr.getBandValues ('band7', self.log_handler)
-##        if vals == None:
-##            msg = 'Error reading band7 from HDF file'
-##            logIt (msg, self.log_handler)
-##            os.makedirs (output_dirname)
-##        output_band7.WriteArray (vals)
-##
-##        logIt ('    QA band ...', self.log_handler)
-##        vals = hdfAttr.getBandValues ('band_qa', self.log_handler)
-##        if vals == None:
-##            msg = 'Error reading QA bands from HDF file'
-##            logIt (msg, self.log_handler)
-##            os.makedirs (output_dirname)
-##        output_band_QA.WriteArray(vals)
-    
-##        # loop through the image, read the specified number of lines of data
-##        # from the HDF file, and write back out to GeoTIFF;  the QA band is a
-##        # combination of all the QA values (negative values flag non-clear
-##        # pixels and -9999 is the fill pixel).
-##        nlines_proc = 1000
-##        for y in range(0, hdfAttr.NRow, nlines_proc):
-##            # check to make sure the current read won't go past the end of
-##            # the file
-##            if y + nlines_proc >= hdfAttr.NRow:
-##                nlines_proc = hdfAttr.NRow - y
-##
-##            # read lines of data
-##            vals = hdfAttr.getLinesOfBandValues(y, nlines_proc)
-##            output_band1.WriteArray (array([vals['band1']]), 0, y)
-##            output_band2.WriteArray (array([vals['band2']]), 0, y)
-##            output_band3.WriteArray (array([vals['band3']]), 0, y)
-##            output_band4.WriteArray (array([vals['band4']]), 0, y)
-##            output_band5.WriteArray (array([vals['band5']]), 0, y)
-##            output_band6.WriteArray (array([vals['band6']]), 0, y)
-##            output_band7.WriteArray (array([vals['band7']]), 0, y)
-##            output_band_QA.WriteArray (array([vals['QA']]), 0, y)
-
         # loop through all the lines in the image, read the line of data from
         # the HDF file, and write back out to GeoTIFF;  the QA band is a
         # combination of all the QA values (negative values flag non-clear
@@ -770,32 +680,9 @@ class temporalBAStack():
         self.nodata = tifBand1.NoData
         tifBand1 = None
 
-##        # loop through years
-##        for year in range (start_year, end_year+1):
-##            # print some general info for the current year and determine
-##            # last year
-##            n_files = sum(self.csv_data['year'] == year)
-##            msg = 'Year: %d  Number of files: %d' % (year, n_files)
-##            logIt (msg, self.log_handler)
-##
-##            # if there aren't any files to process skip to the next year
-##            if n_files == 0:
-##                continue
-##
-##            # process the seasonal summaries for the current year
-##            status = self.generateYearSeasonalSummaries (year)
-##            if status != SUCCESS:
-##                msg = 'Error generating seasonal summaries for %d' % year
-##                logIt (msg, self.log_handler)
-##                return ERROR
-##
-##        # end for year
-
         # load up the work queue for processing yearly summaries in parallel
         work_queue = multiprocessing.Queue()
         num_years = end_year - start_year + 1
-        print 'DEBUG: num_years ' + str(num_years)
-        print 'DEBUG: num_processors ' + str(self.num_processors)
         for year in range (start_year, end_year+1):
             work_queue.put(year)
 
@@ -831,6 +718,11 @@ class temporalBAStack():
     # Description: generateYearSeasonalSummaries will generate the seasonal
     # summaries for the current year.  If a log file was specified then the
     # output from each application will be logged to that file.
+    #
+    # History:
+    #   Updated on 5/22/2013 by Gail Schmidt, USGS/EROS LSRD Project
+    #       Modified to process all the indices one line  at a time (vs. the
+    #       entire band) since this is faster.
     #
     # Inputs:
     #   year - year to process the seasonal summaries
@@ -892,7 +784,7 @@ class temporalBAStack():
             
             # create the mask datasets -- stack of nrow x ncols
             mask_data = zeros((n_files, self.nrow, self.ncol), dtype=int16)
-            
+
             # loop through the current set of files, open the mask files,
             # and stack them up in a 3D array
             for i in range(0, n_files):
@@ -913,6 +805,8 @@ class temporalBAStack():
             mask_data_good = mask_data >= 0
             mask_data_bad = mask_data < 0
             mask_data = None
+#            print 'mask_data_bad.shape: ' + str(mask_data_bad.shape)
+#            print 'mask_data_good.shape: ' + str(mask_data_good.shape)
             
             # summarize the number of good pixels in the stack for each
             # line/sample; if there aren't any files for this year and
@@ -926,6 +820,7 @@ class temporalBAStack():
                     axes=[0])[0,:,:]
             else:
                 good_looks = zeros((self.nrow, self.ncol), dtype=uint8)
+#            print 'good_looks.shape: ' + str(good_looks.shape)
             
             # save the good looks output to a GeoTIFF file
             good_looks_file = dir_name + str(year) + '_' + season +  \
@@ -955,6 +850,11 @@ class temporalBAStack():
             good_looks_band1 = None
             good_looks_dataset = None
  
+            # create the bad data mask that will hold a stack of
+            # mask_data_bad for a single row for all the files
+            curr_mask_data_bad = zeros((n_files, self.ncol),
+                dtype=mask_data_bad.dtype)
+            
             # loop through bands and indices for which we want to generate
             # summaries
             for ind in ['band3', 'band4', 'band5', 'band7', 'ndvi', \
@@ -970,86 +870,117 @@ class temporalBAStack():
                 else:   # tif file
                     dir_name = '%s/refl/' % self.hdf_dir_name
     
-                # create the index/band datasets --stack of nrow x ncols
-                band_data = zeros((n_files, self.nrow, self.ncol), \
-                    dtype=int16)
+                # set up the season summaries GeoTIFF file
+                temp_file = dir_name + str(year) + '_' + season + '_' +  \
+                    ind + '.tif'
+                driver = gdal.GetDriverByName("GTiff")
+                driver.Create(temp_file, self.ncol, self.nrow, 1,  \
+                    gdalconst.GDT_Int16)
+                temp_out_dataset = gdal.Open(temp_file, gdalconst.GA_Update)
+                if temp_out_dataset is None:
+                    msg = 'Could not create output file: ' + temp_file
+                    logIt (msg, self.log_handler)
+                    return ERROR
+    
+                temp_out_dataset.SetGeoTransform(self.geotrans)
+                temp_out_dataset.SetProjection(self.prj)
+                temp_out = temp_out_dataset.GetRasterBand(1)
+                temp_out.SetNoDataValue(self.nodata)
+
+                # create the index/band datasets --stack of ncols
+                band_data = zeros((n_files, self.ncol), dtype=int16)
+#                print 'band_data.shape: ' + str(band_data.shape)
                 
-                # loop through the current set of files
+                # loop through the current set of files, open them, and
+                # attach to the proper band
+                input_ds = {}
+                temp_band = {}
                 for i in range(0, n_files):
                     temp = files[i]
                     base_file = os.path.basename(files[i]).replace( \
                         '.hdf', '.tif')
                     temp_file = '%s%s' % (dir_name, base_file)
-                    temp_dataset = gdal.Open (temp_file,  \
-                        gdalconst.GA_ReadOnly )
-                    if temp_dataset == None:
+                    my_ds = gdal.Open (temp_file, gdalconst.GA_ReadOnly)
+                    if my_ds == None:
                         msg = 'Could not open index/band file: ' + temp_file
                         logIt (msg, self.log_handler)
                         return ERROR
+                    input_ds[i] = my_ds
                     
                     # open the appropriate band in the input image; if
                     # processing an index product, then read band 1
                     if ind == 'band3':
-                        temp_band = temp_dataset.GetRasterBand(3)
+                        my_temp_band = my_ds.GetRasterBand(3)
                     elif ind == 'band4':
-                        temp_band = temp_dataset.GetRasterBand(4)
+                        my_temp_band = my_ds.GetRasterBand(4)
                     elif ind == 'band5':
-                        temp_band = temp_dataset.GetRasterBand(5)
+                        my_temp_band = my_ds.GetRasterBand(5)
                     elif ind == 'band7':
-                        temp_band = temp_dataset.GetRasterBand(7)
+                        my_temp_band = my_ds.GetRasterBand(7)
                     else:  # index product
-                        temp_band = temp_dataset.GetRasterBand(1)
+                        my_temp_band = my_ds.GetRasterBand(1)
+
+                    # make sure the band is valid
+                    if my_temp_band == None:
+                        msg = 'Could not open raster band for ' + ind
+                        logIt (msg, self.log_handler)
+                        return ERROR
+                    temp_band[i] = my_temp_band
+
+                # loop through each line in the image and process
+                for y in range (0, self.nrow):
+#                    print 'Line: ' + str(y)
+                    # loop through the current set of files and process them
+                    for i in range(0, n_files):
+#                        print '  Stacking file: ' + files[i]
+                        # read the current row of data
+                        my_temp_band = temp_band[i]
+                        band_data[i,:] = my_temp_band.ReadAsArray(0, y,  \
+                            self.ncol, 1)[0,]
+
+                        # stack up the current row of the bad data mask
+                        curr_mask_data_bad[i,:] = mask_data_bad[i,y,:]
+#                    print 'curr_mask_data_bad.shape: ' +  \
+#                        str(curr_mask_data_bad.shape)
+                
+                    # summarize the good pixels in the stack for each
+                    # line/sample
+#                    print 'band_data.shape: ' + str(band_data.shape)
+                    if n_files > 0:
+                        # replace bad QA values with zeros
+                        band_data[curr_mask_data_bad] = 0
+                    
+                        # calculate totals within each voxel
+                        sum_data = apply_over_axes(sum, band_data,  \
+                            axes=[0])[0,]
+#                        print 'sum_data.shape: ' + str(sum_data.shape)
                         
-                    band_data[i,:,:] = temp_band.ReadAsArray()
-                    temp_dataset = None
-                    temp_band = None
-                
-                # summarize the good pixels in the stack for each
-                # line/sample
-                if n_files > 0:
-                    # replace bad QA values with zeros
-                    band_data[mask_data_bad] = 0
-                
-                    # calculate totals within each voxel
-                    sum_data = apply_over_axes(sum, band_data,  \
-                        axes=[0])[0,:,:]
-                    
-                    # divide by the number of good looks within a voxel
-                    mean_data = sum_data / good_looks
-                    
-                    # fill with nodata values in places where we would
-                    # have divide by zero errors
-                    mean_data[good_looks == 0] = self.nodata
-                else:
-                    mean_data = zeros((self.nrow, self.ncol),  \
-                        dtype=uint16) + self.nodata
+                        # divide by the number of good looks within a voxel
+                        mean_data = sum_data / good_looks[y,]
+                        
+                        # fill with nodata values in places where we would
+                        # have divide by zero errors
+                        mean_data[good_looks[y,]== 0] = self.nodata
+                    else:
+                       # create a line of nodata -- nrow=1 x ncols
+                        mean_data = zeros((self.ncol), dtype=uint16) +  \
+                            self.nodata
+#                    print 'mean_data.shape: ' + str(mean_data.shape)
     
-                # save the season summaries to a GeoTIFF file
-                temp_file = dir_name + str(year) + '_' + season + '_' +  \
-                    ind + '.tif'
-    
-                driver = gdal.GetDriverByName("GTiff")
-                driver.Create(temp_file,self.ncol,self.nrow,1,  \
-                    gdalconst.GDT_Int16)
-                temp_dataset = gdal.Open(temp_file, gdalconst.GA_Update)
-                if temp_dataset is None:
-                    msg = 'Could not create output file: ' + temp_file
-                    logIt (msg, self.log_handler)
-                    return ERROR
-    
-                temp_dataset.SetGeoTransform(self.geotrans)
-                temp_dataset.SetProjection(self.prj)
-    
-                temp_band1 = temp_dataset.GetRasterBand(1)
-                temp_band1.SetNoDataValue(self.nodata)
-                temp_band1.WriteArray(mean_data)
+                    # write the season summaries to a GeoTIFF file
+                    mean_data_2d = reshape (mean_data, (1, len(mean_data)))
+#                    print 'mean_data_2d.shape: ' + str(mean_data_2d.shape)
+                    temp_out.WriteArray(mean_data_2d, 0, y)
+                # end for y
     
                 # clean up the data for the current index
-                temp_band1 = None
-                temp_dataset = None
+                temp_out = None
+                temp_out_dataset = None
                 band_data = None
                 sum_data = None
                 mean_data = None
+                input_ds = None
+                temp_band = None
             # end for ind
  
             # clean up the masked datasets for the current year and season
@@ -1094,6 +1025,9 @@ class temporalBAStack():
         usebin=None):
         # if no parameters were passed then get the info from the
         # command line
+        msg = "Start time:" +  \
+            str(datetime.datetime.now().strftime("%b %d %Y %H:%M:%S"))
+        logIt (msg, self.log_handler)
         startTime0 = time.time()
         if input_dir == None:
             # get the command line argument for the input parameters
@@ -1199,8 +1133,8 @@ class temporalBAStack():
         # run the executable to determine the maximum bounding extent of
         # the temporal stack of products.  exit if any errors occur.
         bounding_box_file = "bounding_box_coordinates.csv"
-        cmdstr = "%sdetermine_max_extent --list_file=%s --extent_file=%s" % \
-            (bin_dir, list_file, bounding_box_file)
+        cmdstr = "%sdetermine_max_extent --list_file=%s --extent_file=%s " \
+            "--verbose" % (bin_dir, list_file, bounding_box_file)
         (status, output) = commands.getstatusoutput (cmdstr)
         logIt (output, self.log_handler)
         exit_code = status >> 8
@@ -1233,9 +1167,13 @@ class temporalBAStack():
         endTime0 = time.time()
         msg = '***Total stack processing time = ' +   \
             str (endTime0 - startTime0) + ' seconds'
+        logIt (msg, self.log_handler)
+
+        msg = "End time:" + \
+            str(datetime.datetime.now().strftime("%b %d %Y %H:%M:%S"))
+        logIt (msg, self.log_handler)
 
 ######end of temporalBAStack class######
 
 if __name__ == "__main__":
     sys.exit (temporalBAStack().processStack())
-
