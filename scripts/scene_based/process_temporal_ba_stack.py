@@ -993,9 +993,274 @@ class temporalBAStack():
 
 
     ########################################################################
+    # Description: generateAnnualMaximums will generate the maximum values
+    # for each year in the temporal stack.  If a log file was specified then
+    # the output from each application will be logged to that file.
+    #
+    # Inputs:
+    #   stack_file - name of stack file to create; list of the lndsr products
+    #       to be processed in addition to the date, path/row, sensor, bounding
+    #       coords, pixel size, and UTM zone
+    #
+    # Returns:
+    #     ERROR - error generating the annual maximums
+    #     SUCCESS - successful processing
+    #
+    # Notes:
+    #   1. The seasons will be ignored.
+    #######################################################################
+    def generateAnnualMaximums (self, stack_file):
+        # make sure the stack file exists
+        if not os.path.exists(stack_file):
+            msg = 'Could not open stack file: ' + stack_file
+            logIt (msg, self.log_handler)
+            return ERROR
+
+        # ignore divide by zero and invalid (NaN) values when doing array
+        # division.  these will be handled on our own.
+        seterr(divide='ignore', invalid='ignore')
+
+        # open and read the stack file
+        startTime = time.time()
+        f_in = open (stack_file, 'r')
+        self.csv_data = recfromcsv (stack_file, delimiter=',', names=True,  \
+            dtype="string")
+        f_in = None
+        if self.csv_data == None:
+            msg = 'Error reading the stack file: ' + stack_file
+            logIt (msg, self.log_handler)
+            return ERROR
+
+        # get the sorted, unique years in the stack; grab the first and last
+        # year and use as the range of years to be processed.
+        years = unique (self.csv_data['year'])
+        start_year = years[0]
+        end_year = years[len(years)-1]
+        msg = '\nProcessing stack for %d - %d' % (start_year, end_year)
+        logIt (msg, self.log_handler)
+
+        # determine the mask file for the first scene listed in the stack
+        self.hdf_dir_name = os.path.dirname(self.csv_data['file_'][0])
+        first_file = self.csv_data['file_'][0]
+        base_file = os.path.basename(first_file.replace('.hdf', '.tif'))
+        first_file = '%s/mask/%s' % (self.hdf_dir_name, base_file)
+
+        # open the first file in the stack (GeoTIFF) to get ncols and nrows
+        # and other associated info for the stack of scenes
+        tifBand1 = TIF_Scene_1_band(first_file, 1, self.log_handler)
+        if tifBand1 == None:
+            msg = 'Error reading the GeoTIFF file: ' + first_file
+            logIt (msg, self.log_handler)
+            return ERROR
+
+        self.ncol = tifBand1.NCol
+        self.nrow = tifBand1.NRow
+        self.geotrans = tifBand1.dataset.GetGeoTransform()
+        self.prj = tifBand1.dataset.GetProjectionRef()
+        self.nodata = tifBand1.NoData
+        tifBand1 = None
+
+        # load up the work queue for processing annual maximums in parallel
+        work_queue = multiprocessing.Queue()
+        num_years = end_year - start_year + 1
+        for year in range (start_year, end_year+1):
+            work_queue.put(year)
+
+        # create a queue to pass to workers to store the processing status
+        result_queue = multiprocessing.Queue()
+ 
+        # spawn workers to process each year in the stack - generate the
+        # seasonal summaries
+        msg = 'Spawning %d years for processing via %d processors ....' %  \
+            (num_years, self.num_processors)
+        logIt (msg, self.log_handler)
+        for i in range(self.num_processors):
+            worker = parallelMaxWorker(work_queue, result_queue, self)
+            worker.start()
+ 
+        # collect the results off the queue
+        for i in range(num_years):
+            status = result_queue.get()
+            if status != SUCCESS:
+                msg = 'Error processing annual maximums for year %d' %  \
+                    start_year + i
+                logIt (msg, self.log_handler)
+                return ERROR
+
+        endTime = time.time()
+        msg = 'Processing time = ' + str(endTime-startTime) + ' seconds'
+        logIt (msg, self.log_handler)
+ 
+        return SUCCESS
+
+
+    ########################################################################
+    # Description: generateYearMaximums will generate the maximums for the
+    # current year.  If a log file was specified then the output from each
+    # application will be logged to that file.
+    #
+    # History:
+    #
+    # Inputs:
+    #   year - year to process the maximums
+    #
+    # Returns:
+    #     ERROR - error generating the maximums for this year
+    #     SUCCESS - successful processing
+    #
+    # Notes:
+    #   1. Maximums are the max value for each year for ndvi, ndmi, nbr,
+    #      and nbr2.
+    #######################################################################
+    def generateYearMaximums (self, year):
+        # determine which files apply to the current year
+        year_files = (self.csv_data['year'] == year)
+        n_files = sum (year_files)
+ 
+        # if there aren't any files to process then skip to the next year
+        msg = '  year = %d,  file count = %d' % (year, n_files)
+        logIt (msg, self.log_handler)
+        if n_files == 0:
+            return SUCCESS
+ 
+        # generate the directory name for the mask stack
+        dir_name = '%s/mask/' % self.hdf_dir_name
+            
+        # pull the files for the current year
+        files = self.csv_data['file_'][year_files]
+            
+        # create the mask datasets -- stack of nrow x ncols
+        mask_data = zeros((n_files, self.nrow, self.ncol), dtype=int16)
+
+        # loop through the current set of files, open the mask files,
+        # and stack them up in a 3D array
+        for i in range(0, n_files):
+            temp = files[i]
+            base_file = os.path.basename(temp.replace('.hdf', '.tif'))
+            mask_file = '%s%s' % (dir_name, base_file)
+            mask_dataset = gdal.Open (mask_file, gdalconst.GA_ReadOnly)
+            if mask_dataset == None:
+                msg = 'Could not open mask file: ' + mask_file
+                logIt (msg, self.log_handler)
+                return ERROR
+            mask_band = mask_dataset.GetRasterBand(1)
+            mask_data[i,:,:] = mask_band.ReadAsArray()
+            mask_band = None
+            mask_dataset = None
+        
+        # which voxels in the mask have fill values?
+        mask_data_bad = mask_data < 0
+        mask_data = None
+            
+        # create the bad data mask that will hold a stack of mask_data_bad
+        # for a single row for all the files
+        curr_mask_data_bad = zeros((n_files, self.ncol),
+            dtype=mask_data_bad.dtype)
+            
+        # loop through indices for which we want to generate maximums
+        for ind in ['ndvi', 'ndmi', 'nbr', 'nbr2']:
+            msg = '    Generating %d maximums for %s using %d files ...' % \
+                (year, ind, n_files)
+            logIt (msg, self.log_handler)
+                
+            # generate the directory name for the index stack
+            dir_name = '%s/%s/' % (self.hdf_dir_name, ind)
+    
+            # set up the annual maximum GeoTIFF file
+            temp_file = dir_name + str(year) + '_maximum_' + ind + '.tif'
+            driver = gdal.GetDriverByName("GTiff")
+            driver.Create(temp_file, self.ncol, self.nrow, 1,  \
+                gdalconst.GDT_Int16)
+            temp_out_dataset = gdal.Open(temp_file, gdalconst.GA_Update)
+            if temp_out_dataset is None:
+                msg = 'Could not create output file: ' + temp_file
+                logIt (msg, self.log_handler)
+                return ERROR
+    
+            temp_out_dataset.SetGeoTransform(self.geotrans)
+            temp_out_dataset.SetProjection(self.prj)
+            temp_out = temp_out_dataset.GetRasterBand(1)
+            temp_out.SetNoDataValue(self.nodata)
+
+            # create the index dataset -- stack of ncols
+            indx_data = zeros((n_files, self.ncol), dtype=int16)
+                
+            # loop through the current set of files, open them, and attach
+            # to the proper band
+            input_ds = {}
+            indx_band = {}
+            for i in range(0, n_files):
+                temp = files[i]
+                base_file = os.path.basename(files[i]).replace('.hdf', '.tif')
+                temp_file = '%s%s' % (dir_name, base_file)
+                my_ds = gdal.Open (temp_file, gdalconst.GA_ReadOnly)
+                if my_ds == None:
+                    msg = 'Could not open index file: ' + temp_file
+                    logIt (msg, self.log_handler)
+                    return ERROR
+                input_ds[i] = my_ds
+                
+                # open band 1 of the index product
+                my_indx_band = my_ds.GetRasterBand(1)
+
+                # make sure the band is valid
+                if my_indx_band == None:
+                    msg = 'Could not open raster band for ' + ind
+                    logIt (msg, self.log_handler)
+                    return ERROR
+                indx_band[i] = my_indx_band
+
+            # loop through each line in the image and process
+            for y in range (0, self.nrow):
+#                print 'Line: ' + str(y)
+                # loop through the current set of files and process them
+                for i in range(0, n_files):
+#                    print '  Stacking file: ' + files[i]
+                    # read the current row of data
+                    my_indx_band = indx_band[i]
+                    indx_data[i,:] = my_indx_band.ReadAsArray(0, y,  \
+                        self.ncol, 1)[0,]
+
+                    # stack up the current row of the bad data mask
+                    curr_mask_data_bad[i,:] = mask_data_bad[i,y,:]
+                
+                # determine maximum values in the stack for each line/sample
+                if n_files > 0:
+                    # calculate maximum values within each voxel
+                    max_data = apply_over_axes(amax, indx_data, axes=[0])[0,]
+                else:
+                   # create a line of nodata -- nrow=1 x ncols
+                    max_data = zeros((self.ncol), dtype=uint16) +  \
+                        self.nodata
+    
+                # write the annual maximums to a GeoTIFF file
+                max_data_2d = reshape (max_data, (1, len(max_data)))
+                temp_out.WriteArray(max_data_2d, 0, y)
+            # end for y
+    
+            # clean up the data for the current index
+            temp_out = None
+            temp_out_dataset = None
+            indx_data = None
+            max_data = None
+            input_ds = None
+            indx_band = None
+        # end for ind
+ 
+        # clean up the masked datasets for the current year
+        mask_data_bad = None
+ 
+        return SUCCESS
+
+
+    ########################################################################
     # Description: processStack will process the temporal stack of data
     # needed for burned area processing.  If a log file was specified, then
     # the output from each application will be logged to that file.
+    #
+    # History:
+    #   Updated on 8/15/2013 by Gail Schmidt, USGS/EROS LSRD Project
+    #       Modified to add processing of the annual maximums.
     #
     # Inputs:
     #   input_dir - name of the directory in which to find the lndsr products
@@ -1159,6 +1424,15 @@ class temporalBAStack():
         status = self.generateSeasonalSummaries (stack_file)
         if status != SUCCESS:
             msg = 'Error generating the seasonal summaries. Processing will ' \
+                'terminate.'
+            logIt (msg, self.log_handler)
+            os.chdir (mydir)
+            return ERROR
+
+        # generate the annual maximums for each year in the stack
+        status = self.generateAnnualMaximums (stack_file)
+        if status != SUCCESS:
+            msg = 'Error generating the annual maximums. Processing will ' \
                 'terminate.'
             logIt (msg, self.log_handler)
             os.chdir (mydir)
