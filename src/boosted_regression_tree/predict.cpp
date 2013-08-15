@@ -56,9 +56,9 @@ bool PredictBurnedArea::train (int nTrees, float shrink, int depth,
         endl;
     gbtrees.train( &cvml, CvGBTreesParams(CvGBTrees::DEVIANCE_LOSS, nTrees,
         shrink, subsample_portion, depth, true));
-    predictOut << "Train error: " << gbtrees.calc_error( &cvml,
-        CV_TRAIN_ERROR)<< " Test error: " <<
-        gbtrees.calc_error( &cvml, CV_TEST_ERROR ) << endl << endl;
+    predictOut << "Train misclassification: " << gbtrees.calc_error( &cvml,
+        CV_TRAIN_ERROR) "%" << endl << "Test misclassification: " <<
+        gbtrees.calc_error( &cvml, CV_TEST_ERROR ) << "%" << endl;
 
     cout << second_clock::local_time() <<
         " ======Training Completed=====" << endl;
