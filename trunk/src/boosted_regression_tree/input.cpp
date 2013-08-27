@@ -5,15 +5,7 @@
  *      Author: jlriegle
  */
 
-#include "date.h"
 #include "input.h"
-#include <opencv/cv.h>
-#include "opencv2/ml/ml.hpp"
-#include "opencv2/highgui/highgui.hpp"
-#include "opencv2/core/core_c.h"
-#include "PredictBurnedArea.h"
-#include <iostream>
-#include <stdint.h>
 
 using namespace std;
 
@@ -357,7 +349,8 @@ bool CloseInput(Input_t *ds_input)
 
 !Output Parameters:
  (returns)      status:
-                  'true' = okay (always returned)
+                  'true' = processing okay
+                  'false' = file was not open
 
 !Team Unique Header:
 
@@ -457,13 +450,13 @@ bool PredictBurnedArea::GetInputData(Input_t *ds_input, int iband, int iline)
   nval[0] = 1;
   nval[1] = ds_input->size.s;
 
-  if (SDreaddata(ds_input->sds[iband].id, start, NULL, nval, (VOIDP)data) == HDF_ERROR)
+  if (SDreaddata (ds_input->sds[iband].id, start, NULL, nval, (VOIDP)data) ==
+      HDF_ERROR)
     RETURN_ERROR("reading input", "GetInputLine", false)
-
 
   /* Grabbing bands 1-5 & 7 and putting value into predMat */
   for (int i=0; i<ds_input->size.s; i++) {
-    predMat.at<float>(i,iband) = data[i];
+      predMat.at<float>(i,iband) = data[i];
   }
 
   return true;
@@ -471,11 +464,7 @@ bool PredictBurnedArea::GetInputData(Input_t *ds_input, int iband, int iline)
 
 /******************************************************************************
 !Description: 'calcBands' computes the NDVI, NDMI, NBR, and NBR2 for the
- input data and places it in predMat using the following zero-based bands:
- band 6 = NDVI
- band 7 = NDMI
- band 8 = NBR
- band 9 = NBR2
+ input data and places it in predMat
 
 !Input Parameters:
  arrSz          number of rows
@@ -491,32 +480,63 @@ predMat            cv::Mat that holds the data.
 !Team Unique Header:
 
 !Design Notes:
+  1. The spectral index is multiplied by 1000.0 to match what is used in the
+     training dataset.  The training data has the spectral indices represented
+     as an integer, where the actual index has been multiplied by 1000.
 ******************************************************************************/
 
 bool PredictBurnedArea::calcBands(Input_t *ds_input) {
     for (int i = 0; i < ds_input->size.s; i++) {
-        if (predMat.at<float>(i,3) + predMat.at<float>(i,2) == 0) {
-            predMat.at<float>(i,6) = 0; //avoid division by 0
+        /* NDVI - using bands 4 and 3 */
+        if ((fillMat.at<unsigned char>(i) != 0) ||
+            (predMat.at<float>(i,PREDMAT_B4) + predMat.at<float>(i,PREDMAT_B3)
+            == 0)) { //avoid division by 0 and fill data
+            predMat.at<float>(i,PREDMAT_NDVI) = 0;
         } else {
-            predMat.at<float>(i,6) = ((predMat.at<float>(i,3) - predMat.at<float>(i,2))/(predMat.at<float>(i,3) + predMat.at<float>(i,2))) * 1000; //NDVI - using bands 4 and 3
+            predMat.at<float>(i,PREDMAT_NDVI) =
+                ((predMat.at<float>(i,PREDMAT_B4) -
+                  predMat.at<float>(i,PREDMAT_B3)) /
+                 (predMat.at<float>(i,PREDMAT_B4) +
+                  predMat.at<float>(i,PREDMAT_B3))) * 1000;
         }
 
-        if (predMat.at<float>(i,3) + predMat.at<float>(i,4) == 0) {
-            predMat.at<float>(i,7) = 0; //avoid division by 0
+        /* NDMI - using bands 4 and 5 */
+        if ((fillMat.at<unsigned char>(i) != 0) ||
+            (predMat.at<float>(i,PREDMAT_B4) + predMat.at<float>(i,PREDMAT_B5)
+            == 0)) { //avoid division by 0 and fill data
+            predMat.at<float>(i,PREDMAT_NDMI) = 0; //avoid division by 0
         } else {
-            predMat.at<float>(i,7) = ((predMat.at<float>(i,3) - predMat.at<float>(i,4))/(predMat.at<float>(i,3) + predMat.at<float>(i,4))) * 1000; //NDMI - using bands 4 and 5
+            predMat.at<float>(i,PREDMAT_NDMI) =
+                ((predMat.at<float>(i,PREDMAT_B4) -
+                  predMat.at<float>(i,PREDMAT_B5)) /
+                 (predMat.at<float>(i,PREDMAT_B4) +
+                  predMat.at<float>(i,PREDMAT_B5))) * 1000;
         }
 
-        if (predMat.at<float>(i,3) + predMat.at<float>(i,5) == 0) {
-            predMat.at<float>(i,8) = 0; //avoid division by 0
+        /* NBR - using bands 4 and 7 */
+        if ((fillMat.at<unsigned char>(i) != 0) ||
+            (predMat.at<float>(i,PREDMAT_B4) + predMat.at<float>(i,PREDMAT_B7)
+            == 0)) { //avoid division by 0 and fill data
+            predMat.at<float>(i,PREDMAT_NBR) = 0; //avoid division by 0
         } else {
-            predMat.at<float>(i,8) = ((predMat.at<float>(i,3) - predMat.at<float>(i,5))/(predMat.at<float>(i,3) + predMat.at<float>(i,5))) * 1000; //NBR - using bands 4 and 7
+            predMat.at<float>(i,PREDMAT_NBR) =
+                ((predMat.at<float>(i,PREDMAT_B4) -
+                  predMat.at<float>(i,PREDMAT_B7)) /
+                 (predMat.at<float>(i,PREDMAT_B4) +
+                  predMat.at<float>(i,PREDMAT_B7))) * 1000;
         }
 
-        if (predMat.at<float>(i,4) + predMat.at<float>(i,5) == 0) {
-            predMat.at<float>(i,9) = 0; //avoid division by 0
+        /* NBR2 - using bands 5 and 7 */
+        if ((fillMat.at<unsigned char>(i) != 0) ||
+            (predMat.at<float>(i,PREDMAT_B5) + predMat.at<float>(i,PREDMAT_B7)
+            == 0)) { //avoid division by 0 and fill data
+            predMat.at<float>(i,PREDMAT_NBR2) = 0; //avoid division by 0
         } else {
-            predMat.at<float>(i,9) = ((predMat.at<float>(i,4) - predMat.at<float>(i,5))/(predMat.at<float>(i,4) + predMat.at<float>(i,5))) * 1000; //NBR2 - using bands 5 and 7
+            predMat.at<float>(i,PREDMAT_NBR2) =
+                ((predMat.at<float>(i,PREDMAT_B5) -
+                  predMat.at<float>(i,PREDMAT_B7)) /
+                 (predMat.at<float>(i,PREDMAT_B5) +
+                  predMat.at<float>(i,PREDMAT_B7))) * 1000;
         }
     }
 
@@ -567,72 +587,33 @@ bool PredictBurnedArea::GetInputQALine(Input_t *ds_input, int iband, int iline)
   nval[0] = 1;
   nval[1] = ds_input->size.s;
 
-  if (SDreaddata(ds_input->qa_sds[iband].id, start, NULL, nval, (VOIDP)data) == HDF_ERROR)
+  if (SDreaddata (ds_input->qa_sds[iband].id, start, NULL, nval, (VOIDP)data)
+    == HDF_ERROR)
     RETURN_ERROR("reading input", "GetInputQALine", false);
+
+  if (strcmp(ds_input->qa_sds[iband].name, "fill_QA") ==0) {
+      for (int i=0; i<ds_input->size.s; i++) {
+           fillMat.at<unsigned char>(i,0) = data[i];
+      }
+  }
 
   if (strcmp(ds_input->qa_sds[iband].name, "cloud_QA") ==0) {
       for (int i=0; i<ds_input->size.s; i++) {
-           cloudMat.at<int>(i,0) = data[i];
+           cloudMat.at<unsigned char>(i,0) = data[i];
       }
   }
 
   if (strcmp(ds_input->qa_sds[iband].name, "cloud_shadow_QA") ==0) {
       for (int i=0; i<ds_input->size.s; i++) {
-           cloudShadMat.at<int>(i,0) = data[i];
+           cloudShadMat.at<unsigned char>(i,0) = data[i];
       }
   }
 
   if (strcmp(ds_input->qa_sds[iband].name, "land_water_QA") ==0) {
       for (int i=0; i<ds_input->size.s; i++) {
-           landWaterMat.at<int>(i,0) = data[i];
+           landWaterMat.at<unsigned char>(i,0) = data[i];
       }
   }
-
-  return true;
-}
-
-
-/******************************************************************************
-!Description: 'GetInputThermLine' reads the thermal brightness data for the
-current line
-
-!Input Parameters:
- ds_input           'input' data structure
- iline          current line to be read (0-based)
-
-!Output Parameters:
- ds_input           'input' data structure; the following fields are modified:
-                   therm_buf -- contains the line read
- (returns)      status:
-                  'true' = okay
-                  'false' = error return
-
-!Team Unique Header:
-
-!Design Notes:
-******************************************************************************/
-bool GetInputThermLine(Input_t *ds_input, int iline)
-{
-  int32 start[MYHDF_MAX_RANK], nval[MYHDF_MAX_RANK];
-  void *buf = NULL;
-
-  /* Check the parameters */
-  if (ds_input == (Input_t *)NULL)
-    RETURN_ERROR("invalid input structure", "GetIntputThermLine", false);
-  if (!ds_input->open)
-    RETURN_ERROR("file not open", "GetInputThermLine", false);
-  if (iline < 0 || iline >= ds_input->size.l)
-    RETURN_ERROR("invalid line number", "GetInputThermLine", false);
-
-  /* Read the data */
-  start[0] = iline;
-  start[1] = 0;
-  nval[0] = 1;
-  nval[1] = ds_input->size.s;
-  buf = (void *)ds_input->therm_buf;
-
-  if (SDreaddata(ds_input->therm_sds.id, start, NULL, nval, buf) == HDF_ERROR)
-    RETURN_ERROR("reading input", "GetInputThermLine", false);
 
   return true;
 }
@@ -662,11 +643,12 @@ bool GetInputMeta(Input_t *ds_input)
   int ib;
   Input_meta_t *meta = NULL;
   char *error_string = NULL;
+  int refl_bands[NUM_REFL_BAND] = {1,2,3,4,5,7};  /* identify the reflectance
+                                  bands expected to be in the product */
 
   /* Check the parameters */
   if (!ds_input->open)
     RETURN_ERROR("file not open", "GetInputMeta", false);
-
   meta = &ds_input->meta;
 
   /* Read the metadata */
@@ -756,31 +738,10 @@ bool GetInputMeta(Input_t *ds_input)
   if (meta->row < 1)
     RETURN_ERROR("WRS path out of range", "GetInputMeta", false);
 
-  attr.type = DFNT_INT8;
-  attr.nval = 1;
-  attr.name = (char *) INPUT_NBAND;
-  if (!GetAttrDouble(ds_input->sds_file_id, &attr, dval))
-    RETURN_ERROR("reading attribute (number of bands)", "GetInputMeta", false);
-  if (attr.nval != 1)
-    RETURN_ERROR("invalid number of values (number of bands)",
-                 "GetInputMeta", false);
-  ds_input->nband = (int)floor(dval[0] + 0.5);
-  if (ds_input->nband < 1  ||  ds_input->nband > NBAND_REFL_MAX)
-    RETURN_ERROR("number of bands out of range", "GetInputMeta", false);
-
-  attr.type = DFNT_INT8;
-  attr.nval = ds_input->nband;
-  attr.name = (char *) INPUT_BANDS;
-  if (!GetAttrDouble(ds_input->sds_file_id, &attr, dval))
-    RETURN_ERROR("reading attribute (band numbers)", "GetInputMeta", false);
-  if (attr.nval != ds_input->nband)
-    RETURN_ERROR("invalid number of values (band numbers)",
-                 "GetInputMeta", false);
-  for (ib = 0; ib < ds_input->nband; ib++) {
-    meta->band[ib] = (int)floor(dval[ib] + 0.5);
-    if (meta->band[ib] < 1)
-      RETURN_ERROR("band number out of range", "GetInputMeta", false);
-  }
+  /* identify the reflectance bands */
+  ds_input->nband = NUM_REFL_BAND;
+  for (ib = 0; ib < ds_input->nband; ib++)
+    meta->band[ib] = refl_bands[ib];
 
   attr.type = DFNT_FLOAT32;
   attr.nval = 1;

@@ -4,6 +4,15 @@
 #include "hdf.h"
 #include "mfhdf.h"
 
+/* Now that we have defined the HDF stuff, define HAVE_INT8 so that we don't
+   run into conflicts with how the TIFF library (tiff.h) defines int8.
+   Ultimately they are the same, but one is defined explicitly with the use
+   of "signed".
+   hdfi.h: typedef char int8;
+   tiff.h: typedef signed char int8;
+*/
+#define HAVE_INT8 1
+
 #define MYHDF_MAX_RANK (4)     /* maximum rank of an SDS expected */
 #define MYHDF_MAX_NATTR_VAL (3000)
                                /* maximum number of attribute values expected */
