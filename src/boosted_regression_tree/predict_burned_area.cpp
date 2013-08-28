@@ -33,20 +33,17 @@ int main(int argc, char* argv[]) {
     int acq_year;                      /* acquisition year of input scene */
     char errstr[MAX_STR_LEN];          /* error string */
     char gdal_cmd[MAX_STR_LEN];        /* command string for GDAL merge call */
-    char cyResizeFile[MAX_STR_LEN];    /* filename of resized image file */
     char lyResizeFile[MAX_STR_LEN];    /* filename of resized image file */
-    char maxResizeFile[MAX_STR_LEN];    /* filename of resized image file */
+    char maxResizeFile[MAX_STR_LEN];   /* filename of resized image file */
     char *output_header_name = NULL;   /* output filename */
     char *input_header_name = NULL;    /* output filename */
     char *output_file_name = NULL;     /* output filename */
     char sds_names[NBAND_REFL_MAX][MAX_STR_LEN]; /* array of image SDS names */
     char qa_sds_names[NUM_QA_BAND][MAX_STR_LEN]; /* array of QA SDS names */
-    char cySummaryFile[PBA_NSEASONS][PBA_NBANDS][MAX_STR_LEN];/* current year */
     char lySummaryFile[PBA_NSEASONS][PBA_NBANDS][MAX_STR_LEN];/* last year */
     char maxIndxFile[PBA_NINDXS][MAX_STR_LEN];                /* max indices */
     Input_t *input = NULL;             /* input data and metadata */
     Output_t *output = NULL;           /* output structure and metadata */
-    Input_Gtif_t *cySummaryPtr[PBA_NSEASONS][PBA_NBANDS];  /* current yr ptr */
     Input_Gtif_t *lySummaryPtr[PBA_NSEASONS][PBA_NBANDS];  /* last year ptr */
     Input_Gtif_t *maxIndxPtr[PBA_NINDXS];                  /* max indices ptr */
 
@@ -211,11 +208,6 @@ int main(int argc, char* argv[]) {
         for (bnd = 0; bnd < PBA_NBANDS; bnd++) {
             if (bnd < BND_NDVI) {  /* reflectance bands */
                 /* Set up the filenames */
-                sprintf (cySummaryFile[season][bnd], "%s/refl/%d_%s_%s.tif",
-                    seasonalSummaryDir, acq_year, season_str[season],
-                    band_indx_str[bnd]);
-                sprintf (cyResizeFile, "./refl/resize_%d_%s_%s.tif", acq_year,
-                    season_str[season], band_indx_str[bnd]);
                 sprintf (lySummaryFile[season][bnd], "%s/refl/%d_%s_%s.tif",
                     seasonalSummaryDir, acq_year-1, season_str[season],
                     band_indx_str[bnd]);
@@ -224,12 +216,6 @@ int main(int argc, char* argv[]) {
             }
             else {  /* index bands */
                 /* Set up the filenames */
-                sprintf (cySummaryFile[season][bnd], "%s/%s/%d_%s_%s.tif",
-                    seasonalSummaryDir, band_indx_str[bnd], acq_year,
-                    season_str[season], band_indx_str[bnd]);
-                sprintf (cyResizeFile, "./%s/resize_%d_%s_%s.tif",
-                    band_indx_str[bnd], acq_year, season_str[season],
-                    band_indx_str[bnd]);
                 sprintf (lySummaryFile[season][bnd], "%s/%s/%d_%s_%s.tif",
                     seasonalSummaryDir, band_indx_str[bnd], acq_year-1,
                     season_str[season], band_indx_str[bnd]);
@@ -241,15 +227,6 @@ int main(int argc, char* argv[]) {
             /* Resize the files */
             sprintf (gdal_cmd, "gdal_translate -of Gtiff -a_nodata %d "
                 "-projwin %f %f %f %f -q %s %s", pba.LNDSR_FILL,
-                pba.ulx, pba.uly, pba.lrx, pba.lry, cySummaryFile[season][bnd],
-                cyResizeFile);
-            if (system (gdal_cmd) == -1) {
-                sprintf (errstr, "error running gdal_translate: %s", gdal_cmd);
-                ERROR(errstr, "main");
-            }
-
-            sprintf (gdal_cmd, "gdal_translate -of Gtiff -a_nodata %d "
-                "-projwin %f %f %f %f -q %s %s", pba.LNDSR_FILL,
                 pba.ulx, pba.uly, pba.lrx, pba.lry, lySummaryFile[season][bnd],
                 lyResizeFile);
             if (system (gdal_cmd) == -1) {
@@ -258,12 +235,6 @@ int main(int argc, char* argv[]) {
             }
 
             /* Open the resized files */
-            cySummaryPtr[season][bnd] = OpenGtifInput (cyResizeFile);
-            if (cySummaryPtr[season][bnd] == NULL) {
-                sprintf (errstr, "opening file: %s", cyResizeFile);
-                ERROR (errstr, "main");
-            }
-
             lySummaryPtr[season][bnd] = OpenGtifInput (lyResizeFile);
             if (lySummaryPtr[season][bnd] == NULL) {
                 sprintf (errstr, "opening file: %s", lyResizeFile);
@@ -298,7 +269,6 @@ int main(int argc, char* argv[]) {
     }
 
     /* Set up arrays for the seasonal summaries and annual maximums */
-    pba.cySummaryMat.create (input->size.s, PBA_NBANDS*PBA_NSEASONS, CV_32FC1);
     pba.lySummaryMat.create (input->size.s, PBA_NBANDS*PBA_NSEASONS, CV_32FC1);
     pba.maxIndxMat.create (input->size.s, PBA_NINDXS, CV_32FC1);
 
@@ -352,17 +322,9 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        /* Read the seasonal summaries for the current and previous years */
+        /* Read the seasonal summaries for the previous year */
         for (bnd = 0; bnd < PBA_NBANDS; bnd++) {
             for (season = 0; season < PBA_NSEASONS; season++) {
-                if (!pba.GetGtifInputCYSummaryData (cySummaryPtr[season][bnd],
-                    iline, (BandIndex_t) bnd, (Season_t) season)) {
-                    sprintf (errstr, "reading current year seasonal summary "
-                        "data for line %d, band %s, season %s", iline,
-                        band_indx_str[bnd], season_str[season]);
-                    ERROR(errstr, "main");
-                }
-
                 if (!pba.GetGtifInputLYSummaryData (lySummaryPtr[season][bnd],
                     iline, (BandIndex_t) bnd, (Season_t) season)) {
                     sprintf (errstr, "reading previous year seasonal summary "
@@ -407,10 +369,8 @@ int main(int argc, char* argv[]) {
         ERROR("freeing output HDF file memory", "main");
 
     for (season = 0; season < PBA_NSEASONS; season++) {
-        for (bnd = 0; bnd < PBA_NBANDS; bnd++) {
-            CloseGtifInput (cySummaryPtr[season][bnd]);
+        for (bnd = 0; bnd < PBA_NBANDS; bnd++)
             CloseGtifInput (lySummaryPtr[season][bnd]);
-        }
     }
     for (indx = 0; indx < PBA_NINDXS; indx++)
         CloseGtifInput (maxIndxPtr[indx]);
@@ -421,7 +381,6 @@ int main(int argc, char* argv[]) {
     pba.cloudMat.release();
     pba.cloudShadMat.release();
     pba.landWaterMat.release();
-    pba.cySummaryMat.release();
     pba.lySummaryMat.release();
     pba.maxIndxMat.release();
 

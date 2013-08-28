@@ -111,21 +111,17 @@ bool PredictBurnedArea::loadParametersFromFile(int ac,char* av[]) {
         notify (config_vm);
     }
 
+    load_model = false;
     if (config_vm.count("LOAD_MODEL_XML")) {
         LOAD_MODEL_XML = config_vm["LOAD_MODEL_XML"].as<string>();
         load_model = true;
     }
-    else {
-        load_model = false;
-    }
 
     /* Prediction related inputs */
+    predict_model = false;
     if (config_vm.count("INPUT_HDF_FILE")) {
         INPUT_HDF_FILE = config_vm["INPUT_HDF_FILE"].as<string>();
         predict_model = true;
-    }
-    else {
-        predict_model = false;
     }
 
     if (config_vm.count("SEASONAL_SUMMARIES_DIR")) {
@@ -180,12 +176,10 @@ bool PredictBurnedArea::loadParametersFromFile(int ac,char* av[]) {
     }
 
     /* Training related inputs */
+    train_model = false;
     if (config_vm.count("CSV_FILE")) {
         CSV_FILE = config_vm["CSV_FILE"].as<string>();
         train_model = true;
-    }
-    else {
-        train_model = false;
     }
 
     if (config_vm.count("TREE_CNT")) {
@@ -256,12 +250,10 @@ bool PredictBurnedArea::loadParametersFromFile(int ac,char* av[]) {
         NCSV_INPUTS = EXPECTED_CSV_INPUTS;
 
     /* Inputs for saving the model */
+    save_model = false;
     if (config_vm.count("SAVE_MODEL_XML")) {
         SAVE_MODEL_XML = config_vm["SAVE_MODEL_XML"].as<string>();
         save_model = true;
-    }
-    else {
-        save_model = false;
     }
 
     /* Can't duplicate training the model and loading the model */

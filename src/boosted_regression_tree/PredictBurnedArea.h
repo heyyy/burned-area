@@ -47,7 +47,7 @@ typedef enum {PREDMAT_B1=0, PREDMAT_B2, PREDMAT_B3, PREDMAT_B4, PREDMAT_B5,
 /* This is the current number of CSV inputs that we are expecting, not counting
    the class response index.  This is for the CSV training inputs, but is also
    used for filling the sample matrix for the actual predictions. */
-#define EXPECTED_CSV_INPUTS 82
+#define EXPECTED_CSV_INPUTS 50
 
 /* QA bands - fill_QA, DDV_QA, cloud_QA, cloud_shadow_QA, snow_QA,
    land_water_QA, adjacent_cloud_QA */
@@ -152,8 +152,6 @@ public:
     bool predictModel(int iline, Output_t *ds_output);
     bool loadParametersFromFile(int ac, char* av[]);
     bool readHDR(string filename);
-    bool GetGtifInputCYSummaryData(Input_Gtif_t *ds_input, int line,
-        BandIndex_t band, Season_t season);
     bool GetGtifInputLYSummaryData(Input_Gtif_t *ds_input, int line,
         BandIndex_t band, Season_t season);
     bool GetGtifInputAnnualMaxData(Input_Gtif_t *ds_input, int line,
@@ -165,8 +163,6 @@ public:
     cv::Mat cloudMat;        // array for cloud data
     cv::Mat cloudShadMat;    // array for cloud shadows
     cv::Mat landWaterMat;    // array for land/water mask
-    cv::Mat cySummaryMat;    // array for the current years seasonal summaries
-                             // 1D array representing [PBA_NSEASONS][PBA_NBANDS]
     cv::Mat lySummaryMat;    // array for last years seasonal summaries
                              // 1D array representing [PBA_NSEASONS][PBA_NBANDS]
     cv::Mat maxIndxMat;      // array for the maximum indices
