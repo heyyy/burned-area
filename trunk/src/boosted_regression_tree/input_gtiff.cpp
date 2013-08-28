@@ -215,66 +215,6 @@ bool CloseGtifInput
 
 
 /******************************************************************************
-MODULE:  GetGtifInputCYSummaryData
-
-PURPOSE:  Read one line of seasonal summary data for the specified season and
-band/index, and copy it to the associated PBA class array.
-
-RETURN VALUE:
-Type = bool
-Value           Description
------           -----------
-false           An error occurred during processing
-true            Processing was successful
-
-PROJECT:  Land Satellites Data System Science Research and Development (LSRD)
-at the USGS EROS
-
-HISTORY:
-Date          Programmer       Reason
-----------    ---------------  -------------------------------------
-8/16/2013     Gail Schmidt     Original Development
-
-NOTES:
-******************************************************************************/
-bool PredictBurnedArea::GetGtifInputCYSummaryData
-(
-    Input_Gtif_t *ds_input,    /* I: Pointer to the GeoTIFF file data struct */
-    int line,                  /* I: input line to be read */
-    BandIndex_t band,          /* I: input band/index to be read */
-    Season_t season            /* I: input season to be read */
-)
-{
-    char errmsg[MAX_STR_LEN];   /* error message */
-    int samp;                   /* current sample to be processed */
-
-    /* Make sure file is open and available */
-    if (!ds_input->open)
-    {
-        sprintf (errmsg, "file not open: %s", ds_input->file_name);
-        RETURN_ERROR (errmsg, "GetGtifInputCYSummaryData", false);
-    }
-  
-    /* Read the specified band from the GeoTIFF file */
-    if (TIFFReadScanline (ds_input->fp_tiff, ds_input->buf, line, 0) == -1)
-    {
-        sprintf (errmsg, "Error reading line %d from the input file %s", line,
-            ds_input->file_name);
-        RETURN_ERROR (errmsg, "GetGtifInputCYSummaryData", false);
-    } 
-
-    /* Store the data as the group of bands/indices per season */
-    for (samp = 0; samp < ds_input->size.s; samp++)
-    {
-        cySummaryMat.at<float>(samp,season*PBA_NBANDS+band) =
-            ds_input->buf[samp];
-    }
-
-    return true;
-}
-
-
-/******************************************************************************
 MODULE:  GetGtifInputLYSummaryData
 
 PURPOSE:  Read one line of the previous years' seasonal summary data for the

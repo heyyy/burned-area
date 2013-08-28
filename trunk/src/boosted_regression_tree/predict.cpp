@@ -73,11 +73,11 @@ bool PredictBurnedArea::trainModel () {
     predictOut << "Loss function type: DEVIANCE_LOSS (for classification)" <<
         endl;
     gbtrees.train (&cvml, CvGBTreesParams(CvGBTrees::DEVIANCE_LOSS, nTrees,
-        shrink, subsample_fraction, depth, true));
+        shrink, subsample_fraction, depth, true), false);
     predictOut << "Train misclassification: " << gbtrees.calc_error (&cvml,
-        CV_TRAIN_ERROR) << "%" << endl;
+        CV_TRAIN_ERROR, 0) << "%" << endl;
     predictOut << "Test misclassification: " << gbtrees.calc_error (&cvml,
-        CV_TEST_ERROR) << "%" << endl;
+        CV_TEST_ERROR, 0) << "%" << endl;
 
     cout << second_clock::local_time() <<
         " ======Training Completed=====" << endl;
@@ -118,15 +118,9 @@ bool PredictBurnedArea::predictModel(int iline, Output_t *output) {
         sample.at<float>(8) = predMat.at<float>(y,PREDMAT_NBR);
         sample.at<float>(9) = predMat.at<float>(y,PREDMAT_NBR2);
  
-        /* Add the current year and last year seasonal summaries, and add
-           them as a group of bands/indices per season. */
+        /* Add the last year seasonal summaries, and add them as a group of
+           bands/indices per season. */
         sample_indx = PREDMAT_NBR2+1;
-        for (season = 0; season < PBA_NSEASONS; season++) {
-            for (bnd = 0; bnd < PBA_NBANDS; bnd++) {
-                sample.at<float>(sample_indx++) =
-                    cySummaryMat.at<float>(y,season*PBA_NBANDS+bnd);
-            }
-        }
         for (season = 0; season < PBA_NSEASONS; season++) {
             for (bnd = 0; bnd < PBA_NBANDS; bnd++) {
                 sample.at<float>(sample_indx++) =

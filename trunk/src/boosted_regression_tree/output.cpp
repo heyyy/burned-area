@@ -91,22 +91,21 @@ bool CreateOutput(char *file_name, char *input_header, char *output_header)
   /* Close the file */
   Hclose(hdf_file_id);
 
-  // Copy input header file
-  std::ifstream  src(input_header);
+  /* Copy input header file to the output header file */
+  std::ifstream src(input_header);
   if (!src) {
     sprintf (errmsg, "input header file doesn't exist (%s)", input_header);
     RETURN_ERROR(errmsg, "CreateOutput", false); 
   }
-  std::ofstream  dst(output_header);
 
-   dst << src.rdbuf();
-
+  std::ofstream dst(output_header);
+  dst << src.rdbuf();
 
   return true;
 }
 
 /******************************************************************************
-!Description: 'OutputFile' sets up the 'output' data structure, opens the
+!Description: 'OpenOutput' sets up the 'output' data structure, opens the
  output file for write access, and creates the output Science Data Set (SDS).
  
 !Input Parameters:ds_output
