@@ -65,6 +65,10 @@ class BoostedRegression():
     #     SUCCESS - successful processing
     #
     # Notes:
+    #   1. The script changes directories to the directory of the configuration
+    #      file.  If absolute paths are not provided in the configuration
+    #      file, then the location of those input/output files will need to
+    #      be the location of the configuration file.
     #######################################################################
     def runBoostedRegression (self, config_file=None, logfile=None, \
         usebin=None):
@@ -119,6 +123,23 @@ class BoostedRegression():
             logIt (msg, log_handler)
             return ERROR
 
+        # get the path of the config file and change directory to that location
+        # for running this script.  save the current working directory for
+        # return to upon error or when processing is complete.  Note: use
+        # abspath to handle the case when the filepath is just the filename
+        # and doesn't really include a file path (i.e. the current working
+        # directory).
+        mydir = os.getcwd()
+        configdir = os.path.dirname (os.path.abspath (config_file))
+        if not os.access(configdir, os.W_OK):
+            msg = 'Path of configuration file is not writable: %s.  Boosted regression may need write access to the configuration directory, depending on whether the output files in the configuration file have been specified.' % configdir
+            logIt (msg, log_handler)
+            return ERROR
+        msg = 'Changing directories for boosted regression processing: %s' % \
+            configdir
+        logIt (msg, log_handler)
+        os.chdir (configdir)
+
         # run boosted regression algorithm, checking the return status.  exit
         # if any errors occur.
         cmdstr = "%spredict_burned_area --config_file %s --verbose" %  \
@@ -130,13 +151,15 @@ class BoostedRegression():
         if exit_code != 0:
             msg = 'Error running boosted regression. Processing will terminate.'
             logIt (msg, log_handler)
+            os.chdir (mydir)
             return ERROR
         
-        # successful completion.
+        # successful completion.  return to the original directory.
         msg = 'Completion of boosted regression.'
         logIt (msg, log_handler)
         if logfile != None:
             log_handler.close()
+        os.chdir (mydir)
         return SUCCESS
 
 ######end of BoostedRegression class######
