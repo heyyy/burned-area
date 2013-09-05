@@ -1,11 +1,22 @@
-/*
- * FileIO.cpp
- *
- *  Created on: Dec 7, 2012
- *      Author: jlriegle
- *
- *      Reads Config file
- */
+/*****************************************************************************
+FILE: FileIO.cpp
+  
+PURPOSE: Contains functions for reading the command-line and configuration
+file parameters.
+
+PROJECT:  Land Satellites Data System Science Research and Development (LSRD)
+at the USGS EROS
+
+LICENSE TYPE:  NASA Open Source Agreement Version 1.3
+
+HISTORY:
+Date        Programmer       Reason
+---------   --------------   -----------------------------------------
+12/7/2012   Jodi Riegle      Original development
+9/3/2013    Gail Schmidt     Modified to work in the ESPA environment
+
+NOTES:
+*****************************************************************************/
 
 #include "PredictBurnedArea.h"
 
@@ -15,7 +26,49 @@
 namespace po = boost::program_options;
 using namespace boost;
 
-bool PredictBurnedArea::loadParametersFromFile(int ac,char* av[]) {
+/******************************************************************************
+MODULE: loadParametersFromFile
+
+PURPOSE: Reads the command-line parameters, determines the configuration file
+name, and reads the configuration file parameters.
+ 
+RETURN VALUE:
+Type = bool
+Value          Description
+-----          -----------
+false          Error reading command-line or config file parameters
+true           Successful processing of the parameters
+
+HISTORY:
+Date          Programmer       Reason
+----------    ---------------  -------------------------------------
+12/7/2012     Jodi Riegle      Original development
+9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
+
+NOTES:
+  1. The following parameters are required for training the model.
+     TREE_CNT
+     SHRINKAGE
+     MAX_DEPTH
+     SUBSAMPLE_FRACTION
+     CSV_FILE
+     NCSV_INPUTS  (and this must match the expected value noted in
+                   PredictBurnedArea.h)
+      
+  2. The following parameters are required for loading the model.
+     INPUT_HDF_FILE
+     SEASONAL_SUMMARIES_DIR
+     OUTPUT_HDF_FILE
+     INPUT_HEADER_FILE
+     OUTPUT_HEADER_FILE
+     OUTPUT_TIFF_FILE
+     LOAD_MODEL_XML
+
+  3. If saving the model, after training, then the following parameter is
+     required in addition to the training parameters.
+     SAVE_MODEL_XML
+*****************************************************************************/
+bool PredictBurnedArea::loadParametersFromFile(int ac, char* av[]) {
     string config_filename;            /* configuration filename */
     char errmsg[MAX_STR_LEN];          /* error message */
 
@@ -267,8 +320,28 @@ bool PredictBurnedArea::loadParametersFromFile(int ac,char* av[]) {
     return true;
 }
 
-//Reads the header file for extent and projection information, used to create geoTiff
 
+/******************************************************************************
+MODULE: readHDR
+
+PURPOSE: Reads the header file for extent and projection information, used to
+create the geoTIFF product
+ 
+RETURN VALUE:
+Type = bool
+Value          Description
+-----          -----------
+false          Error reading the header
+true           Successful processing of the header
+
+HISTORY:
+Date          Programmer       Reason
+----------    ---------------  -------------------------------------
+12/7/2012     Jodi Riegle      Original development
+9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
+
+NOTES:
+*****************************************************************************/
 bool PredictBurnedArea::readHDR(string filename) {
     string instring;
 

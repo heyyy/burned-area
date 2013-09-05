@@ -1,14 +1,61 @@
+/*****************************************************************************
+FILE: date.cpp
+  
+PURPOSE: Contains functions for date-related functions and processing.
+
+PROJECT:  Land Satellites Data System Science Research and Development (LSRD)
+at the USGS EROS
+
+LICENSE TYPE:  NASA Open Source Agreement Version 1.3
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+9/15/2012   Jodi Riegle      Original development (based largely on routines
+                             from the LEDAPS lndsr application)
+9/3/2013    Gail Schmidt     Modified to work in the ESPA environment
+
+NOTES:
+*****************************************************************************/
+
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
-
-
-
 #include "date.h"
 #include "error.h"
 
-bool DateInit(Date_t *di, char *s, Date_format_t iformat) {
-  char *date, *time;
+/******************************************************************************
+MODULE: DateInit
+
+PURPOSE: Convert the input date in the specified string format to the date
+structure.
+ 
+RETURN VALUE:
+Type = bool
+Value          Description
+-----          -----------
+false          Error initializing the date structure
+true           Successful processing of the date
+
+HISTORY:
+Date          Programmer       Reason
+----------    ---------------  -------------------------------------
+9/15/2012     Jodi Riegle      Original development (based largely on routines
+                               from the LEDAPS lndsr application)
+9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
+
+NOTES:
+*****************************************************************************/
+bool DateInit
+(
+  Date_t *di,            /* O: date structure to be filled from reading the
+                               character string */
+  char *s,               /* I: input date string */
+  Date_format_t iformat  /* I: format of the input date string */
+)
+{
+  char *date=NULL,
+       *time=NULL;
   bool leap;
   int year1;
   int nday[12] = {31, 29, 31, 30,  31,  30,  31,  31,  30,  31,  30,  31};
@@ -126,8 +173,34 @@ bool DateInit(Date_t *di, char *s, Date_format_t iformat) {
   return true;
 }
 
-bool DateDiff(Date_t *d1, Date_t *d2, double *diff) {
+/******************************************************************************
+MODULE: DateDiff
 
+PURPOSE: Determines the difference between the two dates in seconds
+ 
+RETURN VALUE:
+Type = None
+Value          Description
+-----          -----------
+false          Error determining the difference between the two dates
+true           Successful processing of the dates
+
+HISTORY:
+Date          Programmer       Reason
+----------    ---------------  -------------------------------------
+9/15/2012     Jodi Riegle      Original development (based largely on routines
+                               from the LEDAPS lndsr application)
+9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
+
+NOTES:
+*****************************************************************************/
+bool DateDiff
+(
+  Date_t *d1,     /* I: date structure to be diff'd */
+  Date_t *d2,     /* I: date structure to be diff'd */
+  double *diff    /* O: difference between the two dates in seconds */
+)
+{
   if (d1 == (Date_t *)NULL  ||  d2 == (Date_t *)NULL)
     RETURN_ERROR("invalid date structure", "DateDiff", false);
 
@@ -140,6 +213,27 @@ bool DateDiff(Date_t *d1, Date_t *d2, double *diff) {
   return true;
 }
 
+/******************************************************************************
+MODULE: DateCopy
+
+PURPOSE: Copy a date
+ 
+RETURN VALUE:
+Type = None
+Value          Description
+-----          -----------
+false          Error copying the date
+true           Successful copy of the date
+
+HISTORY:
+Date          Programmer       Reason
+----------    ---------------  -------------------------------------
+9/15/2012     Jodi Riegle      Original development (based largely on routines
+                               from the LEDAPS lndsr application)
+9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
+
+NOTES:
+*****************************************************************************/
 bool DateCopy(Date_t *dc, Date_t *copy) {
 
   if (dc == (Date_t *)NULL  ||  copy == (Date_t *)NULL)
@@ -159,8 +253,36 @@ bool DateCopy(Date_t *dc, Date_t *copy) {
   return true;
 }
 
-bool FormatDate(Date_t *df, Date_format_t iformat, char *s) {
+/******************************************************************************
+MODULE: FormatDate
 
+PURPOSE: Convert the date from the input 'date' structure to a character
+string in the desired format.
+ 
+RETURN VALUE:
+Type = bool
+Value          Description
+-----          -----------
+false          Error formatting the date structure
+true           Successful formatting of the date
+
+HISTORY:
+Date          Programmer       Reason
+----------    ---------------  -------------------------------------
+9/15/2012     Jodi Riegle      Original development (based largely on routines
+                               from the LEDAPS lndsr application)
+9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
+
+NOTES:
+*****************************************************************************/
+bool FormatDate
+(
+  Date_t *df,            /* I: date structure to be converted to the
+                               character string */
+  Date_format_t iformat, /* I: desired format of the output date string */
+  char *s                /* O: output date string */
+)
+{
   if (df == (Date_t *)NULL)
     RETURN_ERROR("invalid date structure", "FormatDate", false);
 
