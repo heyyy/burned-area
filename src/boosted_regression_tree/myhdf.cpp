@@ -1,47 +1,22 @@
-/*
-!C****************************************************************************
-
-!File: myhdf.c
+/*****************************************************************************
+FILE: myhdf.cpp
   
-!Description: Functions for handling HDF files.
+PURPOSE: Contains functions for handling HDF files.
 
-!Revision History:
- Revision 1.0 2001/05/08
- Robert Wolfe
- Original Version.
+PROJECT:  Land Satellites Data System Science Research and Development (LSRD)
+at the USGS EROS
 
-!Team Unique Header:
-  This software was developed by the MODIS Land Science Team Support 
-  Group for the Labatory for Terrestrial Physics (Code 922) at the 
-  National Aeronautics and Space Administration, Goddard Space Flight 
-  Center, under NASA Task 92-012-00.
+LICENSE TYPE:  NASA Open Source Agreement Version 1.3
 
- ! References and Credits:
-  ! MODIS Science Team Member:
-      Christopher O. Justice
-      MODIS Land Science Team           University of Maryland
-      justice@hermes.geog.umd.edu       Dept. of Geography
-      phone: 301-405-1600               1113 LeFrak Hall
-                                        College Park, MD, 20742
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+9/15/2012   Jodi Riegle      Original development (based largely on routines
+                             from the LEDAPS lndsr application)
+9/3/2013    Gail Schmidt     Modified to work in the ESPA environment
 
-  ! Developers:
-      Robert E. Wolfe (Code 922)
-      MODIS Land Team Support Group     Raytheon ITSS
-      robert.e.wolfe.1@gsfc.nasa.gov    4400 Forbes Blvd.
-      phone: 301-614-5508               Lanham, MD 20770  
-  
- ! Design Notes:
-   1. The following functions handle Science Data Sets (SDSs) and attributes
-      in HDF files:
-
-       GetSDSInfo - Read SDS information.
-       GetSDSDimInfo - Read SDS dimension information.
-       PutSDSInfo - Create an SDS and write information.
-       PutSDSDimInfo - Write SDS dimension information.
-       GetAttrDouble - Get an HDF attribute's value.
-
-!END****************************************************************************
-*/
+NOTES:
+*****************************************************************************/
 
 #include <stdlib.h>
 #include "myhdf.h"
@@ -75,39 +50,35 @@
 #define MYHDF_FLOAT64H   (1.797693134862316e+308)
 #define MYHDF_FLOAT64L   (2.225073858507201e-308)
 
-/* Functions */
+/******************************************************************************
+MODULE: GetSDSInfo
 
-bool GetSDSInfo(int32 sds_file_id, Myhdf_sds_t *sds)
-/* 
-!C******************************************************************************
-
-!Description: 'GetSDSInfo' reads information for a specific SDS.
+PURPOSE: Reads information for a specific SDS.
  
-!Input Parameters:
- sds_file_id    SDS file id
+RETURN VALUE:
+Type = bool
+Value          Description
+-----          -----------
+false          Error reading SDS info
+true           Successful reading of SDS
 
-!Output Parameters:
- sds            SDS data structure; the following fields are updated:
-                  index, name, id, rank, type, nattr
- (returns)      Status:
-                  'true' = okay
-          'false' = error reading the SDS information
+HISTORY:
+Date          Programmer       Reason
+----------    ---------------  -------------------------------------
+9/15/2012     Jodi Riegle      Original development (based largely on routines
+                               from the LEDAPS lndsr application)
+9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
 
-!Team Unique Header:
-
- ! Design Notes:
-   1. An error status is returned if the SDS rank is greater than 
-      'MYHDF_MAX_RANK'.
-   2. On normal returns the SDS is selected for access.
-   3. The HDF file is assumed to be open for SD (Science Data) access.
-   4. Error messages are handled with the 'RETURN_ERROR' macro.
-
-!END****************************************************************************
-*/
+NOTES:
+*****************************************************************************/
+bool GetSDSInfo
+(
+  int32 sds_file_id,   /* I: SDS file ID */
+  Myhdf_sds_t *sds     /* O: SDS data structure */
+)
 {
   int32 dims[MYHDF_MAX_RANK];
 
-//  printf("SDS name %s\n",sds->name);
   sds->index = SDnametoindex(sds_file_id, sds->name);
   if (sds->index == HDF_ERROR)
     RETURN_ERROR("getting sds index", "GetSDSInfo", false);
@@ -116,7 +87,8 @@ bool GetSDSInfo(int32 sds_file_id, Myhdf_sds_t *sds)
   if (sds->id == HDF_ERROR)
     RETURN_ERROR("getting sds id", "GetSDSInfo", false);
 
-  if (SDgetinfo(sds->id, sds->name, &sds->rank, dims, &sds->type, &sds->nattr) == HDF_ERROR) {
+  if (SDgetinfo(sds->id, sds->name, &sds->rank, dims, &sds->type, &sds->nattr)
+      == HDF_ERROR) {
     SDendaccess(sds->id);
     RETURN_ERROR("getting sds information", "GetSDSInfo", false);
   }
@@ -128,31 +100,33 @@ bool GetSDSInfo(int32 sds_file_id, Myhdf_sds_t *sds)
 }
 
 
-bool GetSDSDimInfo(int32 sds_id, Myhdf_dim_t *dim, int irank)
-/* 
-!C******************************************************************************
+/******************************************************************************
+MODULE: GetSDSDimInfo
 
-!Description: 'GetSDSDimInfo' reads information for a specific SDS dimension.
+PURPOSE: Reads information for a specific SDS dimension.
  
-!Input Parameters:
- sds_id         SDS id
+RETURN VALUE:
+Type = bool
+Value          Description
+-----          -----------
+false          Error reading SDS dimension info
+true           Successful reading of SDS dimension
 
-!Output Parameters:
- dim            Dimension data structure; the following fields are updated:
-                   id, nval, type, nattr, name
- (returns)      Status:
-                  'true' = okay
-          'false' = error reading the dimension information
+HISTORY:
+Date          Programmer       Reason
+----------    ---------------  -------------------------------------
+9/15/2012     Jodi Riegle      Original development (based largely on routines
+                               from the LEDAPS lndsr application)
+9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
 
-!Team Unique Header:
-
- ! Design Notes:
-   1. The HDF file is assumed to be open for SD (Science Data) access.
-   2. An dimension name of less than 'DIM_MAX_NCHAR' is expected.
-   3. Error messages are handled with the 'RETURN_ERROR' macro.
-
-!END****************************************************************************
-*/
+NOTES:
+*****************************************************************************/
+bool GetSDSDimInfo
+(
+  int32 sds_id,       /* I: SDS ID */
+  Myhdf_dim_t *dim,   /* O: dimension information */
+  int irank           /* I: rank/size of dimension */
+)
 {
   char dim_name[DIM_MAX_NCHAR];
 
@@ -172,34 +146,33 @@ bool GetSDSDimInfo(int32 sds_id, Myhdf_dim_t *dim, int irank)
   return true;
 }
 
-bool PutSDSInfo(int32 sds_file_id, Myhdf_sds_t *sds)
-/* 
-!C******************************************************************************
 
-!Description: 'PutSDSInfo' creates a SDS and writes SDS information.
+/******************************************************************************
+MODULE: PutSDSInfo
+
+PURPOSE: Creates an SDS and writes SDS information.
  
-!Input Parameters:
- sds_file_id    SDS file id
- sds            SDS data structure; the following are used:
-                   rank, name, type, dim[*].nval
+RETURN VALUE:
+Type = bool
+Value          Description
+-----          -----------
+false          Error creating SDS or writing SDS info
+true           Successful creation of SDS
 
-!Output Parameters:
- sds            SDS data structure; the following are updated:
-                   id, index
- (returns)      Status:
-                  'true' = okay
-          'false' = error writing the SDS information
+HISTORY:
+Date          Programmer       Reason
+----------    ---------------  -------------------------------------
+9/15/2012     Jodi Riegle      Original development (based largely on routines
+                               from the LEDAPS lndsr application)
+9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
 
-!Team Unique Header:
-
- ! Design Notes:
-   1. A maximum of 'MYHDF_MAX_RANK' dimensions are expected.
-   2. On normal returns the SDS is selected for access.
-   3. The HDF file is assumed to be open for SD (Science Data) access.
-   4. Error messages are handled with the 'RETURN_ERROR' macro.
-
-!END****************************************************************************
-*/
+NOTES:
+*****************************************************************************/
+bool PutSDSInfo
+(
+  int32 sds_file_id,   /* I: SDS file ID */
+  Myhdf_sds_t *sds     /* I: SDS data structure */
+)
 {
   int irank;
   int32 dims[MYHDF_MAX_RANK];
@@ -208,7 +181,6 @@ bool PutSDSInfo(int32 sds_file_id, Myhdf_sds_t *sds)
     dims[irank] = sds->dim[irank].nval;
 
   /* Create the SDS */
-
   sds->id = SDcreate(sds_file_id, sds->name, sds->type, 
                      sds->rank, dims);
   if (sds->id == HDF_ERROR)
@@ -222,34 +194,33 @@ bool PutSDSInfo(int32 sds_file_id, Myhdf_sds_t *sds)
 }
 
 
-bool PutSDSDimInfo(int32 sds_id, Myhdf_dim_t *dim, int irank)
-/* 
-!C******************************************************************************
+/******************************************************************************
+MODULE: PutSDSDimInfo
 
-!Description: 'PutSDSDimInfo' writes information for a SDS dimension.
+PURPOSE: Writes information for a specific SDS dimension.
  
-!Input Parameters:
- sds_id         SDS id
- dim            Dimension data structure; the following field is used:
-                   name
- irank          Dimension rank
+RETURN VALUE:
+Type = bool
+Value          Description
+-----          -----------
+false          Error writing SDS dimension info
+true           Successful writing of SDS dimension
 
-!Output Parameters:
- dim            Dimension data structure; the following field is updated:
-                   id
- (returns)      Status:
-                  'true' = okay
-          'false' = error writing the dimension information
+HISTORY:
+Date          Programmer       Reason
+----------    ---------------  -------------------------------------
+9/15/2012     Jodi Riegle      Original development (based largely on routines
+                               from the LEDAPS lndsr application)
+9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
 
-!Team Unique Header:
-
- ! Design Notes:
-   1. The HDF file is assumed to be open for SD (Science Data) access.
-   2. Error messages are handled with the 'RETURN_ERROR' macro.
-   3. Setting the type of the dimension is not currently implemented.
-
-!END****************************************************************************
-*/
+NOTES:
+*****************************************************************************/
+bool PutSDSDimInfo
+(
+  int32 sds_id,       /* I: SDS ID */
+  Myhdf_dim_t *dim,   /* I: dimension information */
+  int irank           /* I: rank/size of dimension */
+)
 {
 
   dim->id = SDgetdimid(sds_id, irank);
@@ -267,38 +238,34 @@ bool PutSDSDimInfo(int32 sds_id, Myhdf_dim_t *dim, int irank)
 }
 
 
-bool GetAttrDouble(int32 sds_id, Myhdf_attr_t *attr, double *val)
-/* 
-!C******************************************************************************
+/******************************************************************************
+MODULE: GetAttrDouble
 
-!Description: 'GetAttrDouble' reads an attribute into a parameter of type
- 'double'.
+PURPOSE: Reads an attribute into a parameter of type 'double'.
  
-!Input Parameters:
- sds_id         SDS id
- attr           Attribute data structure; the following field is used:
-                   name
+RETURN VALUE:
+Type = bool
+Value          Description
+-----          -----------
+false          Error reading the attribute
+true           Successful reading of the attribute
 
-!Output Parameters:
- attr           Attribute data structure; the following field is updated:
-                   id, type, nval
- val            An array of values from the HDF attribute (converted from the
-                  native type to type 'double'.
- (returns)      Status:
-                  'true' = okay
-          'false' = error reading the attribute information
+HISTORY:
+Date          Programmer       Reason
+----------    ---------------  -------------------------------------
+9/15/2012     Jodi Riegle      Original development (based largely on routines
+                               from the LEDAPS lndsr application)
+9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
 
-!Team Unique Header:
-
- ! Design Notes:
-   1. The values in the attribute are converted from the stored type to 
-      'double' type.
-   2. The HDF file is assumed to be open for SD (Science Data) access.
-   3. If the attribute has more than 'MYHDF_MAX_NATTR_VAL' values, an error
-      status is returned.
-   4. Error messages are handled with the 'RETURN_ERROR' macro.
-!END****************************************************************************
-*/
+NOTES:
+*****************************************************************************/
+bool GetAttrDouble
+(
+  int32 sds_id,         /* I: SDS ID */
+  Myhdf_attr_t *attr,   /* I: attribute data structure */
+  double *val           /* O: array of values from the HDF attribute, converted
+                              from the native data type to 'double' */
+)
 {
   char8 val_char8[MYHDF_MAX_NATTR_VAL];
   uint8 val_int8[MYHDF_MAX_NATTR_VAL];
@@ -387,36 +354,34 @@ bool GetAttrDouble(int32 sds_id, Myhdf_attr_t *attr, double *val)
 }
 
 
-bool PutAttrDouble(int32 sds_id, Myhdf_attr_t *attr, double *val)
-/* 
-!C******************************************************************************
+/******************************************************************************
+MODULE: PutAttrDouble
 
-!Description: 'PutAttrDouble' writes an attribute from a parameter of type
- 'double' to a HDF file.
+PURPOSE: Writes an attribute from a parameter of type 'double' to an HDF file.
  
-!Input Parameters:
- sds_id         SDS id
- attr           Attribute data structure; the following fields are used:
-                   name, type, nval
+RETURN VALUE:
+Type = bool
+Value          Description
+-----          -----------
+false          Error writing the attribute
+true           Successful writing of the attribute
 
-!Output Parameters:
- val            An array of values from the HDF attribute (converted from
-                  type 'double' to the native type
- (returns)      Status:
-                  'true' = okay
-              'false' = error writing the attribute information
+HISTORY:
+Date          Programmer       Reason
+----------    ---------------  -------------------------------------
+9/15/2012     Jodi Riegle      Original development (based largely on routines
+                               from the LEDAPS lndsr application)
+9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
 
-!Team Unique Header:
-
- ! Design Notes:
-   1. The values in the attribute are converted from the stored type to 
-      'double' type.
-   2. The HDF file is assumed to be open for SD (Science Data) access.
-   3. If the attribute has more than 'MYHDF_MAX_NATTR_VAL' values, an error
-      status is returned.
-   4. Error messages are handled with the 'RETURN_ERROR' macro.
-!END****************************************************************************
-*/
+NOTES:
+*****************************************************************************/
+bool PutAttrDouble
+(
+  int32 sds_id,         /* I: SDS ID */
+  Myhdf_attr_t *attr,   /* I: attribute data structure */
+  double *val           /* I: array of 'double' values to be written to the HDF
+                              file; converted to the specified data type */
+)
 {
   char8 val_char8[MYHDF_MAX_NATTR_VAL];
   int8 val_int8[MYHDF_MAX_NATTR_VAL];
@@ -428,7 +393,7 @@ bool PutAttrDouble(int32 sds_id, Myhdf_attr_t *attr, double *val)
   float32 val_float32[MYHDF_MAX_NATTR_VAL];
   float64 val_float64[MYHDF_MAX_NATTR_VAL];
   int i;
-  void *buf;
+  void *buf = NULL;
 
   if (attr->nval <= 0  ||  attr->nval > MYHDF_MAX_NATTR_VAL) 
     RETURN_ERROR("invalid number of values", "PutAttrDouble", false);
@@ -535,42 +500,39 @@ bool PutAttrDouble(int32 sds_id, Myhdf_attr_t *attr, double *val)
 }
 
 
-bool GetAttrString(int32 sds_id, Myhdf_attr_t *attr, char *string)
-/* 
-!C******************************************************************************
+/******************************************************************************
+MODULE: GetAttrString
 
-!Description: 'GetAttrString' reads an string (char8) attribute.
+PURPOSE: Reads an attribute into a parameter of type 'char *'.
+ 
+RETURN VALUE:
+Type = bool
+Value          Description
+-----          -----------
+false          Error reading the attribute
+true           Successful reading of the attribute
 
-!Input Parameters:
- sds_id         SDS id
- attr           Attribute data structure; the following field is used:
-                   name
+HISTORY:
+Date          Programmer       Reason
+----------    ---------------  -------------------------------------
+9/15/2012     Jodi Riegle      Original development (based largely on routines
+                               from the LEDAPS lndsr application)
+9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
 
-!Output Parameters:
- attr           Attribute data structure; the following field is updated:
-                   id, type, nval
- val            An array of values from the HDF attribute (converted from the
-                  native type to type 'double'.
- (returns)      Status:
-                  'true' = okay
-          'false' = error reading the attribute information
-
-!Team Unique Header:
-
- ! Design Notes:
-   1. The values in the attribute are converted from the stored type to 
-      'double' type.
-   2. The HDF file is assumed to be open for SD (Science Data) access.
-   3. If the attribute has more than 'MYHDF_MAX_NATTR_VAL' values, an error
-      status is returned.
-   4. Error messages are handled with the 'RETURN_ERROR' macro.
-!END****************************************************************************
-*/
+NOTES:
+*****************************************************************************/
+bool GetAttrString
+(
+  int32 sds_id,         /* I: SDS ID */
+  Myhdf_attr_t *attr,   /* I: attribute data structure */
+  char *string          /* O: array of values from the HDF attribute, converted
+                              from the native data type to 'char *' */
+)
 {
   char8 val_char8[MYHDF_MAX_NATTR_VAL];
   int i,i_length;
   char z_name[80];
-  void *buf;
+  void *buf = NULL;
   
   if ((attr->id = SDfindattr(sds_id, attr->name)) == HDF_ERROR)
     RETURN_ERROR("getting attribute id", "GetAttrString", false);
@@ -606,40 +568,38 @@ bool GetAttrString(int32 sds_id, Myhdf_attr_t *attr, char *string)
 }
 
 
-bool PutAttrString(int32 sds_id, Myhdf_attr_t *attr, char *string)
-/* 
-!C******************************************************************************
+/******************************************************************************
+MODULE: PutAttrString
 
-!Description: 'PutAttrString' writes an attribute from a parameter of type
- 'double' to a HDF file.
+PURPOSE: Writes an attribute from a parameter of type 'char*' to an HDF file.
  
-!Input Parameters:
- sds_id         SDS id
- attr           Attribute data structure; the following fields are used:
-                   name, type, nval
+RETURN VALUE:
+Type = bool
+Value          Description
+-----          -----------
+false          Error writing the attribute
+true           Successful writing of the attribute
 
-!Output Parameters:
- val            An array of values from the HDF attribute (converted from
-                  type 'double' to the native type
- (returns)      Status:
-                  'true' = okay
-              'false' = error writing the attribute information
+HISTORY:
+Date          Programmer       Reason
+----------    ---------------  -------------------------------------
+9/15/2012     Jodi Riegle      Original development (based largely on routines
+                               from the LEDAPS lndsr application)
+9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
 
-!Team Unique Header:
-
- ! Design Notes:
-   1. The values in the attribute are converted from the stored type to 
-      'double' type.
-   2. The HDF file is assumed to be open for SD (Science Data) access.
-   3. If the attribute has more than 'MYHDF_MAX_NATTR_VAL' values, an error
-      status is returned.
-   4. Error messages are handled with the 'RETURN_ERROR' macro.
-!END****************************************************************************
-*/
+NOTES:
+*****************************************************************************/
+bool PutAttrString
+(
+  int32 sds_id,         /* I: SDS ID */
+  Myhdf_attr_t *attr,   /* I: attribute data structure */
+  char *string          /* I: array of 'char' values to be written to the HDF
+                              file; converted to the specified data type */
+)
 {
   char8 val_char8[MYHDF_MAX_NATTR_VAL];
   int i;
-  void *buf;
+  void *buf = NULL;
 
   if (attr->nval <= 0  ||  attr->nval > MYHDF_MAX_NATTR_VAL) 
     RETURN_ERROR("invalid number of values", "PutAttrString", false);

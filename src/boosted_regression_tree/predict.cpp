@@ -1,10 +1,24 @@
-/*
- * predict.cpp\
- *
- *
- *  Created on: Nov 26, 2012
- *      Author: jlriegle
- */
+/*****************************************************************************
+FILE: predict.cpp
+  
+PURPOSE: Contains functions for training the model and running predictions
+using the model.  All methods are part of the PredictBurnedArea class.
+
+PROJECT:  Land Satellites Data System Science Research and Development (LSRD)
+at the USGS EROS
+
+LICENSE TYPE:  NASA Open Source Agreement Version 1.3
+
+HISTORY:
+Date          Programmer       Reason
+----------    ---------------  -------------------------------------
+11/26/2012    Jodi Riegle      Original development
+9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
+                               Modified to support saving the model and then
+                               reload the model
+
+NOTES:
+*****************************************************************************/
 
 #include <sstream>
 #include <iostream>
@@ -20,11 +34,55 @@
 using namespace boost::posix_time;
 using namespace std;
 
-void PredictBurnedArea::loadModel () {
-  	 gbtrees.load (LOAD_MODEL_XML.c_str());
+/******************************************************************************
+MODULE: loadModel (class PredictBurnedArea)
+
+PURPOSE: Loads a previously trained and saved model.
+ 
+RETURN VALUE:
+Type = None
+Value          Description
+-----          -----------
+
+HISTORY:
+Date          Programmer       Reason
+----------    ---------------  -------------------------------------
+9/3/2013      Gail Schmidt     Original development
+
+NOTES:
+*****************************************************************************/
+void PredictBurnedArea::loadModel ()
+{
+  	gbtrees.load (LOAD_MODEL_XML.c_str());
 }
 
-bool PredictBurnedArea::trainModel () {
+
+/******************************************************************************
+MODULE: trainModel (class PredictBurnedArea)
+
+PURPOSE: Trains the model using a gradient boosted regression tree with the
+specified parameters from the configuration file.  The model will be saved,
+if specified, to the user-specified output XML file.
+ 
+RETURN VALUE:
+Type = bool
+Value          Description
+-----          -----------
+false          Error training the model
+true           Successful training of the model
+
+HISTORY:
+Date          Programmer       Reason
+----------    ---------------  -------------------------------------
+11/26/2012    Jodi Riegle      Original development
+9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
+
+NOTES:
+  1. It's assumed the configuration parameters (class members) have already
+     been initialized.
+*****************************************************************************/
+bool PredictBurnedArea::trainModel ()
+{
     int nTrees = TREE_CNT;          /* number of trees in the ensemble */
     float shrink = SHRINKAGE;       /* shrinkage factor */
     int depth = MAX_DEPTH;          /* maximum depth of each tree */
@@ -91,7 +149,38 @@ bool PredictBurnedArea::trainModel () {
     return true;
 }
 
-bool PredictBurnedArea::predictModel(int iline, Output_t *output) {
+
+/******************************************************************************
+MODULE: predictModel (class PredictBurnedArea)
+
+PURPOSE: Run the gradient boosted regression tree model predictions to
+obtain the probability mappings for burned probabilities.
+ 
+RETURN VALUE:
+Type = bool
+Value          Description
+-----          -----------
+false          Error running the model
+true           Model ran successfully
+
+HISTORY:
+Date          Programmer       Reason
+----------    ---------------  -------------------------------------
+11/26/2012    Jodi Riegle      Original development
+9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
+                               Modified to write probability mappings vs.
+                               simple burn/unburned classifications
+
+NOTES:
+  1. It's assumed the model has already been trained and/or loaded.
+*****************************************************************************/
+bool PredictBurnedArea::predictModel
+(
+    int iline,            /* I: line to be processed (0-based) */
+    Output_t *output      /* O: 'output' data structure where buf contains
+                                the probability mapping values */
+)
+{
     int bnd;                     /* band/index looping variable */
     int season;                  /* season looping variable */
     int indx;                    /* indices looping variable */
@@ -153,12 +242,6 @@ bool PredictBurnedArea::predictModel(int iline, Output_t *output) {
             sample_indx, NCSV_INPUTS);
             RETURN_ERROR (errmsg, "predict_model", false);
         }
-
-/*printf ("DEBUG: Prediction sample for line %d, sample %d:", iline, y);
-for (indx = 0; indx < NCSV_INPUTS; indx++)
-    printf (" %.1f", sample.at<float>(indx));
-printf ("\n");
-*/
 
         /* If the current pixel isn't cloudy, water, or fill, then run the
            prediction for this pixel. If the pixel is cloud, shadow, or water,

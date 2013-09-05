@@ -1,42 +1,23 @@
-/*
-!C****************************************************************************
-
-!File: mystring.c
+/*****************************************************************************
+FILE: mystring.cpp
   
-!Description: Functions for handling strings.
+PURPOSE: Contains functions for string handling and handling of lines within
+a file.
 
-!Revision History:
- Revision 1.0 2001/05/08
- Robert Wolfe
- Original Version.
+PROJECT:  Land Satellites Data System Science Research and Development (LSRD)
+at the USGS EROS
 
-!Team Unique Header:
-  This software was developed by the MODIS Land Science Team Support 
-  Group for the Labatory for Terrestrial Physics (Code 922) at the 
-  National Aeronautics and Space Administration, Goddard Space Flight 
-  Center, under NASA Task 92-012-00.
+LICENSE TYPE:  NASA Open Source Agreement Version 1.3
 
- ! References and Credits:
-  ! MODIS Science Team Member:
-      Christopher O. Justice
-      MODIS Land Science Team           University of Maryland
-      justice@hermes.geog.umd.edu       Dept. of Geography
-      phone: 301-405-1600               1113 LeFrak Hall
-                                        College Park, MD, 20742
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+9/15/2012   Jodi Riegle      Original development (based largely on routines
+                             from the LEDAPS lndsr application)
+9/3/2013    Gail Schmidt     Modified to work in the ESPA environment
 
-  ! Developers:
-      Robert E. Wolfe (Code 922)
-      MODIS Land Team Support Group     Raytheon ITSS
-      robert.e.wolfe.1@gsfc.nasa.gov    4400 Forbes Blvd.
-      phone: 301-614-5508               Lanham, MD 20770  
-  
- ! Design Notes:
-   1. The following functions handle strings:
-
-       DupString - Duplicate a string.
-
-!END****************************************************************************
-*/
+NOTES:
+*****************************************************************************/
 
 #include <stdlib.h>
 #include <string.h>
@@ -45,35 +26,34 @@
 #include "mystring.h"
 #include "error.h"
 
-char *DupString(char *string) 
-/* 
-!C******************************************************************************
+/******************************************************************************
+MODULE: DupString
 
-!Description: 'DupString' duplicates a string.
+PURPOSE: Duplicates a string.
  
-!Input Parameters:
- string         string to duplicate
+RETURN VALUE:
+Type = char*
+Value          Description
+-----          -----------
+NULL           Error duplicating the string
+non-NULL       Pointer to duplicated string
 
-!Output Parameters:
- (returns)      duplicated string or 
-                NULL when an error occurs
+HISTORY:
+Date          Programmer       Reason
+----------    ---------------  -------------------------------------
+9/15/2012     Jodi Riegle      Original development (based largely on routines
+                               from the LEDAPS lndsr application)
+9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
 
-!Team Unique Header:
-
- ! Design Notes:
-   1. An error status is returned when:
-       a. a null string pointer is input
-       b. the input string length is invalid (< 0)
-       c. there is an erorr allocating memory for the string
-       d. there is an error copying the string.
-   2. Memory is allocated for the duplicated string.
-   3. Error messages are handled with the 'RETURN_ERROR' macro.
-
-!END****************************************************************************
-*/
+NOTES:
+*****************************************************************************/
+char *DupString
+(
+  char *string    /* I: string to duplicate */
+)
 {
   int len;
-  char *s;
+  char *s = NULL;
 
   if (string == (char *)NULL) return ((char *)NULL);
   len = strlen(string);
@@ -92,26 +72,33 @@ char *DupString(char *string)
 }
 
 
-int GetLine(FILE *fp, char *s)
-/* 
-!C******************************************************************************
+/******************************************************************************
+MODULE: GetLine
 
-!Description: 'GetLine' reads a line from a file. 
+PURPOSE: Reads a line from an open file.
  
-!Input Parameters:
- fp             file handle
+RETURN VALUE:
+Type = int
+Value          Description
+-----          -----------
+0              Error reading the line from the file
+non-zero       Length of the line read
 
-!Output Parameters:
- s              the line read from the file
- (returns)      length of the line or zero for end-of-file
+HISTORY:
+Date          Programmer       Reason
+----------    ---------------  -------------------------------------
+9/15/2012     Jodi Riegle      Original development (based largely on routines
+                               from the LEDAPS lndsr application)
+9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
 
-!Team Unique Header:
-
- ! Design Notes:
-   1. A maximum of 'MAX_STR_LEN' characters is returned.
-
-!END****************************************************************************
-*/
+NOTES:
+*****************************************************************************/
+int GetLine
+(
+  FILE *fp,  /* I: open file handler for reading */
+  char *s    /* O: line read from the file (size of the line is returned
+                   as the return value from the function call) */
+)
 {
   int i, c;
 
@@ -126,28 +113,29 @@ int GetLine(FILE *fp, char *s)
   return i;
 }                 
 
-bool StringParse(char *s, Key_t *key)
-/* 
-!C******************************************************************************
 
-!Description: 'StringParse' parsing an input "key = value" string with multiple 
-              values seperated by commas or spaces. 
-          Quoted values are allowed.  Keyword only strings are allowed 
-          (zero values).
+/******************************************************************************
+MODULE: StringParse
+
+PURPOSE: Parses an input "key = value" string with multiple values separated
+by commas or spaces.  Quoted values are allowed.  Keyword only strings are
+allowed (zero values).
  
-!Input Parameters:
- s              input string
- len            length of string
- c              character to fine
+RETURN VALUE:
+Type = bool
+Value          Description
+-----          -----------
+false          Error parsing the string
+true           Successful parsing of the string
 
-!Output Parameters:
- key            key and values
- (returns)      status; true = okay; false = error
-                    
+HISTORY:
+Date          Programmer       Reason
+----------    ---------------  -------------------------------------
+9/15/2012     Jodi Riegle      Original development (based largely on routines
+                               from the LEDAPS lndsr application)
+9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
 
-!Team Unique Header:
-
- ! Design Notes:
+NOTES:
    1. The key values must be after the equals ('=') character.
    2. A maximum of 'MAX_NUM_VALUE' values are returned.
    3. An error is returned if more than 'MAX_NUM_VALUE' values are 
@@ -158,9 +146,12 @@ bool StringParse(char *s, Key_t *key)
    6. Each option value (including extra spaces) can be at most 
       'MAX_STR_LEN - 1' characters.
    7. Cmma (','), qoutes ('"') and/or spaces (' ') are not allowed in the key.
-
-!END****************************************************************************
-*/
+*****************************************************************************/
+bool StringParse
+(
+  char *s,      /* I: input string to parse */
+  Key_t *key    /* O: key and values in the string */
+)
 {
   typedef enum {
     S0,                      /* start state */
@@ -287,27 +278,4 @@ bool StringParse(char *s, Key_t *key)
     s++;
   }
   return true;
-}
-
-int KeyString(char *key, int len, const Key_string_t *key_string, int null_key, 
-              int nkey) {
-  int len_key, len_test;
-  int ikey, i;
-
-  len_key = strlen(key);
-  if (len < len_key) len_key = len;
-
-  if (nkey < 1) 
-    RETURN_ERROR("invalid list", "KeyString", null_key);
-  for (ikey = 0; ikey < nkey; ikey++) {
-    len_test = strlen(key_string[ikey].string);
-    if (len_test != len_key) continue;
-    for (i = 0; i < len_key; i++) 
-      if (toupper(key[i]) != toupper(key_string[ikey].string[i])) break;
-    if (i >= len_key) break;
-  }
-  if (ikey >= nkey) 
-    RETURN_ERROR("string not found in list", "KeyString", null_key);
-
-  return (key_string[ikey].key);
 }

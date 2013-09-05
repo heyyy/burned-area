@@ -1,80 +1,67 @@
-/*
-!C****************************************************************************
-
-!File: error.c
+/*****************************************************************************
+FILE: error.cpp
   
-!Description: Function for handling errors.
+PURPOSE: Contains functions for handling errors.
 
-!Revision History:
- Revision 1.0 2001/05/08
- Robert Wolfe
- Original Version.
+PROJECT:  Land Satellites Data System Science Research and Development (LSRD)
+at the USGS EROS
 
-!Team Unique Header:
-  This software was developed by the MODIS Land Science Team Support 
-  Group for the Labatory for Terrestrial Physics (Code 922) at the 
-  National Aeronautics and Space Administration, Goddard Space Flight 
-  Center, under NASA Task 92-012-00.
+LICENSE TYPE:  NASA Open Source Agreement Version 1.3
 
- ! References and Credits:
-  ! MODIS Science Team Member:
-      Christopher O. Justice
-      MODIS Land Science Team           University of Maryland
-      justice@hermes.geog.umd.edu       Dept. of Geography
-      phone: 301-405-1600               1113 LeFrak Hall
-                                        College Park, MD, 20742
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+9/15/2012   Jodi Riegle      Original development (based largely on routines
+                             from the LEDAPS lndsr application)
+9/3/2013    Gail Schmidt     Modified to work in the ESPA environment
 
-  ! Developers:
-      Robert E. Wolfe (Code 922)
-      MODIS Land Team Support Group     Raytheon ITSS
-      robert.e.wolfe.1@gsfc.nasa.gov    4400 Forbes Blvd.
-      phone: 301-614-5508               Lanham, MD 20770  
-  
- ! Design Notes:
-   1. See 'error.h' for information on the 'ERROR' and 'ERROR_RETURN' macros 
-      that automatically populate the source code file name, line number and 
-      exit flag.  
-
-!END****************************************************************************
-*/
+NOTES:
+  1. See 'error.h' for information on the 'ERROR' and 'ERROR_RETURN' macros 
+     that automatically populate the source code file name, line number and 
+     exit flag.  
+*****************************************************************************/
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
 #include "error.h"
 
-void Error(const char *message, const char *module, 
-           const char *source, long line, bool done)
-/* 
-!C******************************************************************************
+/******************************************************************************
+MODULE: Error
 
-!Description: 'Error' writes an error message to 'stderr' and optionally 
-  exit's the program with a 'EXIT_FAILURE' status.
+PURPOSE: Writes an error message to 'stderr' and optionally exit's the program
+with a 'EXIT_FAILURE' status.
  
-!Input Parameters:
- message        error message
- module         calling module name
- source         source code file name containing the calling module
- line           line number in the source code file
- done           flag indicating if program is to exit with a failure status;
-                'true' = exit, 'false' = return
+RETURN VALUE:
+Type = None
+Value          Description
+-----          -----------
 
-!Output Parameters: (none)
- (returns)      (void)
+HISTORY:
+Date          Programmer       Reason
+----------    ---------------  -------------------------------------
+9/15/2012     Jodi Riegle      Original development (based largely on routines
+                               from the LEDAPS lndsr application)
+9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
 
-!Team Unique Header:
-
- ! Design Notes:
-   1. If the 'errno' flag is set, the 'perror' function is first called to 
-      print any i/o related errors.
-  
-   2. The error message is written to 'stdout'.
-
-   3. The module name, source code name and line number are included in the 
-      error message.
-
-!END****************************************************************************
-*/
+NOTES:
+  1. If the 'errno' flag is set, the 'perror' function is first called to 
+     print any i/o related errors.
+  2. The error message is written to 'stdout'.
+  3. The module name, source code name and line number are included in the 
+     error message.
+*****************************************************************************/
+void Error
+(
+    const char *message,  /* I: error message to be written */
+    const char *module,   /* I: calling module name */
+    const char *source,   /* I: source code file name containing the calling
+                                module */
+    long line,            /* I: line number in the source code file */
+    bool done             /* I: flag indicating if program is to exit with a
+                                failure status;
+                                'true' = exit, 'false' = return */
+)
 {
   if (errno) perror(" i/o error ");
   fprintf(stderr, " error [%s, %s:%ld] : %s\n", module, source, line, message);

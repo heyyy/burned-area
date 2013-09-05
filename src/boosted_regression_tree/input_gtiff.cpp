@@ -1,3 +1,22 @@
+/*****************************************************************************
+FILE: input_gtiff.cpp
+  
+PURPOSE: Contains functions for opening, reading, closing, and processing
+input GeoTIFF products.
+
+PROJECT:  Land Satellites Data System Science Research and Development (LSRD)
+at the USGS EROS
+
+LICENSE TYPE:  NASA Open Source Agreement Version 1.3
+
+HISTORY:
+Date          Programmer       Reason
+----------    ---------------  -------------------------------------
+8/16/2013     Gail Schmidt     Original Development
+
+NOTES:
+*****************************************************************************/
+
 #include "input_gtiff.h"
 
 /******************************************************************************
@@ -215,7 +234,7 @@ bool CloseGtifInput
 
 
 /******************************************************************************
-MODULE:  GetGtifInputLYSummaryData
+MODULE:  GetGtifInputLYSummaryData (class PredictBurnedArea)
 
 PURPOSE:  Read one line of the previous years' seasonal summary data for the
 specified season and band/index, and copy it to the associated PBA class array.
@@ -275,7 +294,7 @@ bool PredictBurnedArea::GetGtifInputLYSummaryData
 
 
 /******************************************************************************
-MODULE:  GetGtifInputAnnualMaxData
+MODULE:  GetGtifInputAnnualMaxData (class PredictBurnedArea)
 
 PURPOSE:  Read one line of the annual maximum data for the specified index,
 and copy it to the associated PBA class array.
@@ -327,4 +346,3 @@ bool PredictBurnedArea::GetGtifInputAnnualMaxData
 
     return true;
 }
-

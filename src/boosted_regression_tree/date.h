@@ -1,6 +1,25 @@
+/*****************************************************************************
+FILE: date.h
+  
+PURPOSE: Contains date related defines and structures
+
+PROJECT:  Land Satellites Data System Science Research and Development (LSRD)
+at the USGS EROS
+
+LICENSE TYPE:  NASA Open Source Agreement Version 1.3
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+9/15/2012   Jodi Riegle      Original development (based largely on routines
+                             from the LEDAPS lndsr application)
+9/3/2013    Gail Schmidt     Modified to work in the ESPA environment
+
+NOTES:
+*****************************************************************************/
+
 #ifndef DATE_H
 #define DATE_H
-
 
 /* Date/time type definition */
 #define MAX_DATE_LEN (28)

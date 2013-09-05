@@ -1,9 +1,27 @@
-/*
- * main.cpp
- *
- *  Created on: Nov 15, 2012
- *      Author: jlriegle
- */
+/******************************************************************************
+FILE:  predict_burned_area.cpp
+
+PURPOSE:  This is the main file which handles the overall boosted regression
+tree application and processing.
+
+PROJECT:  Land Satellites Data System Science Research and Development (LSRD)
+at the USGS EROS
+
+LICENSE TYPE:  NASA Open Source Agreement Version 1.3
+
+HISTORY:
+Date        Programmer       Reason
+--------    ---------------  -------------------------------------
+9/15/2012   Jodi Riegle      Original development
+9/3/2013    Gail Schmidt     Modified to work in the ESPA environment
+                             Modified to produce probability mappings instead
+                             of fire / no fire classifications
+                             Modified to support training the model only,
+                             training and running the model, and loading a
+                             previous model for running predictions.
+
+NOTES:
+******************************************************************************/
 
 #include "error.h"
 #include "input.h"
@@ -24,6 +42,31 @@ char band_indx_str[PBA_NBANDS][MAX_STR_LEN] = {"band3", "band4", "band5",
 char indx_str[PBA_NINDXS][MAX_STR_LEN] = {"ndvi", "ndmi", "nbr", "nbr2"};
     /* string to represent the indices in the annual maximums */
 
+/******************************************************************************
+MODULE:  main
+
+PURPOSE:  Reads the user specified arguments, reads the config file, handles
+training the model and/or loading and running the model on the user-specified
+file and using the user-specified configurations for the model.
+
+RETURN VALUE:
+Type = int
+Value          Description
+-----          -----------
+EXIT_FAILURE   Non-zero value to indicate an error occurred during processing
+EXIT_SUCCESS   Zero value to indicate successful processing
+
+HISTORY:
+Date          Programmer       Reason
+----------    ---------------  -------------------------------------
+9/15/2012     Jodi Riegle      Original development
+9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
+
+NOTES:
+  1. predict_burned_area --help will provide input information.
+  2. This code is a mixture of true object-oriented C++ code and
+     traditional C-based code (error handling, HDF file read/write)
+******************************************************************************/
 int main(int argc, char* argv[]) {
     PredictBurnedArea pba;
     int bnd;                           /* band/index looping variable */
@@ -35,17 +78,20 @@ int main(int argc, char* argv[]) {
     char gdal_cmd[MAX_STR_LEN];        /* command string for GDAL merge call */
     char lyResizeFile[MAX_STR_LEN];    /* filename of resized image file */
     char maxResizeFile[MAX_STR_LEN];   /* filename of resized image file */
+    char hdf_grid_name[MAX_STR_LEN];   /* name of the grid for HDF-EOS */
     char *output_header_name = NULL;   /* output filename */
     char *input_header_name = NULL;    /* output filename */
     char *output_file_name = NULL;     /* output filename */
-    char sds_names[NBAND_REFL_MAX][MAX_STR_LEN]; /* array of image SDS names */
-    char qa_sds_names[NUM_QA_BAND][MAX_STR_LEN]; /* array of QA SDS names */
+    char sds_names[NBAND_MAX_OUT][MAX_STR_LEN]; /* array of image SDS names */
     char lySummaryFile[PBA_NSEASONS][PBA_NBANDS][MAX_STR_LEN];/* last year */
     char maxIndxFile[PBA_NINDXS][MAX_STR_LEN];                /* max indices */
     Input_t *input = NULL;             /* input data and metadata */
     Output_t *output = NULL;           /* output structure and metadata */
     Input_Gtif_t *lySummaryPtr[PBA_NSEASONS][PBA_NBANDS];  /* last year ptr */
     Input_Gtif_t *maxIndxPtr[PBA_NINDXS];                  /* max indices ptr */
+    Space_def_t space_def;             /* spatial definition information */
+    int out_sds_types[NBAND_MAX_OUT] = {DFNT_INT16}; /* array of image SDS
+                                          types */
 
     /* Read the config file */
     if (!pba.loadParametersFromFile (argc, argv)) {
@@ -53,8 +99,8 @@ int main(int argc, char* argv[]) {
            exit */
         exit (EXIT_FAILURE);
     }
-    const char* hdfFile = pba.INPUT_HDF_FILE.c_str();
-    const char* seasonalSummaryDir = pba.SEASONAL_SUMMARIES_DIR.c_str();
+    char* hdfFile = (char *) pba.INPUT_HDF_FILE.c_str();
+    char* seasonalSummaryDir = (char *) pba.SEASONAL_SUMMARIES_DIR.c_str();
 
     /* Print some input processing info */
     if (pba.VERBOSE) {
@@ -101,7 +147,7 @@ int main(int argc, char* argv[]) {
         exit (EXIT_SUCCESS);
 
     /* Open the input HDF file */
-    input = OpenInput ((char *) hdfFile);
+    input = OpenInput (hdfFile);
     if (input == (Input_t *) NULL) {
         sprintf (errstr, "opening the input HDF file: %s", hdfFile);
         ERROR(errstr, "main");
@@ -148,11 +194,6 @@ int main(int argc, char* argv[]) {
         cout << "  SDS rank: " << input->therm_sds.rank << endl;
     }
 
-    for (ib = 0; ib < input->nband; ib++)
-        strcpy (&sds_names[ib][0], input->sds[ib].name);
-    for (ib = 0; ib < input->nqa_band; ib++)
-        strcpy (&qa_sds_names[ib][0], input->qa_sds[ib].name);
-
     /* Pull the acquisition year from the acquisition date */
     acq_year = input->meta.acq_date.year;
 
@@ -166,7 +207,8 @@ int main(int argc, char* argv[]) {
         ERROR(errstr, "main");
     }
 
-    output = OpenOutput (output_file_name, 1, 0, sds_names, qa_sds_names,
+    strcpy (sds_names[0], "burn_probability_mapping");
+    output = OpenOutput (output_file_name, NBAND_MAX_OUT, sds_names,
         &input->size);
     if (output == NULL) {
         sprintf (errstr, "opening output file: %s", output_file_name);
@@ -356,6 +398,10 @@ int main(int argc, char* argv[]) {
     cout << second_clock::local_time()
          << " ======= Predict Completed ======== " << endl;
 
+    /* Write the output metadata for the HDF file */
+    if (!PutMetadata (output, NBAND_MAX_OUT, sds_names, &input->meta))
+        ERROR("writing metadata to output HDF file", "main");
+
     /* Close the input file and free the structure */
     if (!CloseInput (input))
         ERROR("closing input HDF file", "main");
@@ -384,17 +430,15 @@ int main(int argc, char* argv[]) {
     pba.lySummaryMat.release();
     pba.maxIndxMat.release();
 
-    /* Write output hdf to tiff */
-/*    stringstream ss1, ss2, ss3, ss4;
-    ss1 << input->meta.wbc;
-    string ulx = ss1.str();
-    ss2 << input->meta.nbc;
-    string uly = ss2.str();
-    ss3 << input->meta.ebc;
-    string llx = ss3.str();
-    ss4 << input->meta.sbc;
-    string lly = ss4.str();
-*/
+    /* Get the projection and spatial information from the input surface
+       reflectance product */
+    strcpy (hdf_grid_name, "Grid");
+    if (!GetSpaceDefHdf (&space_def, hdfFile, hdf_grid_name))
+        ERROR("reading spatial metadata from input HDF file", "main");
+
+    if (!PutSpaceDefHdf (&space_def, output_file_name, NBAND_MAX_OUT,
+        sds_names, out_sds_types, hdf_grid_name))
+        ERROR("writing spatial metadata to output HDF file", "main");
 
     /* Convert the HDF file to GeoTIFF */
     pba.readHDR (pba.OUTPUT_HEADER_FILE);

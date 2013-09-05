@@ -8,10 +8,11 @@ RM = rm -f
 EXTRA = -Wall -g
 
 # Define the include files
-INC = const.h date.h error.h input.h myhdf.h mystring.h output.h predict.h \
+INC = const.h date.h error.h input.h input_gtiff.h myhdf.h myproj.h \
+      myproj_const.h mystring.h output.h predict.h space.h \
       PredictBurnedArea.h
 INCDIR  = -I. -I$(HDFINC) -I$(HDFEOS_INC) -I$(TIFFINC) -I$(GEOTIFF_INC) \
--I$(OPENCVINC) -I$(BOOST_INC)
+-I$(OPENCVINC) -I$(BOOST_INC) -I$(HDFEOS_GCTPINC)
 NCFLAGS = $(EXTRA) $(INCDIR)
 
 # Define the source code and object files
@@ -25,17 +26,18 @@ SRC = date.cpp \
       output.cpp \
       predict.cpp \
       PredictBurnedArea.cpp \
-      predict_burned_area.cpp
+      predict_burned_area.cpp \
+      space.cpp
 
 OBJ = $(SRC:.cpp=.o)
 
 # Define the object libraries
 LIB   = -L$(BOOST_LIB) -lboost_program_options \
         -L$(HDFEOS_LIB) -lhdfeos -L$(HDFLIB) -lmfhdf -ldf -lxdr \
-        -L$(JPEGLIB) -ljpeg -L$(GEOTIFF_LIB) -lgeotiff \
-        -L$(TIFFLIB) -ltiff -ltiffxx \
+        -L$(JPEGLIB) -ljpeg -L$(HDFEOS_GCTPLIB) -lGctp \
+        -L$(GEOTIFF_LIB) -lgeotiff -L$(TIFFLIB) -ltiff -ltiffxx \
         -L$(OPENCVLIB) -lopencv_ml -lopencv_highgui -lopencv_core \
-        -lpthread -lm
+        -lz -lrt -lpthread -lm
 
 # Define the executable
 EXE = predict_burned_area

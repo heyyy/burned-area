@@ -1,9 +1,22 @@
-/*
- * input.cpp
- *
- *  Created on: Nov 15, 2012
- *      Author: jlriegle
- */
+/*****************************************************************************
+FILE: input.cpp
+  
+PURPOSE: Contains functions for opening, reading, closing, and processing
+input HDF products.
+
+PROJECT:  Land Satellites Data System Science Research and Development (LSRD)
+at the USGS EROS
+
+LICENSE TYPE:  NASA Open Source Agreement Version 1.3
+
+HISTORY:
+Date          Programmer       Reason
+----------    ---------------  -------------------------------------
+11/15/2012    Jodi Riegle      Original development
+9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
+
+NOTES:
+*****************************************************************************/
 
 #include "input.h"
 
@@ -24,8 +37,8 @@ const char *INPUT_WBC = "WestBoundingCoordinate";
 const char *INPUT_EBC = "EastBoundingCoordinate";
 const char *INPUT_NBC = "NorthBoundingCoordinate";
 const char *INPUT_SBC = "SouthBoundingCoordinate";
-const char *INPUT_NBAND = "NumberOfBands";
-const char *INPUT_BANDS = "BandNumbers";
+const char *INPUT_UL_LAT_LONG = "UpperLeftCornerLatLong";
+const char *INPUT_LR_LAT_LONG = "LowerRightCornerLatLong";
 const char *INPUT_FILL_VALUE = "_FillValue";
 
 #define N_LSAT_WRS1_ROWS  (251)
@@ -37,22 +50,32 @@ const char *INPUT_FILL_VALUE = "_FillValue";
 const char *qa_band_names[NUM_QA_BAND] = {"fill_QA", "DDV_QA", "cloud_QA",
   "cloud_shadow_QA", "snow_QA", "land_water_QA", "adjacent_cloud_QA"};
 
-
 /******************************************************************************
-!Description: 'OpenInput' sets up the 'input' data structure, opens the
- input file for read access, allocates space, and stores some of the metadata.
+MODULE: OpenInput
 
-!Input Parameters:
- file_name      input file name
-cd
-!Output Parameters:
- (returns)      populated 'input' data structure or NULL when an error occurs
+PURPOSE: Sets up the 'input' data structure, opens the input file for read
+access, allocates memory, and stores some of the metadata from the input file.
+ 
+RETURN VALUE:
+Type = Input_t*
+Value          Description
+-----          -----------
+NULL           Error opening the HDF file and populating the data structure
+non-NULL       Successful processing of the input file
 
-!Team Unique Header:
+HISTORY:
+Date          Programmer       Reason
+----------    ---------------  -------------------------------------
+9/15/2012     Jodi Riegle      Original development (based largely on routines
+                               from the LEDAPS lndsr application)
+9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
 
-!Design Notes:
-******************************************************************************/
-Input_t *OpenInput(char *file_name)
+NOTES:
+*****************************************************************************/
+Input_t *OpenInput
+(
+  char *file_name      /* I: input filename of file to be opened */
+)
 {
   Myhdf_attr_t attr;
   const char *error_string = NULL;
@@ -295,23 +318,30 @@ Input_t *OpenInput(char *file_name)
 
 
 /******************************************************************************
-!Description: 'CloseInput' ends SDS access and closes the input file.
+MODULE: CloseInput
 
-!Input Parameters:
- ds_input           'input' data structure
+PURPOSE: Ends SDS access and closed the input file.
+ 
+RETURN VALUE:
+Type = bool
+Value          Description
+-----          -----------
+false          Error closing the input file
+true           Successful closing of the input file
 
-!Output Parameters:
- ds_input           'input' data structure; the following fields are modified:
-                   open
- (returns)      status:
-                  'true' = okay
-                  'false' = error return
+HISTORY:
+Date          Programmer       Reason
+----------    ---------------  -------------------------------------
+9/15/2012     Jodi Riegle      Original development (based largely on routines
+                               from the LEDAPS lndsr application)
+9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
 
-!Team Unique Header:
-
-!Design Notes:
-******************************************************************************/
-bool CloseInput(Input_t *ds_input)
+NOTES:
+*****************************************************************************/
+bool CloseInput
+(
+  Input_t *ds_input   /* I: input data structure for file to be closed */
+)
 {
   int ib;
 
@@ -343,20 +373,30 @@ bool CloseInput(Input_t *ds_input)
 
 
 /******************************************************************************
-!Description: 'FreeInput' frees the 'input' data structure memory.
-!Input Parameters:
- ds_input           'input' data structure
+MODULE: FreeInput
 
-!Output Parameters:
- (returns)      status:
-                  'true' = processing okay
-                  'false' = file was not open
+PURPOSE: Frees the 'input' data structure and memory.
+ 
+RETURN VALUE:
+Type = bool
+Value          Description
+-----          -----------
+false          Error freeing the input structure and memory
+true           Successful freeing of the input structure and memory
 
-!Team Unique Header:
+HISTORY:
+Date          Programmer       Reason
+----------    ---------------  -------------------------------------
+9/15/2012     Jodi Riegle      Original development (based largely on routines
+                               from the LEDAPS lndsr application)
+9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
 
-!Design Notes:
-******************************************************************************/
-bool FreeInput(Input_t *ds_input)
+NOTES:
+*****************************************************************************/
+bool FreeInput
+(
+  Input_t *ds_input   /* I: input data structure */
+)
 {
   int ib, ir;
 
@@ -410,31 +450,37 @@ bool FreeInput(Input_t *ds_input)
 
 
 /******************************************************************************
-!Description: 'GetInputData' reads the surface reflectance data for the current
-   band
+MODULE: GetInputData (class PredictBurnedArea)
 
-!Input Parameters:
- ds_input           'input' data structure
- iband          current band to be read (0-based)
+PURPOSE: Reads the surface reflectance data for the current band and line
+ 
+RETURN VALUE:
+Type = bool
+Value          Description
+-----          -----------
+false          Error reading the data
+true           Successful reading of the data
 
-!Output Parameters:
-predMat            cv::Mat that holds the data.
+HISTORY:
+Date          Programmer       Reason
+----------    ---------------  -------------------------------------
+9/15/2012     Jodi Riegle      Original development (based largely on routines
+                               from the LEDAPS lndsr application)
+9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
 
- (returns)      status:
-                  'true' = okay
-                  'false' = error return
-
-!Team Unique Header:
-
-!Design Notes:
-******************************************************************************/
-
-bool PredictBurnedArea::GetInputData(Input_t *ds_input, int iband, int iline)
+NOTES:
+  1. Band data read is stored in class variable predMat (cv::Mat) as floating
+     point values
+*****************************************************************************/
+bool PredictBurnedArea::GetInputData
+(
+  Input_t *ds_input,    /* I: input data structure */
+  int iband,            /* I: input band (0-based) */
+  int iline             /* I: input line (0-based) */
+)
 {
   int32 start[MYHDF_MAX_RANK], nval[MYHDF_MAX_RANK];
-  int16 *data;
-
-  data = new int16[ds_input->size.s];
+  int16 *data = new int16[ds_input->size.s];
 
   /* Check the parameters */
   if (ds_input == (Input_t *)NULL)
@@ -462,30 +508,39 @@ bool PredictBurnedArea::GetInputData(Input_t *ds_input, int iband, int iline)
   return true;
 }
 
+
 /******************************************************************************
-!Description: 'calcBands' computes the NDVI, NDMI, NBR, and NBR2 for the
- input data and places it in predMat
+MODULE: calcBands (class PredictBurnedArea)
 
-!Input Parameters:
- arrSz          number of rows
- ds_input        metadata from Landsat image
+PURPOSE: Computes the NDVI, NDMI, NBR, and NBR2 for the input data and places
+it in predMat
+ 
+RETURN VALUE:
+Type = bool
+Value          Description
+-----          -----------
+false          Error processing the data
+true           Successful processing of the data
 
-!Output Parameters:
-predMat            cv::Mat that holds the data.
+HISTORY:
+Date          Programmer       Reason
+----------    ---------------  -------------------------------------
+9/15/2012     Jodi Riegle      Original development (based largely on routines
+                               from the LEDAPS lndsr application)
+9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
 
- (returns)      status:
-                  'true' = okay
-                  'false' = error return
-
-!Team Unique Header:
-
-!Design Notes:
+NOTES:
   1. The spectral index is multiplied by 1000.0 to match what is used in the
      training dataset.  The training data has the spectral indices represented
      as an integer, where the actual index has been multiplied by 1000.
-******************************************************************************/
-
-bool PredictBurnedArea::calcBands(Input_t *ds_input) {
+  2. It is assumed the data for the current line has already been loaded into
+     predMat via GetInputData.
+*****************************************************************************/
+bool PredictBurnedArea::calcBands
+(
+    Input_t *ds_input   /* I: input data structure for this data */
+)
+{
     for (int i = 0; i < ds_input->size.s; i++) {
         /* NDVI - using bands 4 and 3 */
         if ((fillMat.at<unsigned char>(i) != 0) ||
@@ -545,26 +600,34 @@ bool PredictBurnedArea::calcBands(Input_t *ds_input) {
 
 
 /******************************************************************************
-!Description: 'GetInputQALine' reads the QA data for the current QA band and
-    line
+MODULE: GetInputQALine (class PredictBurnedArea)
 
-!Input Parameters:
- ds_input           'input' data structure
- iband          current QA band to be read (0-based)
- iline          current line to be read (0-based)
+PURPOSE: Reads the QA data for the current QA band and line
+ 
+RETURN VALUE:
+Type = bool
+Value          Description
+-----          -----------
+false          Error reading the data
+true           Successful reading of the data
 
-!Output Parameters:
- ds_input           'input' data structure; the following fields are modified:
-                   qa_buf -- contains the line read
- (returns)      status:
-                  'true' = okay
-                  'false' = error return
+HISTORY:
+Date          Programmer       Reason
+----------    ---------------  -------------------------------------
+9/15/2012     Jodi Riegle      Original development (based largely on routines
+                               from the LEDAPS lndsr application)
+9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
 
-!Team Unique Header:
-
-!Design Notes:
-******************************************************************************/
-bool PredictBurnedArea::GetInputQALine(Input_t *ds_input, int iband, int iline)
+NOTES:
+  1. QA data read is stored in class variables fillMat, cloudMat, cloudShadMat,
+     and landWaterMat (all of type cv::Mat).
+*****************************************************************************/
+bool PredictBurnedArea::GetInputQALine
+(
+  Input_t *ds_input,    /* I: input data structure */
+  int iband,            /* I: input band (0-based) */
+  int iline             /* I: input line (0-based) */
+)
 {
   int32 start[MYHDF_MAX_RANK], nval[MYHDF_MAX_RANK];
 
@@ -620,22 +683,32 @@ bool PredictBurnedArea::GetInputQALine(Input_t *ds_input, int iband, int iline)
 
 
 /******************************************************************************
-!Description: 'GetInputMeta' reads the metadata for input HDF file
+MODULE: GetInputMeta
 
-!Input Parameters:
- ds_input           'input' data structure
+PURPOSE: Reads the metadata for the input HDF file
+ 
+RETURN VALUE:
+Type = bool
+Value          Description
+-----          -----------
+false          Error reading the metadata
+true           Successful reading of the metadata
 
-!Output Parameters:
- ds_input           'input' data structure; metadata fields are populated
- (returns)      status:
-                  'true' = okay
-                  'false' = error return
+HISTORY:
+Date          Programmer       Reason
+----------    ---------------  -------------------------------------
+9/15/2012     Jodi Riegle      Original development (based largely on routines
+                               from the LEDAPS lndsr application)
+9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
 
-!Team Unique Header:
-
-!Design Notes:
-******************************************************************************/
-bool GetInputMeta(Input_t *ds_input)
+NOTES:
+  1. Band data read is stored in class variable predMat (cv::Mat) as floating
+     point values
+*****************************************************************************/
+bool GetInputMeta
+(
+  Input_t *ds_input     /* I: input data structure */
+)
 {
   Myhdf_attr_t attr;
   double dval[NBAND_REFL_MAX];
@@ -743,53 +816,122 @@ bool GetInputMeta(Input_t *ds_input)
   for (ib = 0; ib < ds_input->nband; ib++)
     meta->band[ib] = refl_bands[ib];
 
+  /* Get the upper left and lower right corners */
+  meta->ul_corner.is_fill = false;
+  attr.type = DFNT_FLOAT32;
+  attr.nval = 2;
+  attr.name = (char *) INPUT_UL_LAT_LONG;
+  if (!GetAttrDouble(ds_input->sds_file_id, &attr, dval)) {
+      printf ("WARNING: Unable to read the UL lat/long coordinates.  "
+          "Processing will continue but the scene will be assumed to be "
+          "a normal, north-up scene and not an ascending polar scene.  Thus "
+          "the solar azimuth will be used as-is and not adjusted if the "
+          "scene is flipped.\n");
+      meta->ul_corner.is_fill = true;
+  }
+  if (attr.nval != 2) {
+    RETURN_ERROR("Invalid number of values for the UL lat/long coordinate",
+      "GetInputMeta", false);
+  }
+  meta->ul_corner.lat = dval[0];
+  meta->ul_corner.lon = dval[1];
+
+  meta->lr_corner.is_fill = false;
+  attr.type = DFNT_FLOAT32;
+  attr.nval = 2;
+  attr.name = (char *) INPUT_LR_LAT_LONG;
+  if (!GetAttrDouble(ds_input->sds_file_id, &attr, dval)) {
+      printf ("WARNING: Unable to read the LR lat/long coordinates.  "
+          "Processing will continue but the scene will be assumed to be "
+          "a normal, north-up scene and not an ascending polar scene.  Thus "
+          "the solar azimuth will be used as-is and not adjusted if the "
+          "scene is flipped.");
+      meta->lr_corner.is_fill = true;
+  }
+  if (attr.nval != 2) {
+    RETURN_ERROR("Invalid number of values for the LR lat/long coordinate",
+      "GetInputMeta", false);
+  }
+  meta->lr_corner.lat = dval[0];
+  meta->lr_corner.lon = dval[1];
+
+  /* Get the bounding coordinates if they are available */
+  meta->bounds.is_fill = false;
   attr.type = DFNT_FLOAT32;
   attr.nval = 1;
   attr.name = (char *) INPUT_WBC;
-  if (!GetAttrDouble(ds_input->sds_file_id, &attr, dval))
-    RETURN_ERROR("reading attribute (west bound coord)", "GetInputMeta", false);
-  if (attr.nval != 1)
-    RETURN_ERROR("invalid number of values (west bound coord)",
-                 "GetInputMeta", false);
-  if (dval[0] < -180.0  ||  dval[0] > 180.0)
+  if (!GetAttrDouble(ds_input->sds_file_id, &attr, dval)) {
+    printf ("WARNING: Unable to read the west bounding coordinate.  "
+        "Processing will continue but the bounding coordinates will not "
+        "be written to the output product.\n");
+    meta->bounds.is_fill = true;
+  }
+  if (attr.nval != 1) {
+    printf ("WARNING: Invalid number of values for west bounding "
+        "coordinate.  Processing will continue but the bounding "
+        "coordinates will not be written to the output product.\n");
+    meta->bounds.is_fill = true;
+  }
+  if (dval[0] < -180.0 || dval[0] > 180.0)
     RETURN_ERROR("west bound coord out of range", "GetInputMeta", false);
-  meta->wbc = dval[0];
+  meta->bounds.min_lon = dval[0];
 
   attr.type = DFNT_FLOAT32;
   attr.nval = 1;
   attr.name = (char *) INPUT_EBC;
-  if (!GetAttrDouble(ds_input->sds_file_id, &attr, dval))
-    RETURN_ERROR("reading attribute (east bound coord)", "GetInputMeta", false);
-  if (attr.nval != 1)
-    RETURN_ERROR("invalid number of values (east bound coord)",
-                "GetInputMeta", false);
-  if (dval[0] < -180.0  ||  dval[0] > 180.0)
+  if (!GetAttrDouble(ds_input->sds_file_id, &attr, dval)) {
+    printf ("WARNING: Unable to read the east bounding coordinate.  "
+        "Processing will continue but the bounding coordinates will not "
+        "be written to the output product.\n");
+    meta->bounds.is_fill = true;
+  }
+  if (attr.nval != 1) {
+    printf ("WARNING: Invalid number of values for east bounding "
+        "coordinate.  Processing will continue but the bounding "
+        "coordinates will not be written to the output product.\n");
+    meta->bounds.is_fill = true;
+  }
+  if (dval[0] < -180.0 || dval[0] > 180.0)
     RETURN_ERROR("east bound coord out of range", "GetInputMeta", false);
-  meta->ebc = dval[0];
+  meta->bounds.max_lon = dval[0];
 
   attr.type = DFNT_FLOAT32;
   attr.nval = 1;
   attr.name = (char *) INPUT_NBC;
-  if (!GetAttrDouble(ds_input->sds_file_id, &attr, dval))
-    RETURN_ERROR("reading attribute (north bound coord)", "GetInputMeta", false);
-  if (attr.nval != 1)
-    RETURN_ERROR("invalid number of values (north bound coord)",
-                 "GetInputMeta", false);
-  if (dval[0] < -90.0  ||  dval[0] > 90.0)
+  if (!GetAttrDouble(ds_input->sds_file_id, &attr, dval)) {
+    printf ("WARNING: Unable to read the north bounding coordinate.  "
+        "Processing will continue but the bounding coordinates will not "
+        "be written to the output product.\n");
+    meta->bounds.is_fill = true;
+  }
+  if (attr.nval != 1) {
+    printf ("WARNING: Invalid number of values for north bounding "
+        "coordinate.  Processing will continue but the bounding "
+        "coordinates will not be written to the output product.\n");
+    meta->bounds.is_fill = true;
+  }
+  if (dval[0] < -90.0 || dval[0] > 90.0)
     RETURN_ERROR("north bound coord out of range", "GetInputMeta", false);
-  meta->nbc = dval[0];
+  meta->bounds.max_lat = dval[0];
 
   attr.type = DFNT_FLOAT32;
   attr.nval = 1;
   attr.name = (char *) INPUT_SBC;
-  if (!GetAttrDouble(ds_input->sds_file_id, &attr, dval))
-    RETURN_ERROR("reading attribute (south bound coord)", "GetInputMeta", false);
-  if (attr.nval != 1)
-    RETURN_ERROR("invalid number of values (south bound coord)",
-                 "GetInputMeta", false);
-  if (dval[0] < -90.0  ||  dval[0] > 90.0)
+  if (!GetAttrDouble(ds_input->sds_file_id, &attr, dval)) {
+    printf ("WARNING: Unable to read the south bounding coordinate.  "
+        "Processing will continue but the bounding coordinates will not "
+        "be written to the output product.\n");
+    meta->bounds.is_fill = true;
+  }
+  if (attr.nval != 1) {
+    printf ("WARNING: Invalid number of values for south bounding "
+        "coordinate.  Processing will continue but the bounding "
+        "coordinates will not be written to the output product.\n");
+    meta->bounds.is_fill = true;
+  }
+  if (dval[0] < -90.0 || dval[0] > 90.0)
     RETURN_ERROR("south bound coord out of range", "GetInputMeta", false);
-  meta->sbc = dval[0];
+  meta->bounds.min_lat = dval[0];
 
   /* Set the number of QA bands */
   ds_input->nqa_band = NUM_QA_BAND;
