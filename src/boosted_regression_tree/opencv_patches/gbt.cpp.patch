@@ -1,0 +1,224 @@
+# Patch file for OpenCV 4.2.0 to add the probability mapping method
+# OpenCV-2.4.0/modules/ml/src
+--- gbt.cpp	2013-09-06 10:05:45.890037187 -0500
++++ gbt.cpp.orig	2013-07-19 09:41:25.278863096 -0500
+@@ -903,69 +903,69 @@
+ class Tree_predictor
+ {
+ private:
+-    pCvSeq* weak;
+-    float* sum;
+-    const int k;
+-    const CvMat* sample;
+-    const CvMat* missing;
++	pCvSeq* weak;
++	float* sum;
++	const int k;
++	const CvMat* sample;
++	const CvMat* missing;
+     const float shrinkage;
+-
++    
+ #ifdef HAVE_TBB
+     static tbb::spin_mutex SumMutex;
+ #endif
+ 
+ 
+ public:
+-    Tree_predictor() : weak(0), sum(0), k(0), sample(0), missing(0), shrinkage(1.0f) {}
+-    Tree_predictor(pCvSeq* _weak, const int _k, const float _shrinkage,
+-                   const CvMat* _sample, const CvMat* _missing, float* _sum ) :
+-                   weak(_weak), sum(_sum), k(_k), sample(_sample),
++	Tree_predictor() : weak(0), sum(0), k(0), sample(0), missing(0), shrinkage(1.0f) {}
++	Tree_predictor(pCvSeq* _weak, const int _k, const float _shrinkage,
++				   const CvMat* _sample, const CvMat* _missing, float* _sum ) :
++				   weak(_weak), sum(_sum), k(_k), sample(_sample),
+                    missing(_missing), shrinkage(_shrinkage)
+ 	{}
+-
++	
+     Tree_predictor( const Tree_predictor& p, cv::Split ) :
+-            weak(p.weak), sum(p.sum), k(p.k), sample(p.sample),
++			weak(p.weak), sum(p.sum), k(p.k), sample(p.sample),
+             missing(p.missing), shrinkage(p.shrinkage)
+-    {}
+-
+-    Tree_predictor& operator=( const Tree_predictor& )
+-    { return *this; }
++	{}
+ 
++	Tree_predictor& operator=( const Tree_predictor& )
++	{ return *this; }
++	
+     virtual void operator()(const cv::BlockedRange& range) const
+-    {
++	{
+ #ifdef HAVE_TBB
+         tbb::spin_mutex::scoped_lock lock;
+ #endif
+         CvSeqReader reader;
+-        int begin = range.begin();
+-        int end = range.end();
+-
+-        int weak_count = end - begin;
+-        CvDTree* tree;
+-
+-        for (int i=0; i<k; ++i)
+-        {
+-            float tmp_sum = 0.0f;
+-            if ((weak[i]) && (weak_count))
+-            {
+-                cvStartReadSeq( weak[i], &reader );
+-                cvSetSeqReaderPos( &reader, begin );
+-                for (int j=0; j<weak_count; ++j)
+-                {
+-                    CV_READ_SEQ_ELEM( tree, reader );
+-                    tmp_sum += shrinkage*(float)(tree->predict(sample, missing)->value);
+-                }
+-            }
++		int begin = range.begin();
++		int end = range.end();
++		
++		int weak_count = end - begin;
++		CvDTree* tree;
++
++		for (int i=0; i<k; ++i)
++		{
++			float tmp_sum = 0.0f;
++			if ((weak[i]) && (weak_count))
++			{
++				cvStartReadSeq( weak[i], &reader ); 
++				cvSetSeqReaderPos( &reader, begin );
++				for (int j=0; j<weak_count; ++j)
++				{
++					CV_READ_SEQ_ELEM( tree, reader );
++					tmp_sum += shrinkage*(float)(tree->predict(sample, missing)->value);
++				}
++			}
+ #ifdef HAVE_TBB
+             lock.acquire(SumMutex);
+-            sum[i] += tmp_sum;
++			sum[i] += tmp_sum;
+             lock.release();
+ #else
+             sum[i] += tmp_sum;
+ #endif
+-        }
+-    } // Tree_predictor::operator()
+-
++		}
++	} // Tree_predictor::operator()
++    
+ }; // class Tree_predictor
+ 
+ 
+@@ -974,29 +974,30 @@
+ #endif
+ 
+ 
++
+ float CvGBTrees::predict( const CvMat* _sample, const CvMat* _missing,
+-            CvMat* /*weak_responses*/, CvSlice slice, int k) const
++            CvMat* /*weak_responses*/, CvSlice slice, int k) const 
+     {
+         float result = 0.0f;
+-        if (!weak) return 0.0f;
++	    if (!weak) return 0.0f;
+         float* sum = new float[class_count];
+         for (int i=0; i<class_count; ++i)
+             sum[i] = 0.0f;
+-        int begin = slice.start_index;
+-        int end = begin + cvSliceLength( slice, weak[0] );
+-
++	    int begin = slice.start_index;
++	    int end = begin + cvSliceLength( slice, weak[0] );
++    	
+         pCvSeq* weak_seq = weak;
+-        Tree_predictor predictor = Tree_predictor(weak_seq, class_count,
++	    Tree_predictor predictor = Tree_predictor(weak_seq, class_count,
+                                     params.shrinkage, _sample, _missing, sum);
+-
++        
+ //#ifdef HAVE_TBB
+-//      tbb::parallel_for(cv::BlockedRange(begin, end), predictor,
++//		tbb::parallel_for(cv::BlockedRange(begin, end), predictor,
+ //                          tbb::auto_partitioner());
+ //#else
+         cv::parallel_for(cv::BlockedRange(begin, end), predictor);
+ //#endif
+ 
+-        for (int i=0; i<class_count; ++i)
++	    for (int i=0; i<class_count; ++i)
+             sum[i] = sum[i] /** params.shrinkage*/ + base_value;
+ 
+         if (class_count == 1)
+@@ -1029,55 +1030,6 @@
+     }
+ 
+ 
+-// Developed to predict the probability mappings for the input sample, and
+-// the probability that it is of class k.  This was borrowed from predict,
+-// which simply predicts whether this sample is a particular class.
+-float CvGBTrees::predict_prob( const CvMat* _sample, int k,
+-            const CvMat* _missing, CvSlice slice) const 
+-    {
+-        float exp_sum = 0.0f;
+-        float result = 0.0f;
+-	    if (!weak) return 0.0f;
+-        float* sum = new float[class_count];
+-        for (int i=0; i<class_count; ++i)
+-            sum[i] = 0.0f;
+-	    int begin = slice.start_index;
+-	    int end = begin + cvSliceLength( slice, weak[0] );
+-    	
+-        pCvSeq* weak_seq = weak;
+-	    Tree_predictor predictor = Tree_predictor(weak_seq, class_count,
+-            params.shrinkage, _sample, _missing, sum);
+-        
+-//#ifdef HAVE_TBB
+-//		tbb::parallel_for(cv::BlockedRange(begin, end), predictor,
+-//                          tbb::auto_partitioner());
+-//#else
+-        cv::parallel_for(cv::BlockedRange(begin, end), predictor);
+-//#endif
+-
+-        for (int i=0; i<class_count; ++i)
+-            sum[i] = sum[i] /** params.shrinkage*/ + base_value;
+-
+-        if (class_count == 1)
+-        {
+-            result = sum[0];
+-            delete[] sum;
+-            return result;
+-        }
+-
+-        if ((k>=0) && (k<class_count))
+-        {
+-            for (int i=0; i<class_count; ++i)
+-                exp_sum += exp(sum[i]);
+-            result = exp(sum[k]) / exp_sum;
+-            delete[] sum;
+-            return result;
+-        }
+-        else
+-            return 0.0f;
+-    }
+-
+-
+ //===========================================================================
+ 
+ void CvGBTrees::write_params( CvFileStorage* fs ) const
+@@ -1441,13 +1393,3 @@
+     return predict(&_sample, missing.empty() ? 0 : &_missing, 0,
+                    slice==cv::Range::all() ? CV_WHOLE_SEQ : cvSlice(slice.start, slice.end), k);
+ }
+-
+-// Developed to predict the probability mappings for the input sample, and
+-// the probability that it is of class k.
+-float CvGBTrees::predict_prob( const cv::Mat& sample, int k,
+-      const cv::Mat& missing, const cv::Range& slice ) const
+-{
+-    CvMat _sample = sample, _missing = missing;
+-    return predict_prob(&_sample, k, missing.empty() ? 0 : &_missing,
+-      slice==cv::Range::all() ? CV_WHOLE_SEQ : cvSlice(slice.start, slice.end));
+-}

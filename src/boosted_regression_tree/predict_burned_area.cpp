@@ -333,7 +333,6 @@ int main(int argc, char* argv[]) {
     /* Loop through the lines in the image, read the reflective data, compute
        needed index products, read the QA data, and run the predictions */
     for (int iline = 0; iline < input->size.l; iline++) {
-//    for (int iline = 2500; iline < 2501; iline++) {
         if (iline % 100 == 0) {
             cout << second_clock::local_time() << " ======= line " << iline
                  << " ======== " << endl;
@@ -436,27 +435,10 @@ int main(int argc, char* argv[]) {
     if (!GetSpaceDefHdf (&space_def, hdfFile, hdf_grid_name))
         ERROR("reading spatial metadata from input HDF file", "main");
 
+    /* Write the spatial information to the output HDF file */
     if (!PutSpaceDefHdf (&space_def, output_file_name, NBAND_MAX_OUT,
         sds_names, out_sds_types, hdf_grid_name))
         ERROR("writing spatial metadata to output HDF file", "main");
 
-    /* Convert the HDF file to GeoTIFF */
-    pba.readHDR (pba.OUTPUT_HEADER_FILE);
-    string gdalTrans = "gdal_translate -a_srs '+proj=" + pba.projection +
-        " +zone=" + pba.zone + " +datum=" + pba.datum + "' -a_ullr " +
-        boost::lexical_cast<string>(pba.ulx) + " " +
-        boost::lexical_cast<string>(pba.uly) + " " +
-        boost::lexical_cast<string>(pba.lrx) + " " +
-        boost::lexical_cast<string>(pba.lry) +
-        " -of GTiff -co TFW=YES -b 1 -mask none " + output_file_name + " " +
-        pba.OUTPUT_TIFF_FILE;
-
-    const char* writeCommand = gdalTrans.c_str();
-    if (system (writeCommand) == -1) {
-        sprintf (errstr, "error running gdalTrans: %s", writeCommand);
-        ERROR(errstr, "main");
-    }
-
     exit (EXIT_SUCCESS);
 };
-
