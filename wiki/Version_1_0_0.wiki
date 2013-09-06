@@ -75,3 +75,4 @@ The boosted regression code allows a model to be trained and saved so that it ca
 A third application is yet to be delivered, but will be a filter run on the probability mappings as a final step in determining the burned pixels.
 
 === Product Guide ===
+The output product is a gridded HDF-EOS file for the desired Landsat scene.  The file contains a burn_probability_mapping SDS bit, which is a signed 16-bit integer, where values between 0 and 100 represent the probability that the pixel is burned.  Fill values are flagged as -9999 and cloud or water pixels are flagged with -9998.
