@@ -33,68 +33,23 @@ Release Date: September 6, 2013
     export OPENCV_LIB="path_to_modified_OpenCV_libraries"
     export BIN="path_to_directory_for_burned_area_binaries"
 }}}
+  # Modify the OpenCV code in modules/ml via the patch files that are provided in the src/boosted_regression directory.
+    * gbt.cpp  --> cd modules/ml/src; patch < {BA_base}/src/boosted_regression/opencv_patches/gbt.cpp.patch
+    * ml.hpp  --> cd modules/ml/include/opencv2/ml; patch < {BA_base}/src/boosted_regression/opencv_patches/ml.hpp.patch
+    * Rebuild OpenCV with the patched files
   # Checkout (from Google burned-area project) and install source files
 {{{
-cd ledapsSrc/src
-make
+cd {BA_base}/src/seasonal_summaries
+make (or make -f Makefile.static for static builds)
 make install
-make clean
-}}}
-This will create a list of executable files under $BIN<br />
-lndapp lndcal  lndpm  lndsr  lndsrbm.ksh sixsV1.0B
-cmrbv1.0  compadjn  comptemp  geo2xy SDSreader3.0 xy2geo
-(tested in gcc and gfortran compiler)
 
-* Note that if the HDF library was configured and built with szip support, then the user will also need to add "-L$(SZIPLIB) -lsz" at the end of the library defines in the Makefiles.  The user should also add "-I$(SZIPINC)" to the include directory defines in the Makefile.
+cd {BA_base}/src/boosted_regression
+make (or make -f Makefile.static for static builds)
+make install
+}}}
+This will create several executable files and Python scripts under $BIN(tested in gcc and gfortran compiler)
 
-* Note that new cloud mask program (lndsrbm) calls command 
-"ncdump" which is a standard HDF command. This release includes 
-a linux version ncdump command in the bin directory. You need to replace the ncdump program if you run from a different OS system. If you don't want to run optional lndsr-based cloud mask (lndsrbm), you will not need the ncdump program.
-
-  #: Setup environment
-{{{
-export ANC_PATH="directory_saved_ancillary_files"
-(or in c shell use 
-setenv ANC_PATH "directory_saved_ancillary_files")
-}}}
-  #: Test - Download Landsat files and then run following commands separately
-{{{
-lndpm <Landsat_meta_file>
-lndcal <lndcal_input_text>
-lndsr <lndsr_input_text>
-lndsrbm.ksh <lndsr_input_text>
-}}}
-Or simply run the combined commands to generate all (includes lndsrbm)
-{{{
-do_ledaps.csh <Landsat_meta_file>
-}}}
-Create a file called do_ledaps.csh in your $BIN directory.
-{{{
-#! /bin/csh -f
-
-if $#argv != 1 then
-    echo "Usage: do_ledaps.csh <Landsat_MTL_file>"
-    exit
-else
-    set meta_file = $argv[1]
-    set meta = `echo $meta_file | sed -e 's/.txt//' -e 's/_MTL//' -e 's/.met//'`
-endif
-}}}
-  #: Run LEDAPS modules
-{{{
-$BIN/lndpm $meta_file
-$BIN/lndcal lndcal.$meta.txt
-$BIN/lndsr lndsr.$meta.txt
-$BIN/lndsrbm.ksh lndsr.$meta.txt
-}}}
-  #: Check output
-{{{
-lndcal.*.hdf: top-of-atmosphere (TOA) reflectance in HDF format
-lndth.*.hdf: thermal brightness temperature in HDF format
-lndsr.*.hdf: surface reflectance in HDF format
-(each file is also associated with a ENVI header file that contains geographic
-information)
-}}}
+* Note that the Python scripts and C++ code rely on GDAL command-line executables, so GDAL will need to be installed and available in the $PATH.
 
 === Dependencies ===
   * GCTP library
@@ -107,6 +62,7 @@ information)
   * SZIP library
   * Boost library
   * OpenCV library (modified with the patches from the boosted regression src directory)
+  * GDAL command-line utilities
 
 === Verification Data ===
 
