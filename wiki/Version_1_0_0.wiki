@@ -66,8 +66,10 @@ This will create several executable files and Python scripts under $BIN(tested i
 === Verification Data ===
 
 === User Manual ===
-There are currently two applications associated with the burned area ECV.  The first application is the seasonal summaries, which generates the seasonal summaries and annual maximums for an input temporal stack of scenes for a given path/row.  The application determines the maximum geographic extents for the given stack, resamples each scene to this maximum geographic extent, then generates seasonal summaries for the reflective bands and index products (NBR, NBR2, NDVI, NDMI) along with a mask for the seasons and year.  This application also generates annual maximums for the index products.
+There are currently two applications associated with the burned area ECV.  The first application is the seasonal summaries, which generates the seasonal summaries and annual maximums for an input temporal stack of scenes for a given path/row.  The application determines the maximum geographic extents for the given stack, resamples each scene to this maximum geographic extent, then generates seasonal summaries for the reflective bands and index products (NBR, NBR2, NDVI, NDMI) along with a mask for the seasons and year.  This application also generates annual maximums for the index products.  (See the usage information via 'process_temporal_ba_stack.py --help'.)
 
-The second application is a scene-based probability mapping to predict the probability that any pixel is burned.
+The second application is a scene-based probability mapping to predict the probability that any pixel is burned.  This application relies on the seasonal summaries and annual maximums generated in the previous step.  The appliction will create a single band product for the scene containing the burn probabilities.  (See the usage information via 'do_boosted_regression.py --help'.)
+
+A third application is yet to be delivered, but will be a filter run on the probability mappings as a final step in determining the burned pixels.
 
 === Product Guide ===
