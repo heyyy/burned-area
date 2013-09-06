@@ -805,8 +805,6 @@ class temporalBAStack():
             mask_data_good = mask_data >= 0
             mask_data_bad = mask_data < 0
             mask_data = None
-#            print 'mask_data_bad.shape: ' + str(mask_data_bad.shape)
-#            print 'mask_data_good.shape: ' + str(mask_data_good.shape)
             
             # summarize the number of good pixels in the stack for each
             # line/sample; if there aren't any files for this year and
@@ -820,7 +818,6 @@ class temporalBAStack():
                     axes=[0])[0,:,:]
             else:
                 good_looks = zeros((self.nrow, self.ncol), dtype=uint8)
-#            print 'good_looks.shape: ' + str(good_looks.shape)
             
             # save the good looks output to a GeoTIFF file
             good_looks_file = dir_name + str(year) + '_' + season +  \
@@ -889,7 +886,6 @@ class temporalBAStack():
 
                 # create the index/band datasets --stack of ncols
                 band_data = zeros((n_files, self.ncol), dtype=int16)
-#                print 'band_data.shape: ' + str(band_data.shape)
                 
                 # loop through the current set of files, open them, and
                 # attach to the proper band
@@ -940,12 +936,9 @@ class temporalBAStack():
 
                         # stack up the current row of the bad data mask
                         curr_mask_data_bad[i,:] = mask_data_bad[i,y,:]
-#                    print 'curr_mask_data_bad.shape: ' +  \
-#                        str(curr_mask_data_bad.shape)
                 
                     # summarize the good pixels in the stack for each
                     # line/sample
-#                    print 'band_data.shape: ' + str(band_data.shape)
                     if n_files > 0:
                         # replace bad QA values with zeros
                         band_data[curr_mask_data_bad] = 0
@@ -953,7 +946,6 @@ class temporalBAStack():
                         # calculate totals within each voxel
                         sum_data = apply_over_axes(sum, band_data,  \
                             axes=[0])[0,]
-#                        print 'sum_data.shape: ' + str(sum_data.shape)
                         
                         # divide by the number of good looks within a voxel
                         mean_data = sum_data / good_looks[y,]
@@ -965,11 +957,9 @@ class temporalBAStack():
                        # create a line of nodata -- nrow=1 x ncols
                         mean_data = zeros((self.ncol), dtype=uint16) +  \
                             self.nodata
-#                    print 'mean_data.shape: ' + str(mean_data.shape)
     
                     # write the season summaries to a GeoTIFF file
                     mean_data_2d = reshape (mean_data, (1, len(mean_data)))
-#                    print 'mean_data_2d.shape: ' + str(mean_data_2d.shape)
                     temp_out.WriteArray(mean_data_2d, 0, y)
                 # end for y
     
