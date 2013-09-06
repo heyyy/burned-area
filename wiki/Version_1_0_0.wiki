@@ -68,7 +68,9 @@ This will create several executable files and Python scripts under $BIN(tested i
 === User Manual ===
 There are currently two applications associated with the burned area ECV.  The first application is the seasonal summaries, which generates the seasonal summaries and annual maximums for an input temporal stack of scenes for a given path/row.  The application determines the maximum geographic extents for the given stack, resamples each scene to this maximum geographic extent, then generates seasonal summaries for the reflective bands and index products (NBR, NBR2, NDVI, NDMI) along with a mask for the seasons and year.  This application also generates annual maximums for the index products.  (See the usage information via 'process_temporal_ba_stack.py --help'.)
 
-The second application is a scene-based probability mapping to predict the probability that any pixel is burned.  This application relies on the seasonal summaries and annual maximums generated in the previous step.  The appliction will create a single band product for the scene containing the burn probabilities.  (See the usage information via 'do_boosted_regression.py --help'.)
+The second application is a scene-based probability mapping using a gradient boosting tree to predict the probability that any pixel is burned.  This application relies on the seasonal summaries and annual maximums generated in the previous step.  The appliction will create a single band product for the scene containing the burn probabilities.  (See the usage information via 'do_boosted_regression.py --help'.)
+
+The boosted regression code allows a model to be trained and saved so that it can be loaded later for model predictions.  The training and prediction can also occur during the same run, depending on the input parameters provided in the parameter file.  In order to run model predictions for any scene, the model must first have been trained and then loaded.
 
 A third application is yet to be delivered, but will be a filter run on the probability mappings as a final step in determining the burned pixels.
 
