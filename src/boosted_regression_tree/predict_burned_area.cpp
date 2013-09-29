@@ -19,10 +19,16 @@ Date        Programmer       Reason
                              Modified to support training the model only,
                              training and running the model, and loading a
                              previous model for running predictions.
+9/25/2013   Gail Schmidt     Modified to use unique filenames for the resized
+                             products to allow for processing of multiple
+                             scenes in the same directory.  Also added code to
+                             remove these temporary resized files.
 
 NOTES:
 ******************************************************************************/
 
+#include <time.h>
+#include <sys/time.h>
 #include "error.h"
 #include "input.h"
 #include "input_gtiff.h"
@@ -69,6 +75,7 @@ NOTES:
 ******************************************************************************/
 int main(int argc, char* argv[]) {
     PredictBurnedArea pba;
+    unsigned int rand_time;            /* "random" time for the filename */
     int bnd;                           /* band/index looping variable */
     int season;                        /* season looping variable */
     int indx;                          /* indices looping variable */
@@ -76,6 +83,8 @@ int main(int argc, char* argv[]) {
     int acq_year;                      /* acquisition year of input scene */
     char errstr[MAX_STR_LEN];          /* error string */
     char gdal_cmd[MAX_STR_LEN];        /* command string for GDAL merge call */
+    char rm_cmd[MAX_STR_LEN];          /* command string for removing temp
+                                          files */
     char lyResizeFile[MAX_STR_LEN];    /* filename of resized image file */
     char maxResizeFile[MAX_STR_LEN];   /* filename of resized image file */
     char hdf_grid_name[MAX_STR_LEN];   /* name of the grid for HDF-EOS */
@@ -85,6 +94,8 @@ int main(int argc, char* argv[]) {
     char sds_names[NBAND_MAX_OUT][MAX_STR_LEN]; /* array of image SDS names */
     char lySummaryFile[PBA_NSEASONS][PBA_NBANDS][MAX_STR_LEN];/* last year */
     char maxIndxFile[PBA_NINDXS][MAX_STR_LEN];                /* max indices */
+    char timestr[MAX_STR_LEN];         /* random string to create random
+                                          filenames for resizing */
     Input_t *input = NULL;             /* input data and metadata */
     Output_t *output = NULL;           /* output structure and metadata */
     Input_Gtif_t *lySummaryPtr[PBA_NSEASONS][PBA_NBANDS];  /* last year ptr */
@@ -92,6 +103,7 @@ int main(int argc, char* argv[]) {
     Space_def_t space_def;             /* spatial definition information */
     int out_sds_types[NBAND_MAX_OUT] = {DFNT_INT16}; /* array of image SDS
                                           types */
+    struct timeval curr_time;          /* current time for unique filename */
 
     /* Read the config file */
     if (!pba.loadParametersFromFile (argc, argv)) {
@@ -244,7 +256,13 @@ int main(int argc, char* argv[]) {
        Files are expected to reside in the seasonal summaries directory with
        subdirectories of refl, ndvi, ndmi, nbr, nbr2.  Resize these files to
        match the geospatial extents of the current scene.  Then open the files
-       and read the associated metadata. */
+       and read the associated metadata.
+       The resized files will be given a hexidecimal timestamp to allow for
+       somewhat unique filenames to be processed. */
+    gettimeofday (&curr_time, NULL);
+    rand_time = curr_time.tv_sec * 1000000 + curr_time.tv_usec;
+    sprintf (timestr, "%x", rand_time);
+printf ("DEBUG: random string %s\n", timestr);
     printf (".... Seasonal summary products\n");
     for (season = 0; season < PBA_NSEASONS; season++) {
         for (bnd = 0; bnd < PBA_NBANDS; bnd++) {
@@ -253,17 +271,18 @@ int main(int argc, char* argv[]) {
                 sprintf (lySummaryFile[season][bnd], "%s/refl/%d_%s_%s.tif",
                     seasonalSummaryDir, acq_year-1, season_str[season],
                     band_indx_str[bnd]);
-                sprintf (lyResizeFile, "./refl/resize_%d_%s_%s.tif", acq_year-1,
-                    season_str[season], band_indx_str[bnd]);
+                sprintf (lyResizeFile, "./refl/resize_%d_%s_%s_%s.tif",
+                    acq_year-1, season_str[season], band_indx_str[bnd],
+                    timestr);
             }
             else {  /* index bands */
                 /* Set up the filenames */
                 sprintf (lySummaryFile[season][bnd], "%s/%s/%d_%s_%s.tif",
                     seasonalSummaryDir, band_indx_str[bnd], acq_year-1,
                     season_str[season], band_indx_str[bnd]);
-                sprintf (lyResizeFile, "./%s/resize_%d_%s_%s.tif",
+                sprintf (lyResizeFile, "./%s/resize_%d_%s_%s_%s.tif",
                     band_indx_str[bnd], acq_year-1, season_str[season],
-                    band_indx_str[bnd]);
+                    band_indx_str[bnd], timestr);
             }
 
             /* Resize the files */
@@ -290,8 +309,8 @@ int main(int argc, char* argv[]) {
         /* Set up the filenames - annual max is for last year */
         sprintf (maxIndxFile[indx], "%s/%s/%d_maximum_%s.tif",
             seasonalSummaryDir, indx_str[indx], acq_year-1, indx_str[indx]);
-        sprintf (maxResizeFile, "./%s/resize_%d_maximum_%s.tif", indx_str[indx],
-            acq_year-1, indx_str[indx]);
+        sprintf (maxResizeFile, "./%s/resize_%d_maximum_%s_%s.tif",
+            indx_str[indx], acq_year-1, indx_str[indx], timestr);
 
         /* Resize the files */
         sprintf (gdal_cmd, "gdal_translate -of Gtiff -a_nodata %d "
@@ -439,6 +458,21 @@ int main(int argc, char* argv[]) {
     if (!PutSpaceDefHdf (&space_def, output_file_name, NBAND_MAX_OUT,
         sds_names, out_sds_types, hdf_grid_name))
         ERROR("writing spatial metadata to output HDF file", "main");
+
+    /* Clean up the resized files */
+    for (indx = 0; indx < PBA_NINDXS; indx++) {
+        sprintf (rm_cmd, "rm ./%s/resize_*%s.tif", indx_str[indx], timestr);
+        if (system (rm_cmd) == -1) {
+            sprintf (errstr, "error removing temp resize files: %s", rm_cmd);
+            ERROR(errstr, "main");
+        }
+    }
+
+    sprintf (rm_cmd, "rm ./refl/resize_*%s.tif", timestr);
+    if (system (rm_cmd) == -1) {
+        sprintf (errstr, "error removing temp resize files: %s", rm_cmd);
+        ERROR(errstr, "main");
+    }
 
     exit (EXIT_SUCCESS);
 };
