@@ -723,6 +723,9 @@ class temporalBAStack():
     #   Updated on 5/22/2013 by Gail Schmidt, USGS/EROS LSRD Project
     #       Modified to process all the indices one line  at a time (vs. the
     #       entire band) since this is faster.
+    #   Updated on 9/20/2013 by Gail Schmidt, USGS/EROS LSRD Project
+    #       Modified to process a summary product with fill if there aren't
+    #       any valid inputs for the current season/year.
     #
     # Inputs:
     #   year - year to process the seasonal summaries
@@ -768,13 +771,11 @@ class temporalBAStack():
                      (self.csv_data['month'] <= 11))
  
             # how many files do we have for the current year and season?
-            # if there aren't any files to process then skip to the next
-            # season
+            # if there aren't any files to process then write out a
+            # product with fill
             n_files = sum (season_files)
             msg = '  season = %s,  file count = %d' % (season, n_files)
             logIt (msg, self.log_handler)
-            if n_files == 0:
-                continue
  
             # generate the directory name for the mask stack
             dir_name = '%s/mask/' % self.hdf_dir_name
