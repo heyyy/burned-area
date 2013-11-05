@@ -1,4 +1,4 @@
-#summary Version 1.0.1 of the Landsat burned area software.
+#summary Version 1.0.1 of the burned area ECV software.
 
 == Burned-Area Version 1.0.1 Release Notes ==
 Release Date: November 5, 2013
