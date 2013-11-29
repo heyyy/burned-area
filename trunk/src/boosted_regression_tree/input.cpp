@@ -14,6 +14,8 @@ Date          Programmer       Reason
 ----------    ---------------  -------------------------------------
 11/15/2012    Jodi Riegle      Original development
 9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
+9/10/2011     Gail Schmidt     Modified to use the cfmask QA values which are
+                               more accurate than the SR QA values
 
 NOTES:
 *****************************************************************************/
@@ -46,9 +48,10 @@ const char *INPUT_FILL_VALUE = "_FillValue";
 #define N_LSAT_WRS2_ROWS  (248)
 #define N_LSAT_WRS2_PATHS (233)
 
-/* Band names for the QA bands */
-const char *qa_band_names[NUM_QA_BAND] = {"fill_QA", "DDV_QA", "cloud_QA",
-  "cloud_shadow_QA", "snow_QA", "land_water_QA", "adjacent_cloud_QA"};
+/* Band names for the QA bands that will be read from the surface reflectance
+   product.  Needs to match the QA_Band_t enumerated type in
+   PredictBurnedArea.h.  Right now it's just the cfmask QA band. */
+const char *qa_band_names[NUM_QA_BAND] = {"fmask_band"};
 
 /******************************************************************************
 MODULE: OpenInput
@@ -69,6 +72,8 @@ Date          Programmer       Reason
 9/15/2012     Jodi Riegle      Original development (based largely on routines
                                from the LEDAPS lndsr application)
 9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
+9/10/2011     Gail Schmidt     Modified to use the cfmask QA values which are
+                               more accurate than the SR QA values
 
 NOTES:
 *****************************************************************************/
@@ -77,15 +82,15 @@ Input_t *OpenInput
   char *file_name      /* I: input filename of file to be opened */
 )
 {
-  Myhdf_attr_t attr;
-  const char *error_string = NULL;
-  char sds_name[40];
-  int ir;
-  Myhdf_dim_t *dim[2];
-  int ib;
-  double dval[NBAND_REFL_MAX];
-  int16 *buf = NULL;
-  uint8 *qa_buf = NULL;
+  Myhdf_attr_t attr;                  /* local attributes */
+  const char *error_string = NULL;    /* error message */
+  char sds_name[40];                  /* name of SDS to be read */
+  int ir;                             /* looping variable */
+  Myhdf_dim_t *dim[2];                /* dimension structure */
+  int ib;                             /* looping variable for bands */
+  double dval[NBAND_REFL_MAX];        /* double value array */
+  int16 *buf = NULL;                  /* buffer for the reflectance values */
+  uint8 *qa_buf = NULL;               /* buffer for the QA values */
 
   /* Create the Input data structure */
   Input_t* ds_input = new Input_t();
@@ -257,6 +262,10 @@ Input_t *OpenInput
     }
   }  /* for ib */
 
+  /* Process any errors */
+  if (error_string != NULL)
+    RETURN_ERROR(error_string, "OpenInput", NULL);
+
   /* For the single thermal band, obtain the SDS information */
   strcpy (sds_name, "band6");
   ds_input->therm_sds.name = DupString(sds_name);
@@ -282,11 +291,17 @@ Input_t *OpenInput
       error_string = "getting thermal dimensions";
   }
 
+  /* Process any errors */
+  if (error_string != NULL)
+    RETURN_ERROR(error_string, "OpenInput", NULL);
+
   /* Allocate input buffers.  Thermal band only has one band.  Image and QA
      buffers have multiple bands. */
-  buf = (int16 *)calloc((size_t)(ds_input->size.s * ds_input->nband), sizeof(int16));
-  if (buf == NULL)
-    error_string = "allocating input buffer";
+  buf = (int16 *)calloc((size_t)(ds_input->size.s * ds_input->nband),
+    sizeof(int16));
+  if (buf == NULL) {
+    RETURN_ERROR("allocating input buffer", "OpenInput", NULL);
+  }
   else {
     ds_input->buf[0] = buf;
     for (ib = 1; ib < ds_input->nband; ib++)
@@ -295,23 +310,19 @@ Input_t *OpenInput
 
   qa_buf = (uint8 *)calloc((size_t)(ds_input->size.s * ds_input->nqa_band),
     sizeof(uint8));
-  if (qa_buf == NULL)
-    error_string = "allocating input QA buffer";
+  if (qa_buf == NULL) {
+    RETURN_ERROR("allocating input QA buffer", "OpenInput", NULL);
+  }
   else {
     ds_input->qa_buf[0] = qa_buf;
     for (ib = 1; ib < ds_input->nqa_band; ib++)
       ds_input->qa_buf[ib] = ds_input->qa_buf[ib - 1] + ds_input->size.s;
   }
 
-  ds_input->therm_buf = (int16 *)calloc((size_t)(ds_input->size.s), sizeof(int16));
+  ds_input->therm_buf = (int16 *)calloc((size_t)(ds_input->size.s),
+    sizeof(int16));
   if (ds_input->therm_buf == NULL)
-    error_string = "allocating input thermal buffer";
-
-  if (error_string != NULL) {
-    FreeInput (ds_input);
-    CloseInput (ds_input);
-    RETURN_ERROR(error_string, "OpenInput", NULL);
-  }
+    RETURN_ERROR("allocating input thermal buffer", "OpenInput", NULL);
 
   return ds_input;
 }
@@ -543,7 +554,7 @@ bool PredictBurnedArea::calcBands
 {
     for (int i = 0; i < ds_input->size.s; i++) {
         /* NDVI - using bands 4 and 3 */
-        if ((fillMat.at<unsigned char>(i) != 0) ||
+        if ((cfmaskMat.at<unsigned char>(i) == CFMASK_FILL) ||
             (predMat.at<float>(i,PREDMAT_B4) + predMat.at<float>(i,PREDMAT_B3)
             == 0)) { //avoid division by 0 and fill data
             predMat.at<float>(i,PREDMAT_NDVI) = 0;
@@ -556,7 +567,7 @@ bool PredictBurnedArea::calcBands
         }
 
         /* NDMI - using bands 4 and 5 */
-        if ((fillMat.at<unsigned char>(i) != 0) ||
+        if ((cfmaskMat.at<unsigned char>(i) == CFMASK_FILL) ||
             (predMat.at<float>(i,PREDMAT_B4) + predMat.at<float>(i,PREDMAT_B5)
             == 0)) { //avoid division by 0 and fill data
             predMat.at<float>(i,PREDMAT_NDMI) = 0; //avoid division by 0
@@ -569,7 +580,7 @@ bool PredictBurnedArea::calcBands
         }
 
         /* NBR - using bands 4 and 7 */
-        if ((fillMat.at<unsigned char>(i) != 0) ||
+        if ((cfmaskMat.at<unsigned char>(i) == CFMASK_FILL) ||
             (predMat.at<float>(i,PREDMAT_B4) + predMat.at<float>(i,PREDMAT_B7)
             == 0)) { //avoid division by 0 and fill data
             predMat.at<float>(i,PREDMAT_NBR) = 0; //avoid division by 0
@@ -582,7 +593,7 @@ bool PredictBurnedArea::calcBands
         }
 
         /* NBR2 - using bands 5 and 7 */
-        if ((fillMat.at<unsigned char>(i) != 0) ||
+        if ((cfmaskMat.at<unsigned char>(i) == CFMASK_FILL) ||
             (predMat.at<float>(i,PREDMAT_B5) + predMat.at<float>(i,PREDMAT_B7)
             == 0)) { //avoid division by 0 and fill data
             predMat.at<float>(i,PREDMAT_NBR2) = 0; //avoid division by 0
@@ -617,10 +628,11 @@ Date          Programmer       Reason
 9/15/2012     Jodi Riegle      Original development (based largely on routines
                                from the LEDAPS lndsr application)
 9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
+9/10/2013     Gail Schmidt     Modified to use the cfmask QA mask for cloud,
+                               snow, etc.
 
 NOTES:
-  1. QA data read is stored in class variables fillMat, cloudMat, cloudShadMat,
-     and landWaterMat (all of type cv::Mat).
+  1. QA data read is stored in class variables cfmaskMat (type cv::Mat).
 *****************************************************************************/
 bool PredictBurnedArea::GetInputQALine
 (
@@ -654,28 +666,13 @@ bool PredictBurnedArea::GetInputQALine
     == HDF_ERROR)
     RETURN_ERROR("reading input", "GetInputQALine", false);
 
-  if (strcmp(ds_input->qa_sds[iband].name, "fill_QA") ==0) {
+  if (strcmp(ds_input->qa_sds[iband].name, "fmask_band") ==0) {
       for (int i=0; i<ds_input->size.s; i++) {
-           fillMat.at<unsigned char>(i,0) = data[i];
+           cfmaskMat.at<unsigned char>(i,0) = data[i];
       }
   }
-
-  if (strcmp(ds_input->qa_sds[iband].name, "cloud_QA") ==0) {
-      for (int i=0; i<ds_input->size.s; i++) {
-           cloudMat.at<unsigned char>(i,0) = data[i];
-      }
-  }
-
-  if (strcmp(ds_input->qa_sds[iband].name, "cloud_shadow_QA") ==0) {
-      for (int i=0; i<ds_input->size.s; i++) {
-           cloudShadMat.at<unsigned char>(i,0) = data[i];
-      }
-  }
-
-  if (strcmp(ds_input->qa_sds[iband].name, "land_water_QA") ==0) {
-      for (int i=0; i<ds_input->size.s; i++) {
-           landWaterMat.at<unsigned char>(i,0) = data[i];
-      }
+  else {
+      RETURN_ERROR("invalid QA band", "GetInputQALine", false);
   }
 
   return true;

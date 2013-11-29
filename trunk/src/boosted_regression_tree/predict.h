@@ -22,7 +22,7 @@ NOTES:
 #define PREDICT_H_
 
 #include <string>
-#include <opencv/cv.h>
+#include "cv.h"
 #include "opencv2/ml/ml.hpp"
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/core/core_c.h"
@@ -37,5 +37,11 @@ using namespace std;
 
 /* define the pixel values for fill for the output prediction scenes */
 #define PBA_FILL -9999
+
+/* specify the cfmask values */
+#define CFMASK_WATER 1
+#define CFMASK_SHADOW 2
+#define CFMASK_SNOW 3
+#define CFMASK_CLOUD 4
 
 #endif /* PREDICT_H_ */
