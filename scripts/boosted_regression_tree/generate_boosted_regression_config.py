@@ -112,7 +112,7 @@ class BoostedRegressionConfig():
         # is the scene name for the file.  Example input filename is
         # lndsr.LT50350322002237LGS01.hdf.
         infile_list = input_hdf_file.split('.')
-        output_hdf_file = '%s_burned_area.hdf' % infile_list[1]
+        output_hdf_file = '%s_burn_probability.hdf' % infile_list[1]
 
         # open the configuration file for writing
         config_handler = open (config_file, 'w')
