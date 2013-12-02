@@ -4,7 +4,7 @@ import os
 import re
 import commands
 import datetime
-from optparse import OptionParser
+from argparse import ArgumentParser
 
 ERROR = 1
 SUCCESS = 0
@@ -52,6 +52,12 @@ class BoostedRegression():
     # specified, then the output from this application will be logged to that
     # file.
     #
+    # History:
+    #   Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+    #       Geographic Science Center
+    #   Updated on Dec. 2, 2013 by Gail Schmidt, USGS/EROS LSRD Project
+    #       Modified to use argparser vs. optionparser, since optionparser
+    #       is deprecated.
     # Inputs:
     #   config_file - name of the input configuration file to be processed
     #   logfile - name of the logfile for logging information; if None then
@@ -75,17 +81,20 @@ class BoostedRegression():
         # if no parameters were passed then get the info from the command line
         if config_file == None:
             # get the command line argument for the reflectance file
-            parser = OptionParser()
-            parser.add_option ("-c", "--config_file", type="string",
-                dest="config_file",
-                help="name of configuration file", metavar="FILE")
-            parser.add_option ("--usebin", dest="usebin", default=False,
-                action="store_true",
-                help="use BIN environment variable as the location of " \
-                     "boosted regression tree application")
-            parser.add_option ("-l", "--logfile", type="string", dest="logfile",
-                help="name of optional log file", metavar="FILE")
-            (options, args) = parser.parse_args()
+            parser = ArgumentParser(  \
+                description='Run boosted regression algorithm for the scene')
+            parser.add_argument ('-c', '--config_file', type=str,
+                dest='config_file',
+                help='name of configuration file', metavar='FILE')
+            parser.add_argument ('--usebin', dest='usebin', default=False,
+                action='store_true',
+                help='use BIN environment variable as the location of ' \
+                     'boosted regression tree application')
+            parser.add_argument ('-l', '--logfile', type=str,
+                dest='logfile',
+                help='name of optional log file', metavar='FILE')
+
+            options = parser.parse_args()
     
             # validate the command-line options
             usebin = options.usebin          # should $BIN directory be used
@@ -118,8 +127,8 @@ class BoostedRegression():
         
         # make sure the configuration file exists
         if not os.path.isfile(config_file):
-            msg = "Error: configuration file does not exist or is not " \
-                "accessible: " + config_file
+            msg = 'Error: configuration file does not exist or is not ' \
+                'accessible: ' + config_file
             logIt (msg, log_handler)
             return ERROR
 
@@ -132,7 +141,10 @@ class BoostedRegression():
         mydir = os.getcwd()
         configdir = os.path.dirname (os.path.abspath (config_file))
         if not os.access(configdir, os.W_OK):
-            msg = 'Path of configuration file is not writable: %s.  Boosted regression may need write access to the configuration directory, depending on whether the output files in the configuration file have been specified.' % configdir
+            msg = 'Path of configuration file is not writable: %s.  Boosted ' \
+                'regression may need write access to the configuration '  \
+                'directory, depending on whether the output files in the '  \
+                'configuration file have been specified.' % configdir
             logIt (msg, log_handler)
             return ERROR
         msg = 'Changing directories for boosted regression processing: %s' % \
