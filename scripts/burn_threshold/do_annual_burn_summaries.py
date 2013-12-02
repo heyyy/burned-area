@@ -237,11 +237,6 @@ class AnnualBurnSummary():
         stack = numpy.recfromcsv(stack_file, delimiter=",", names=True,  \
             dtype="string")
         
-        # fix the year field in the stack file (for December scenes,
-        # year=year - 1) therefore add 1 to the year for the December scenes
-#        stack['year'][stack['month'] == 12] =  \
-#            (stack['year'] + 1)[stack['month'] == 12]
-        
         # use the minimum and maximum years in the stack if the start year and
         # end year were not specified on the command line.  start year needs
         # to be one more than the actual starting year in the stack since the
