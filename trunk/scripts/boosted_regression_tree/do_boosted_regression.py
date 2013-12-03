@@ -9,77 +9,79 @@ from argparse import ArgumentParser
 ERROR = 1
 SUCCESS = 0
 
-############################################################################
-# Description: logIt logs the information to the logfile (if valid) or to
-# stdout if the logfile is None.
-#
-# Inputs:
-#   msg - message to be printed/logged
-#   log_handler - log file handler; if None then print to stdout
-#
-# Returns: nothing
-#
-# Notes:
-############################################################################
 def logIt (msg, log_handler):
-    if log_handler == None:
+    """Logs the user-specified message.
+    logIt logs the information to the logfile (if valid) or to stdout if the
+    logfile is None.
+    
+    Args:
+      msg - message to be printed/logged
+      log_handler - log file handler; if None then print to stdout
+    
+    Returns: nothing
+    """
+
+    if log_handler is None:
         print msg
     else:
         log_handler.write (msg + '\n')
 
 
-#############################################################################
+#######################################################################
 # Created on September 3, 2013 by Gail Schmidt, USGS/EROS
-# Created Python script to run the boosted regression tree algorithm.
-#
+#     Created Python script to run the boosted regression tree algorithm.
+# 
 # History:
-#
+# 
 # Usage: do_boosted_regression.py --help prints the help message
-############################################################################
+#######################################################################
 class BoostedRegression():
+    """Class for handling boosted regression tree processing.
+    """
 
     def __init__(self):
         pass
 
 
-    ########################################################################
-    # Description: runBoostedRegression will use the parameter passed for
-    # the input configuration file.  If input config file is None (i.e. not
-    # specified) then the command-line parameters will be parsed for this
-    # information.  The boosted regression tree application is then executed
-    # to run the regression on the specified input surface reflectance file
-    # (specified in the input configuration file).  If a log file was
-    # specified, then the output from this application will be logged to that
-    # file.
-    #
-    # History:
-    #   Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-    #       Geographic Science Center
-    #   Updated on Dec. 2, 2013 by Gail Schmidt, USGS/EROS LSRD Project
-    #       Modified to use argparser vs. optionparser, since optionparser
-    #       is deprecated.
-    # Inputs:
-    #   config_file - name of the input configuration file to be processed
-    #   logfile - name of the logfile for logging information; if None then
-    #       the output will be written to stdout
-    #   usebin - this specifies if the boosted regression tree exe resides
-    #       in the $BIN directory; if None then the boosted regression exe
-    #       is expected to be in the PATH
-    #
-    # Returns:
-    #     ERROR - error running the boosted regression tree application
-    #     SUCCESS - successful processing
-    #
-    # Notes:
-    #   1. The script changes directories to the directory of the configuration
-    #      file.  If absolute paths are not provided in the configuration
-    #      file, then the location of those input/output files will need to
-    #      be the location of the configuration file.
-    #######################################################################
     def runBoostedRegression (self, config_file=None, logfile=None, \
         usebin=None):
+        """Runs the boosted regression algorithm for the specified file.
+        Description: runBoostedRegression will use the parameter passed for
+        the input configuration file.  If input config file is None (i.e. not
+        specified) then the command-line parameters will be parsed for this
+        information.  The boosted regression tree application is then executed
+        to run the regression on the specified input surface reflectance file
+        (specified in the input configuration file).  If a log file was
+        specified, then the output from this application will be logged to that
+        file.
+        
+        History:
+          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+              Geographic Science Center
+          Updated on Dec. 2, 2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to use argparser vs. optionparser, since optionparser
+              is deprecated.
+        Args:
+          config_file - name of the input configuration file to be processed
+          logfile - name of the logfile for logging information; if None then
+              the output will be written to stdout
+          usebin - this specifies if the boosted regression tree exe resides
+              in the $BIN directory; if None then the boosted regression exe
+              is expected to be in the PATH
+        
+        Returns:
+            ERROR - error running the boosted regression tree application
+            SUCCESS - successful processing
+        
+        Notes:
+          1. The script changes directories to the directory of the
+             configuration file.  If absolute paths are not provided in the
+             configuration file, then the location of those input/output files
+             will need to be the location of the configuration file.
+        """
+
         # if no parameters were passed then get the info from the command line
-        if config_file == None:
+        if config_file is None:
             # get the command line argument for the reflectance file
             parser = ArgumentParser(  \
                 description='Run boosted regression algorithm for the scene')
@@ -102,13 +104,14 @@ class BoostedRegression():
 
             # surface reflectance file
             config_file = options.config_file
-            if config_file == None:
-                parser.error ("missing configuration file command-line argument");
+            if config_file is None:
+                parser.error ('missing configuration file command-line ' \
+                    'argument');
                 return ERROR
 
         # open the log file if it exists; use line buffering for the output
         log_handler = None
-        if logfile != None:
+        if logfile is not None:
             log_handler = open (logfile, 'w', buffering=1)
         
         # should we expect the boosted regression application to be in the PATH
@@ -128,7 +131,7 @@ class BoostedRegression():
         # make sure the configuration file exists
         if not os.path.isfile(config_file):
             msg = 'Error: configuration file does not exist or is not ' \
-                'accessible: ' + config_file
+                'accessible: %s' % config_file
             logIt (msg, log_handler)
             return ERROR
 
@@ -169,7 +172,7 @@ class BoostedRegression():
         # successful completion.  return to the original directory.
         msg = 'Completion of boosted regression.'
         logIt (msg, log_handler)
-        if logfile != None:
+        if logfile is not None:
             log_handler.close()
         os.chdir (mydir)
         return SUCCESS

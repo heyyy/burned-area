@@ -5,6 +5,8 @@ from log_it import *
 from process_temporal_ba_stack import temporalBAStack
  
 class parallelSceneWorker(multiprocessing.Process):
+    """Runs the HDF to GeoTiff conversion in parallel for a stack of scenes.
+    """
  
     def __init__ (self, work_queue, result_queue, stackObject):
         # base class initialization
@@ -26,7 +28,8 @@ class parallelSceneWorker(multiprocessing.Process):
                 break
  
             # process the scene
-            print 'Processing ' + hdf_file + ' ...'
+            msg = 'Processing %s ...' % hdf_file
+            logIt (msg, self.stackObject.log_handler)
             status = SUCCESS
             status = self.stackObject.sceneHDFToTiff (hdf_file)
             if status != SUCCESS:
@@ -39,6 +42,8 @@ class parallelSceneWorker(multiprocessing.Process):
 
 
 class parallelSummaryWorker(multiprocessing.Process):
+    """Runs the seasonal summaries in parallel for a temporal stack.
+    """
  
     def __init__ (self, work_queue, result_queue, stackObject):
         # base class initialization
@@ -60,12 +65,13 @@ class parallelSummaryWorker(multiprocessing.Process):
                 break
  
             # process the scene
-            print 'Processing year ' + str(year) + ' ...'
+            msg = 'Processing year %d ...' % year
+            logIt (msg, self.stackObject.log_handler)
             status = SUCCESS
             status = self.stackObject.generateYearSeasonalSummaries (year)
             if status != SUCCESS:
                 msg = 'Error processing seasonal summaries for year %d. '  \
-                    'Processing will terminate.' % hdf_file
+                    'Processing will terminate.' % year
                 logIt (msg, self.stackObject.log_handler)
  
             # store the result
@@ -73,6 +79,8 @@ class parallelSummaryWorker(multiprocessing.Process):
 
 
 class parallelMaxWorker(multiprocessing.Process):
+    """Runs the annual maximums in parallel for a temporal stack.
+    """
  
     def __init__ (self, work_queue, result_queue, stackObject):
         # base class initialization
@@ -94,12 +102,13 @@ class parallelMaxWorker(multiprocessing.Process):
                 break
  
             # process the scene
-            print 'Processing year ' + str(year) + ' ...'
+            print 'Processing year %d ...' % year
+            logIt (msg, self.stackObject.log_handler)
             status = SUCCESS
             status = self.stackObject.generateYearMaximums (year)
             if status != SUCCESS:
                 msg = 'Error processing maximums for year %d. Processing '  \
-                    'will terminate.' % hdf_file
+                    'will terminate.' % year
                 logIt (msg, self.stackObject.log_handler)
  
             # store the result

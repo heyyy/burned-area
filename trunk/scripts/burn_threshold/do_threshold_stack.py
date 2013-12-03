@@ -36,20 +36,19 @@ from osgeo import gdalconst
 ERROR = 1
 SUCCESS = 0
 
-############################################################################
-# Description: logIt logs the information to the logfile (if valid) or to
-# stdout if the logfile is None.
-#
-# Inputs:
-#   msg - message to be printed/logged
-#   log_handler - log file handler; if None then print to stdout
-#
-# Returns: nothing
-#
-# Notes:
-############################################################################
 def logIt (msg, log_handler):
-    if log_handler == None:
+    """Logs the user-specified message.
+    logIt logs the information to the logfile (if valid) or to stdout if the
+    logfile is None.
+
+    Args:
+      msg - message to be printed/logged
+      log_handler - log file handler; if None then print to stdout
+
+    Returns: nothing
+    """
+
+    if log_handler is None:
         print msg
     else:
         log_handler.write (msg + '\n')
@@ -65,33 +64,34 @@ def logIt (msg, log_handler):
 # Usage: do_threshold_stack.py --help prints the help message
 ############################################################################
 class BurnAreaThreshold():
+    """Class for handling the burned area thresholding functions.
+    """
 
     def __init__(self):
         pass
 
 
-    ########################################################################
-    # Description: simple function to write an array of data to an output
-    #     Geotiff file
-    #
-    # History:
-    #   Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-    #       Geographic Science Center
-    #
-    # Inputs:
-    #   outputData - output data structure to be written
-    #   outputFilename - name of GeoTiff file to write the array of data
-    #   outputRAT - name of output raster attribute table (RAT)
-    #   make_histos - should histograms and overview pyramids be generated for
-    #       the output GeoTIFF products?  Default is false.
-    #
-    # Returns:
-    #     Nothing
-    #
-    # Notes:
-    ########################################################################
     def writeResults(self, outputData, outputFilename, outputRAT=None,  \
         make_histos=False):
+        """Writes an array of data to an output file.
+        Description: simple function to write an array of data to an output
+            Geotiff file
+        
+        History:
+          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+              Geographic Science Center
+        
+        Args:
+          outputData - output data structure to be written
+          outputFilename - name of GeoTiff file to write the array of data
+          outputRAT - name of output raster attribute table (RAT)
+          make_histos - should histograms and overview pyramids be generated
+              for the output GeoTIFF products?  Default is false.
+        
+        Returns:
+            Nothing
+        """
+
         # create the TIF driver for output data
         driver = gdal.GetDriverByName("GTiff")
         
@@ -120,35 +120,35 @@ class BurnAreaThreshold():
             bp_dataset.FlushCache()
     
     
-    ########################################################################
-    # Description: routine to implement the flood fill of the burned areas
-    #     using the lower threshold test.  Adjacent pixels are added to the
-    #     burn patch if their thresholds are high enough.
-    #
-    # History:
-    #   Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-    #       Geographic Science Center
-    #
-    # Inputs:
-    #   input_image - input image of burn probabilities
-    #   row, col - row and column (line and sample) to start at for the flood
-    #       filling
-    #   output_image - output image of burn/unburned pixels
-    #   output_label - output value to be used to identify the burn pixels as
-    #       part of the flood filling; default is 1
-    #   local_threshold - threshold to be used to add burn pixels from the
-    #       burn probability image to the burn classification; default is 75%
-    #   nodata - pixel value used to identify nodata pixels in the input image
-    #
-    # Returns:
-    #     nFill - number of pixels that were flood filled
-    #
-    # Notes:
-    #   1. The default lower threshold for flood filling is 75% burn
-    #      probability.
-    ########################################################################
     def floodFill(self, input_image, row, col, output_image, output_label=1,
         local_threshold=75, nodata=-9999):
+        """Implements the flood fill algorithm for the identified burned areas.
+        Description: routine to implement the flood fill of the burned areas
+            using the lower threshold test.  Adjacent pixels are added to the
+            burn patch if their thresholds are high enough.
+        
+        History:
+          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+              Geographic Science Center
+   
+        Args:
+          input_image - input image of burn probabilities
+          row, col - row and column (line and sample) to start at for the flood
+              filling
+          output_image - output image of burn/unburned pixels
+          output_label - output value to be used to identify the burn pixels as
+              part of the flood filling; default is 1
+          local_threshold - threshold to be used to add burn pixels from the
+              burn probability image to the burn classification; default is 75%
+          nodata - pixel value used to identify nodata pixels in the input image
+   
+        Returns:
+            nFill - number of pixels that were flood filled
+   
+        Notes:
+          1. The default lower threshold for flood filling is 75% burn
+             probability.
+        """
     
         # returns number of pixels that were flood filled
         nFill = 0
@@ -184,48 +184,48 @@ class BurnAreaThreshold():
         return nFill
         
         
-    ########################################################################
-    # Description: routine to find the burn scars using the flood-fill approach.
-    #     Seed pixels are found by using the seed threshold.  Any pixels with
-    #     a probability higher than the seed threshold are identified as seed
-    #     pixels.  Any area with more than the seed size threshold is used as
-    #     a seed area for growing the burn extent using the flood fill process.
-    #     Areas with fewer than the seed size are ignored and not flagged as
-    #     burn areas.
-    #
-    # History:
-    #   Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-    #       Geographic Science Center
-    #   Updated on Nov. 26, 2013 by Gail Schmidt, USGS/EROS LSRD Project
-    #       Modified to use int32 arrays vs. int64 arrays for the burn
-    #       classification images
-    #
-    # Inputs:
-    #   bp_image - input image of burn probabilities
-    #   seed_prob_thresh - threshold to be used to identify burn pixels
-    #       in the burn probability image as seed pixels for the burn area;
-    #       default is 97.5%
-    #   seed_size_thresh - threshold to be used to identify burn areas in the
-    #       probability image. If the count of burn probability seed pixels is
-    #       greater than this threshold for a certain area then the burn area
-    #       is left and flood-filled.  If the count is less than the seed
-    #       threshold, then this is a false positive and the area is not used
-    #       in the burn classification.  Default is 5 pixels.
-    #   flood_fill_prob_thresh - threshold to be used to add burn pixels
-    #       from the burn probability image to the burn classification via
-    #       flood filling; default is 75%
-    #   log_handler - file handler for the log file; if this is None then
-    #       informational/error messages will be written to stdout
-    #
-    # Returns:
-    #     nFill - number of pixels that were flood filled
-    #
-    # Notes:
-    #   1. The default lower threshold for flood filling is 75% burn
-    #      probability.
-    ########################################################################
     def findBurnScars(self, bp_image, seed_prob_thresh=97.5,
         seed_size_thresh=5, flood_fill_prob_thresh=75, log_handler=None):
+        """Identify the seeds for burn scars from the input burn probabilities.
+        Description: routine to find burn scars using the flood-fill approach.
+          Seed pixels are found by using the seed threshold.  Any pixels with
+          a probability higher than the seed threshold are identified as seed
+          pixels.  Any area with more than the seed size threshold is used as
+          a seed area for growing the burn extent using the flood fill
+          process.  Areas with fewer than the seed size are ignored and not
+          flagged as burn areas.
+        
+        History:
+          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+              Geographic Science Center
+          Updated on Nov. 26, 2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to use int32 arrays vs. int64 arrays for the burn
+              classification images
+        
+        Args:
+          bp_image - input image of burn probabilities
+          seed_prob_thresh - threshold to be used to identify burn pixels
+              in the burn probability image as seed pixels for the burn area;
+              default is 97.5%
+          seed_size_thresh - threshold to be used to identify burn areas in the
+              probability image. If the count of burn probability seed pixels is
+              greater than this threshold for a certain area then the burn area
+              is left and flood-filled.  If the count is less than the seed
+              threshold, then this is a false positive and the area is not used
+              in the burn classification.  Default is 5 pixels.
+          flood_fill_prob_thresh - threshold to be used to add burn pixels
+              from the burn probability image to the burn classification via
+              flood filling; default is 75%
+          log_handler - file handler for the log file; if this is None then
+              informational/error messages will be written to stdout
+        
+        Returns:
+          nFill - number of pixels that were flood filled
+        
+        Notes:
+          1. The default lower threshold for flood filling is 75% burn
+             probability.
+        """
     
         # set up array to hold filled region labels, initialize to 0s which
         # means unburned
@@ -314,65 +314,64 @@ class BurnAreaThreshold():
         return ([bp_regions2, label_rat])
     
     
-    ########################################################################
-    # Description: routine to find the burn scars using the flood-fill approach.
-    #     Seed pixels are found by using the seed threshold.  Any pixels with
-    #     a probability higher than the seed threshold are identified as seed
-    #     pixels.  Any area with more than the seed size threshold is used as
-    #     a seed area for growing the burn extent using the flood fill process.
-    #     Areas with fewer than the seed size are ignored and not flagged as
-    #     burn areas.
-    #
-    # History:
-    #   Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-    #       Geographic Science Center
-    #   Updated on Nov. 26, 2013 by Gail Schmidt, USGS/EROS LSRD Project
-    #       Modified to use int32 arrays vs. int64 arrays for the burn
-    #       classification images
-    #   Updated on Dec. 2, 2013 by Gail Schmidt, USGS/EROS LSRD Project
-    #       Modified to use argparser vs. optionparser, since optionparser
-    #       is deprecated.
-    #
-    # Inputs:
-    #   stack_file - input CSV file with information about the files to be
-    #       processed.  this is generated as part of the seasonal summaries
-    #       application.
-    #   input_dir - location of the burn probability files
-    #   output_dir - location to write the output burn classifications
-    #   start_year - starting year of the stack_file to process; default is
-    #       to start with the lowest year + 1
-    #   end_year - ending year of the stack_file to process; default is to end
-    #       with the highest year
-    #   seed_prob_thresh - threshold to be used to identify burn pixels
-    #       in the burn probability image as seed pixels for the burn area;
-    #       default is 97.5%
-    #   seed_size_thresh - threshold to be used to identify burn areas in the
-    #       probability image. If the count of burn probability seed pixels is
-    #       greater than this threshold for a certain area then the burn area
-    #       is left and flood-filled.  If the count is less than the seed
-    #       threshold, then this is a false positive and the area is not used
-    #       in the burn classification; default is 5 pixels
-    #   flood_fill_prob_thresh - threshold to be used to add burn pixels
-    #       from the burn probability image to the burn classification via
-    #       flood filling; default is 75%
-    #   make_histos - process histograms and overviews for each of the output
-    #       GeoTiffs generated by this application; default is False
-    #   logfile - name of the logfile for logging information; if None then
-    #       the output will be written to stdout
-    #
-    # Returns:
-    #     ERROR - error running the burn threshold application
-    #     SUCCESS - successful processing
-    #
-    # Notes:
-    ########################################################################
     def runBurnThreshold(self, stack_file=None, input_dir=None,
         output_dir=None, start_year=None, end_year=None, seed_prob_thresh=97.5,
         seed_size_thresh=5, flood_fill_prob_thresh=75, make_histos=False,
         logfile=None):
+        """Runs the burn thresholding algorithm to find the burn scars from the
+           input burn probabilities.
+        Description: routine to find the burn scars using the flood-fill
+            approach.  Seed pixels are found by using the seed threshold.  Any
+            pixels with a probability higher than the seed threshold are
+            identified as seed pixels.  Any area with more than the seed size
+            threshold is used as a seed area for growing the burn extent using
+            the flood fill process.  Areas with fewer than the seed size are
+            ignored and not flagged as burn areas.
+        
+        History:
+          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+              Geographic Science Center
+          Updated on Nov. 26, 2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to use int32 arrays vs. int64 arrays for the burn
+              classification images
+          Updated on Dec. 2, 2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to use argparser vs. optionparser, since optionparser
+              is deprecated.
+        
+        Args:
+          stack_file - input CSV file with information about the files to be
+              processed.  this is generated as part of the seasonal summaries
+              application.
+          input_dir - location of the burn probability files
+          output_dir - location to write the output burn classifications
+          start_year - starting year of the stack_file to process; default is
+              to start with the lowest year + 1
+          end_year - ending year of the stack_file to process; default is to
+              end with the highest year
+          seed_prob_thresh - threshold to be used to identify burn pixels
+              in the burn probability image as seed pixels for the burn area;
+              default is 97.5%
+          seed_size_thresh - threshold to be used to identify burn areas in the
+              probability image. If the count of burn probability seed pixels
+              is greater than this threshold for a certain area then the burn
+              area is left and flood-filled.  If the count is less than the
+              seed threshold, then this is a false positive and the area is
+              not used in the burn classification; default is 5 pixels
+          flood_fill_prob_thresh - threshold to be used to add burn pixels
+              from the burn probability image to the burn classification via
+              flood filling; default is 75%
+          make_histos - process histograms and overviews for each of the output
+              GeoTiffs generated by this application; default is False
+          logfile - name of the logfile for logging information; if None then
+              the output will be written to stdout
+        
+        Returns:
+            ERROR - error running the burn threshold application
+            SUCCESS - successful processing
+        """
 
         # if no parameters were passed then get the info from the command line
-        if stack_file == None:
+        if stack_file is None:
             # get the command line argument for the input parameters
             parser = ArgumentParser(  \
                 description='Process burn scars using thresholds')
@@ -429,54 +428,54 @@ class BurnAreaThreshold():
 
             # validate command-line options and arguments
             stack_file = options.stack_file
-            if stack_file == None:
+            if stack_file is None:
                 parser.error ("missing CSV stack file cmd-line argument")
                 return ERROR
 
             input_dir = options.input_dir
-            if input_dir == None:
+            if input_dir is None:
                 parser.error ("missing input directory cmd-line argument")
                 return ERROR
 
             output_dir = options.output_dir
-            if output_dir == None:
+            if output_dir is None:
                 parser.error ("missing output directory cmd-line argument")
                 return ERROR
 
-            if options.start_year != None:
+            if options.start_year is not None:
                 start_year = options.start_year
 
-            if options.end_year != None:
+            if options.end_year is not None:
                 end_year = options.end_year
 
-            if options.seed_prob_thresh != None:
+            if options.seed_prob_thresh is not None:
                 seed_prob_thresh = options.seed_prob_thresh
     
-            if options.seed_size_thresh != None:
+            if options.seed_size_thresh is not None:
                 seed_size_thresh = options.seed_size_thresh
     
-            if options.flood_fill_prob_thresh != None:
+            if options.flood_fill_prob_thresh is not None:
                 flood_fill_prob_thresh = options.flood_fill_prob_thresh
 
         # open the log file if it exists; use line buffering for the output
         log_handler = None
-        if logfile != None:
+        if logfile is not None:
             log_handler = open (logfile, 'w', buffering=1)
 
         # validate options and arguments
-        if start_year != None:
+        if start_year is not None:
             if (start_year < 1984) | (start_year > 2011):
-                msg = 'start_year falls outside 1984-2011' + str(start_year)
+                msg = 'start_year falls outside 1984-2011: %d' % start_year
                 logIt (msg, log_handler)
                 return ERROR
     
-        if end_year != None:
+        if end_year is not None:
             if (end_year < 1984) | (end_year > 2011):
-                msg = 'end_year falls outside 1984-2011' + str(end_year)
+                msg = 'end_year falls outside 1984-2011: %d' % end_year
                 logIt (msg, log_handler)
                 return ERROR
     
-        if (end_year != None) & (start_year != None):
+        if (end_year is not None) & (start_year is not None):
             if end_year < start_year:
                 msg = 'end_year (%d) is less than start_year (%d)' %  \
                     (end_year, start_year)
@@ -494,15 +493,15 @@ class BurnAreaThreshold():
             return ERROR
     
         if not os.path.exists(output_dir):
-            msg = 'Output directory does not exist: ' + output_dir +  \
-                'Creating ...'
+            msg = 'Output directory does not exist: %s. Creating ...' % \
+                output_dir
             logIt (msg, log_handler)
             os.makedirs(output_dir, 0755)
     
         # save the current working directory for return to upon error or when
         # processing is complete
         mydir = os.getcwd()
-        msg = 'Changing directories for burn threshold processing: %s' % \
+        msg = 'Changing directories for burn threshold processing: ' +  \
             output_dir
         logIt (msg, log_handler)
         os.chdir (output_dir)
@@ -520,10 +519,10 @@ class BurnAreaThreshold():
         # burn products require a previous year to process.  so the start year
         # for the burn products is one year after the actual starting year in
         # the stack.
-        if start_year == None:
+        if start_year is None:
             start_year = numpy.min(stack['year']) + 1
         
-        if end_year == None:
+        if end_year is None:
             end_year = numpy.max(stack['year'])
         
         stack_mask = (stack['year'] >= start_year) & (stack['year'] <= end_year)
@@ -566,7 +565,7 @@ class BurnAreaThreshold():
             msg = 'Reading file ... ' + bp_file_name
             logIt (msg, log_handler)
             bp_dataset = gdal.Open(bp_file_name)
-            if bp_dataset == None:
+            if bp_dataset is None:
                 msg = 'Failed to open bp file: ' + bp_file_name
                 logIt (msg, log_handler)
                 os.chdir (mydir)
@@ -574,7 +573,7 @@ class BurnAreaThreshold():
             
             # read the only band in the file, band 1
             bp_band = bp_dataset.GetRasterBand(1)
-            if bp_band == None:
+            if bp_band is None:
                 msg = 'Failed to open bp band 1 from ' + bp_file_name
                 logIt (msg, log_handler)
                 os.chdir (mydir)
@@ -605,7 +604,7 @@ class BurnAreaThreshold():
             bp_rats.append(bp_scar_results[1])
                 
             # output the burn classifications for this scene
-            msg = 'Writing output to ... ' + outputFilename
+            msg = 'Writing output to %s ... ' % outputFilename
             logIt (msg, log_handler)
             self.writeResults(outputData=bp_scar_results[0],
                 outputFilename=bc_file_name, outputRAT=bp_scar_results[1],
@@ -614,7 +613,7 @@ class BurnAreaThreshold():
         # successful completion.  return to the original directory.
         msg = 'Completion of burn threshold.'
         logIt (msg, log_handler)
-        if logfile != None:
+        if logfile is not None:
             log_handler.close()
         os.chdir (mydir)
         return SUCCESS
