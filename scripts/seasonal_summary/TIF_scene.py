@@ -11,80 +11,79 @@ import time
 from log_it import *
 
 
-########################################################################
-# Description: polishImage will open the input GeoTIFF file, calculate the
-#     histogram for each band, and build the pyramids.
-#
-# History:
-#   Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-#       Geographic Science Center
-#   Updated on 4/30/2013 by Gail Schmidt, USGS/EROS LSRD Project
-#       Modified to utilize a log file if passed along.
-#
-# Inputs:
-#   input_file - name of the input HDF reflectance file to be converted
-#   output_file - name of the output GeoTIFF file which contains bands 1-7
-#       and a QA band
-#   log_handler - open log file for logging or None for stdout
-#
-# Returns:
-#     ERROR - error converting the HDF file to GeoTIFF
-#     SUCCESS - successful processing
-#
-# Notes:
-#######################################################################
 def polishImage (input_file, log_handler=None):
+    """Calculates histograms for each band and builds the pyramids.
+    Description: polishImage will open the input GeoTiff file, calculate the
+        histogram for each band, and build the pyramids.
+    
+    History:
+      Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+          Geographic Science Center
+      Updated on 4/30/2013 by Gail Schmidt, USGS/EROS LSRD Project
+          Modified to utilize a log file if passed along.
+    
+    Args:
+      input_file - name of the input HDF reflectance file to be converted
+      output_file - name of the output GeoTiff file which contains bands 1-7
+          and a QA band
+      log_handler - open log file for logging or None for stdout
+    
+    Returns:
+        ERROR - error converting the HDF file to GeoTiff
+        SUCCESS - successful processing
+    """
+
     # test to make sure the input file exists
     if not os.path.exists(input_file):
         msg = 'Input file does not exist: ' + input_file
         logIt (msg, log_handler)
         return ERROR
     
-    # open the input GeoTIFF file
+    # open the input GeoTiff file
     input_scene = TIF_Scene_8_band(input_file, log_handler)
-    if input_scene == None:
-        msg = 'Error reading the GeoTIFF file: ' + input_file
+    if input_scene is None:
+        msg = 'Error reading the GeoTiff file: ' + input_file
         logIt (msg, log_handler)
         return ERROR
     
     # create the histograms for each band
     histogram = input_scene.band1.GetDefaultHistogram()
-    if not histogram == None:
+    if not histogram is None:
         input_scene.band1.SetDefaultHistogram(histogram[0], histogram[1],  \
             histogram[3])
 
     histogram = input_scene.band2.GetDefaultHistogram()
-    if not histogram == None:
+    if not histogram is None:
         input_scene.band2.SetDefaultHistogram(histogram[0], histogram[1],  \
             histogram[3])
 
     histogram = input_scene.band3.GetDefaultHistogram()
-    if not histogram == None:
+    if not histogram is None:
         input_scene.band3.SetDefaultHistogram(histogram[0], histogram[1],  \
             histogram[3])
 
     histogram = input_scene.band4.GetDefaultHistogram()
-    if not histogram == None:
+    if not histogram is None:
         input_scene.band4.SetDefaultHistogram(histogram[0], histogram[1],  \
             histogram[3])
 
     histogram = input_scene.band5.GetDefaultHistogram()
-    if not histogram == None:
+    if not histogram is None:
         input_scene.band5.SetDefaultHistogram(histogram[0], histogram[1],  \
             histogram[3])
 
     histogram = input_scene.band6.GetDefaultHistogram()
-    if not histogram == None:
+    if not histogram is None:
         input_scene.band6.SetDefaultHistogram(histogram[0], histogram[1],  \
             histogram[3])
 
     histogram = input_scene.band7.GetDefaultHistogram()
-    if not histogram == None:
+    if not histogram is None:
         input_scene.band7.SetDefaultHistogram(histogram[0], histogram[1],  \
             histogram[3])
 
     histogram = input_scene.band_QA.GetDefaultHistogram()
-    if not histogram == None:
+    if not histogram is None:
         input_scene.band_QA.SetDefaultHistogram(histogram[0], histogram[1], \
             histogram[3])
 
@@ -98,7 +97,7 @@ def polishImage (input_file, log_handler=None):
 #############################################################################
 # Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
 #       Geographic Science Center
-# Created Python script to open and read the input single band GeoTIFF file
+# Created Python script to open and read the input single band GeoTiff file
 # to obtain particular attributes and data from the file.
 #
 # History:
@@ -106,6 +105,9 @@ def polishImage (input_file, log_handler=None):
 #       Modified to ....
 ############################################################################
 class TIF_Scene_1_band:
+    """Class to work with the single band GeoTiff files.
+    """
+
     filename = ""
     NorthBoundingCoordinate = 0
     SouthBoundingCoordinate = 0
@@ -135,28 +137,27 @@ class TIF_Scene_1_band:
     # bands
     band1 = None
 
-    ########################################################################
-    # Description: class constructor verifies the input file exists, then
-    #     opens it, reads the metadata, and establishes pointers to the
-    #     desired band.
-    #
-    # History:
-    #   Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-    #       Geographic Science Center
-    #   Updated on 4/30/2013 by Gail Schmidt, USGS/EROS LSRD Project
-    #       Modified to utilize a log file if passed along.
-    #
-    # Inputs:
-    #   fname - name of the input GeoTIFF file to be processed
-    #   log_handler - open log file for logging or None for stdout
-    #
-    # Returns:
-    #     None - error opening or reading the file via GDAL
-    #     Object - successful processing
-    #
-    # Notes:
-    #######################################################################
     def __init__(self, fname, band=1, log_handler=None):
+        """Class constructor to open and read metadata of the GeoTiff file.
+        Description: class constructor verifies the input file exists, then
+            opens it, reads the metadata, and establishes pointers to the
+            desired band.
+        
+        History:
+          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+              Geographic Science Center
+          Updated on 4/30/2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to utilize a log file if passed along.
+        
+        Args:
+          fname - name of the input GeoTiff file to be processed
+          log_handler - open log file for logging or None for stdout
+        
+        Returns:
+            None - error opening or reading the file via GDAL
+            Object - successful processing
+        """
+
         if not os.path.exists(fname):
             msg = 'Input file does not exist: ' + fname
             logIt (msg, log_handler)
@@ -190,97 +191,94 @@ class TIF_Scene_1_band:
         self.NoData = self.band1.GetNoDataValue()
 
 
-    ########################################################################
-    # Description: class destructor cleans up all the sub dataset and band
-    #     pointers.
-    #
-    # History:
-    #   Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-    #       Geographic Science Center
-    #
-    # Inputs: None
-    #
-    # Returns: Nothing
-    #######################################################################
     def __del__(self):
+        """Class constructor to clear the bands.
+        Description: class destructor cleans up all the sub dataset and band
+            pointers.
+        
+        History:
+          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+              Geographic Science Center
+        
+        Args: None
+        
+        Returns: Nothing
+        """
+
         self.dataset = None
         self.band1 = None
 
     
-    ########################################################################
-    # Description: xy2ij converts projection coordinates (x,y) to pixel
-    #     space (i,j)
-    #
-    # History:
-    #   Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-    #       Geographic Science Center
-    #
-    # Inputs:
-    #   x - x projection coordinate
-    #   y - y projection coordinate
-    #
-    # Returns:
-    #     (col, row) - i,j pixel referring to x,y coordinate
-    #
-    # Notes:
-    #######################################################################
     def xy2ij(self, x, y):
+        """Converts projection space to pixel space.
+        Description: xy2ij converts projection coordinates (x,y) to pixel
+            space (i,j)
+        
+        History:
+          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+              Geographic Science Center
+        
+        Args:
+          x - x projection coordinate
+          y - y projection coordinate
+        
+        Returns:
+            (col, row) - i,j pixel referring to x,y coordinate
+        """
+
         col = int((x - self.WestBoundingCoordinate) / self.dX)
         row = int((y - self.NorthBoundingCoordinate) / self.dY)
         return([col, row])
 
 
-    ########################################################################
-    # Description: ij2xy converts pixel space values (i,j) to projection
-    #     coordinates (x,y)
-    #
-    # History:
-    #   Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-    #       Geographic Science Center
-    #
-    # Inputs:
-    #   row - row (line) pixel space coordinate
-    #   col - column (sample) pixel space coordinate
-    #
-    # Returns:
-    #     (x, y) - x,y projection coord referring to pixel i,j
-    #
-    # Notes:
-    #######################################################################
     def ij2xy(self, col, row):
+        """Converts pixel space to projection space.
+        Description: ij2xy converts pixel space values (i,j) to projection
+            coordinates (x,y)
+        
+        History:
+          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+              Geographic Science Center
+        
+        Args:
+          row - row (line) pixel space coordinate
+          col - column (sample) pixel space coordinate
+        
+        Returns:
+            (x, y) - x,y projection coord referring to pixel i,j
+        """
+
         x = self.WestBoundingCoordinate + (col * self.dX)
         y = self.NorthBoundingCoordinate + (row * self.dY)
         return([x,y])
 
 
-    ########################################################################
-    # Description: getRowOfBandValues reads a row of band values from band1
-    #     at the associated row for the projection y coordinate.  The
-    #     projection y coordinate is converted to the actual row/line in the
-    #     current scene, and then that row is read (reading all the samples in
-    #     the line) and returned.
-    #
-    # History:
-    #   Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-    #       Geographic Science Center
-    #   Updated on 5/1/2013 by Gail Schmidt, USGS/EROS LSRD Project
-    #       Modified to validate the y projection coordinate falls within
-    #       the current scene.
-    #
-    # Inputs:
-    #   y - y projection coordinate
-    #
-    # Returns:
-    #     None - if pixel location does not fall within the coordinates of
-    #         this scene
-    #     Array - associated line of data y location as band1
-    #
-    # Notes:
-    #######################################################################
     def getRowOfBandValues(self, y):
+        """Reads the specified line at specified projection y coordinate.
+        Description: getRowOfBandValues reads a row of band values from band1
+            at the associated row for the projection y coordinate.  The
+            projection y coordinate is converted to the actual row/line in the
+            current scene, and then that row is read (reading all the samples
+            in the line) and returned.
+        
+        History:
+          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+              Geographic Science Center
+          Updated on 5/1/2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to validate the y projection coordinate falls within
+              the current scene.
+        
+        Args:
+          y - y projection coordinate
+        
+        Returns:
+            None - if pixel location does not fall within the coordinates of
+                this scene
+            Array - associated line of data y location as band1
+        """
+
         if (y < self.NorthBoundingCoordinate) and  \
            (y > self.SouthBoundingCoordinate):
-
             # get the i,j pixel (line) for the y projection coordinates
             ij = self.xy2ij(0, y)
 
@@ -292,21 +290,20 @@ class TIF_Scene_1_band:
             return (None)
 
 
-    ########################################################################
-    # Description: getBandValues reads an entire band of data for the
-    #     band 1.
-    #
-    # History:
-    #   Created on 5/1/2013 by Gail Schmidt, USGS/EROS LSRD Project
-    #
-    # Inputs: None
-    #
-    # Returns:
-    #     Array - associated data for band 1
-    #
-    # Notes:
-    #######################################################################
     def getBandValues(self):
+        """Reads the specified band of data.
+        Description: getBandValues reads an entire band of data for the
+            band 1.
+        
+        History:
+          Created on 5/1/2013 by Gail Schmidt, USGS/EROS LSRD Project
+        
+        Args: None
+        
+        Returns:
+            Array - associated data for band 1
+        """
+
         x = zeros ((self.NRow, self.NCol))
         return (self.band1.ReadAsArray())
         
@@ -316,7 +313,7 @@ class TIF_Scene_1_band:
 #############################################################################
 # Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
 #       Geographic Science Center
-# Created Python script to open and read the input eight-band GeoTIFF file
+# Created Python script to open and read the input eight-band GeoTiff file
 # to obtain particular attributes and data from the file.
 #
 # History:
@@ -324,6 +321,9 @@ class TIF_Scene_1_band:
 #       Modified to ....
 ############################################################################
 class TIF_Scene_8_band:
+    """Class to work with the eight-band GeoTiff files.
+    """
+
     filename = ""
     NorthBoundingCoordinate = 0
     SouthBoundingCoordinate = 0
@@ -359,28 +359,27 @@ class TIF_Scene_8_band:
     band7 = None
     band_QA = None
 
-    ########################################################################
-    # Description: class constructor verifies the input file exists, then
-    #     opens it, reads the metadata, and establishes pointers to the
-    #     desired band.
-    #
-    # History:
-    #   Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-    #       Geographic Science Center
-    #   Updated on 4/30/2013 by Gail Schmidt, USGS/EROS LSRD Project
-    #       Modified to utilize a log file if passed along.
-    #
-    # Inputs:
-    #   fname - name of the input GeoTIFF file to be processed
-    #   log_handler - open log file for logging or None for stdout
-    #
-    # Returns:
-    #     None - error opening or reading the file via GDAL
-    #     Object - successful processing
-    #
-    # Notes:
-    #######################################################################
     def __init__(self, fname, log_handler=None):
+        """Class constructor to open and read metadata of the GeoTiff file.
+        Description: class constructor verifies the input file exists, then
+            opens it, reads the metadata, and establishes pointers to the
+            desired band.
+        
+        History:
+          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+              Geographic Science Center
+          Updated on 4/30/2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to utilize a log file if passed along.
+        
+        Args:
+          fname - name of the input GeoTiff file to be processed
+          log_handler - open log file for logging or None for stdout
+        
+        Returns:
+            None - error opening or reading the file via GDAL
+            Object - successful processing
+        """
+
         if not os.path.exists(fname):
             msg = 'Input file does not exist: ' + fname
             logIt (msg, log_handler)
@@ -419,21 +418,21 @@ class TIF_Scene_8_band:
             (self.NRow * self.dY)
 
     
-    ########################################################################
-    # Description: class destructor cleans up all the sub dataset and band
-    #     pointers.
-    #
-    # History:
-    #   Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-    #       Geographic Science Center
-    #
-    # Inputs: None
-    #
-    # Returns: Nothing
-    #######################################################################
     def __del__(self):
-        self.dataset = None
+        """Class constructor to clear the bands.
+        Description: class destructor cleans up all the sub dataset and band
+            pointers.
+        
+        History:
+          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+              Geographic Science Center
+        
+        Args: None
+        
+        Returns: Nothing
+        """
 
+        self.dataset = None
         self.band1 = None
         self.band2 = None
         self.band3 = None
@@ -444,73 +443,70 @@ class TIF_Scene_8_band:
         self.band_QA = None
 
 
-    ########################################################################
-    # Description: xy2ij converts projection coordinates (x,y) to pixel
-    #     space (i,j)
-    #
-    # History:
-    #   Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-    #       Geographic Science Center
-    #
-    # Inputs:
-    #   x - x projection coordinate
-    #   y - y projection coordinate
-    #
-    # Returns:
-    #     (col, row) - i,j pixel referring to x,y coordinate
-    #
-    # Notes:
-    #######################################################################
     def xy2ij(self, x, y):
+        """Converts projection space to pixel space.
+        Description: xy2ij converts projection coordinates (x,y) to pixel
+            space (i,j)
+        
+        History:
+          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+              Geographic Science Center
+        
+        Args:
+          x - x projection coordinate
+          y - y projection coordinate
+        
+        Returns:
+            (col, row) - i,j pixel referring to x,y coordinate
+        """
+
         col = int((x - self.WestBoundingCoordinate) / self.dX)
         row = int((y - self.NorthBoundingCoordinate) / self.dY)
         return([col, row])
 
 
-    ########################################################################
-    # Description: ij2xy converts pixel space values (i,j) to projection
-    #     coordinates (x,y)
-    #
-    # History:
-    #   Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-    #       Geographic Science Center
-    #
-    # Inputs:
-    #   row - row (line) pixel space coordinate
-    #   col - column (sample) pixel space coordinate
-    #
-    # Returns:
-    #     (x, y) - x,y projection coord referring to pixel i,j
-    #
-    # Notes:
-    #######################################################################
     def ij2xy(self, col, row):
+        """Converts pixel space to projection space.
+        Description: ij2xy converts pixel space values (i,j) to projection
+            coordinates (x,y)
+        
+        History:
+          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+              Geographic Science Center
+        
+        Args:
+          row - row (line) pixel space coordinate
+          col - column (sample) pixel space coordinate
+        
+        Returns:
+            (x, y) - x,y projection coord referring to pixel i,j
+        """
+
         x = self.WestBoundingCoordinate + (col * self.dX)
         y = self.NorthBoundingCoordinate + (row * self.dY)
         return([x,y])
 
 
-    ########################################################################
-    # Description: getStackBandValues reads a stack of pixel values (in the Z
-    #     direction) at the specified x,y location
-    #
-    # History:
-    #   Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-    #       Geographic Science Center
-    #
-    # Inputs:
-    #   x - x projection coordinate
-    #   y - y projection coordinate
-    #
-    # Returns:
-    #     None - if pixel location does not fall within the coordinates of
-    #         this scene
-    #     pixel stack - stack of values for the x,y location as band1, band2,
-    #         band3, band4, band5, band6, band7, and QA band
-    #
-    # Notes:
-    #######################################################################
     def getStackBandValues(self, x, y):
+        """Reads the stack of pixel values at the specified location.
+        Description: getStackBandValues reads a stack of pixel values (in the Z
+            direction) at the specified x,y location
+        
+        History:
+          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+              Geographic Science Center
+        
+        Args:
+          x - x projection coordinate
+          y - y projection coordinate
+        
+        Returns:
+            None - if pixel location does not fall within the coordinates of
+                this scene
+            pixel stack - stack of values for the x,y location as band1, band2,
+                band3, band4, band5, band6, band7, and QA band
+        """
+
         if (x < self.EastBoundingCoordinate) and  \
            (x > self.WestBoundingCoordinate) and  \
            (y < self.NorthBoundingCoordinate) and \
@@ -533,31 +529,31 @@ class TIF_Scene_8_band:
             return (None)
 
         
-    ########################################################################
-    # Description: getRowOfBandValues reads a row of band values for each
-    #     of the bands specified at the associated row for the projection
-    #     y coordinate.  The projection y coordinate is converted to the
-    #     actual row/line in the current scene, and then that row is read
-    #     (reading all the samples in the line) and returned.
-    #
-    # History:
-    #   Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-    #       Geographic Science Center
-    #   Updated on 5/1/2013 by Gail Schmidt, USGS/EROS LSRD Project
-    #       Modified to validate the y projection coordinate falls within
-    #       the current scene.
-    #
-    # Inputs:
-    #   y - y projection coordinate
-    #
-    # Returns:
-    #     None - if pixel location does not fall within the coordinates of
-    #         this scene
-    #     Array - associated line of data y location as band1
-    #
-    # Notes:
-    #######################################################################
     def getRowOfBandValues(self, y):
+        """Reads a line of pixel values for each band at the specified y
+           coordinate.
+        Description: getRowOfBandValues reads a row of band values for each
+            of the bands specified at the associated row for the projection
+            y coordinate.  The projection y coordinate is converted to the
+            actual row/line in the current scene, and then that row is read
+            (reading all the samples in the line) and returned.
+        
+        History:
+          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+              Geographic Science Center
+          Updated on 5/1/2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to validate the y projection coordinate falls within
+              the current scene.
+        
+        Args:
+          y - y projection coordinate
+        
+        Returns:
+            None - if pixel location does not fall within the coordinates of
+                this scene
+            Array - associated line of data y location as band1
+        """
+
         if (y < self.NorthBoundingCoordinate) and  \
            (y > self.SouthBoundingCoordinate):
 
@@ -580,21 +576,20 @@ class TIF_Scene_8_band:
             return (None)
 
 
-    ########################################################################
-    # Description: getBandValues reads an entire band of data for all the
-    #     bands in the GeoTIFF file.
-    #
-    # History:
-    #   Created on 5/1/2013 by Gail Schmidt, USGS/EROS LSRD Project
-    #
-    # Inputs: None
-    #
-    # Returns:
-    #     Array - associated data for band 1
-    #
-    # Notes:
-    #######################################################################
     def getBandValues(self):
+        """Read all 8 bands from the GeoTiff file.
+        Description: getBandValues reads an entire band of data for all the
+            bands in the GeoTiff file.
+        
+        History:
+          Created on 5/1/2013 by Gail Schmidt, USGS/EROS LSRD Project
+        
+        Args: None
+        
+        Returns:
+            Array - associated data for band 1
+        """
+
         x = zeros((8,self.NRow,self.NCol))
         
         x[0,:,:] = self.band1.ReadAsArray()
@@ -607,3 +602,5 @@ class TIF_Scene_8_band:
         x[7,:,:] = self.band_QA.ReadAsArray()
         
         return(x)
+
+#### end TIF_Scene_8_band class ####

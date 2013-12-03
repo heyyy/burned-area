@@ -22,6 +22,9 @@ from log_it import *
 #       entire band) since this is faster.
 ############################################################################
 class spectralIndex:
+    """Class for producing the spectral indices.
+    """
+
     # Data attributes
     tif_file = "None"    # base GeoTIFF file to be processed for
                          # spectral indices
@@ -35,29 +38,28 @@ class spectralIndex:
     input_band7 = None   # pointer to GeoTIFF band
     input_band_qa = None  # pointer to GeoTIFF QA
 
-    ########################################################################
-    # Description: spectralIndex class constructor opens the input GeoTIFF
-    #     file and obtains pointers to each of the desired bands.
-    #
-    # History:
-    #   Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-    #       Geographic Science Center
-    #   Updated on 5/2/2013 by Gail Schmidt, USGS/EROS LSRD Project
-    #       Modified to utilize the class constructor to open and set up
-    #       band pointers from the file, so they are available for use by
-    #       other methods within the class.
-    #
-    # Inputs:
-    #   tif_file - GeoTIFF file to be opened and processed for this class
-    #   log_handler - open log file for logging or None for stdout
-    #
-    # Returns:
-    #     None - error opening the file
-    #     Object - successful processing
-    #
-    # Notes:
-    #######################################################################
     def __init__ (self, tif_file, log_handler=None):
+        """Class constructor which opens the GeoTiff file.
+        Description: spectralIndex class constructor opens the input GeoTiff
+            file and obtains pointers to each of the desired bands.
+        
+        History:
+          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+              Geographic Science Center
+          Updated on 5/2/2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to utilize the class constructor to open and set up
+              band pointers from the file, so they are available for use by
+              other methods within the class.
+        
+        Args:
+          tif_file - GeoTiff file to be opened and processed for this class
+          log_handler - open log file for logging or None for stdout
+        
+        Returns:
+            None - error opening the file
+            Object - successful processing
+        """
+
         # Check to make sure the input file exists
         if not os.path.exists (tif_file):
             msg = 'GeoTIFF file does not exist: ' + tif_file
@@ -83,19 +85,20 @@ class spectralIndex:
         self.input_band_qa = self.input_ds.GetRasterBand(8)
 
 
-    ########################################################################
-    # Description: class destructor cleans up all the sub dataset and band
-    #     pointers.
-    #
-    # History:
-    #   Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-    #       Geographic Science Center
-    #
-    # Inputs: None
-    #
-    # Returns: Nothing
-    #######################################################################
     def __del__ (self):
+        """Class desctructor to clean up band pointers.
+        Description: class destructor cleans up all the sub dataset and band
+            pointers.
+        
+        History:
+          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+              Geographic Science Center
+        
+        Args: None
+        
+        Returns: Nothing
+        """
+
         # cleanup
         self.input_band1 = None
         self.input_band2 = None
@@ -107,39 +110,38 @@ class spectralIndex:
         self.input_band_qa = None
 
 
-    ########################################################################
-    # Description: createSpectralIndices creates the desired spectral index
-    #     products.  If mask is specified, then a combined mask file is
-    #     generated using the various input masks.
-    #
-    # History:
-    #   Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-    #       Geographic Science Center
-    #   Updated on 5/2/2013 by Gail Schmidt, USGS/EROS LSRD Project
-    #       Modified to utilize a class structure and only read the bands
-    #       if they haven't been read already.  This saves from duplication
-    #       of reading the same band over and over for different indices.
-    #   Updated on 5/21/2013 by Gail Schmidt, USGS/EROS LSRD Project
-    #       Modified to process all the indices one line  at a time (vs. the
-    #       entire band) since this is faster.
-    #
-    # Inputs:
-    #   index_dict - dictionary of index types (ndvi, nbr, nbr2, ndmi, mask)
-    #       and the associated filename for the index file
-    #   make_histos - should histograms and overview pyramids be generated
-    #       for each of the output GeoTIFF files?
-    #   log_handler - open log file for logging or None for stdout
-    #
-    # Returns:
-    #     ERROR - error generating the spectral indices or mask
-    #     SUCCESS - successful processing
-    #
-    # Notes:
-    #######################################################################
     def createSpectralIndices (self, index_dict, make_histos=False,  \
         log_handler=None):
+        """Generates the specified spectral indices.
+        Description: createSpectralIndices creates the desired spectral index
+            products.  If mask is specified, then a combined mask file is
+            generated using the various input masks.
+        
+        History:
+          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+              Geographic Science Center
+          Updated on 5/2/2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to utilize a class structure and only read the bands
+              if they haven't been read already.  This saves from duplication
+              of reading the same band over and over for different indices.
+          Updated on 5/21/2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to process all the indices one line  at a time (vs. the
+              entire band) since this is faster.
+        
+        Args:
+          index_dict - dictionary of index types (ndvi, nbr, nbr2, ndmi, mask)
+              and the associated filename for the index file
+          make_histos - should histograms and overview pyramids be generated
+              for each of the output GeoTIFF files?
+          log_handler - open log file for logging or None for stdout
+        
+        Returns:
+            ERROR - error generating the spectral indices or mask
+            SUCCESS - successful processing
+        """
+
         num_indices = len(index_dict)
-        print '    Processing ' + str(num_indices) + ' indices: '
+        print '    Processing %d indices: ' % num_indices
         for index in index_dict.keys():
             print '      ' + index
     
@@ -162,7 +164,7 @@ class spectralIndex:
         for index in index_dict.keys():
             # figure out which spectral index to generate
             if not (index in ['ndvi','nbr','nbr2','ndmi','mask']):
-                msg = 'Algorithm for ' + index + ' is not implemented'
+                msg = 'Algorithm for %s is not implemented' % index
                 logIt (msg, log_handler)
                 return ERROR
     
@@ -198,9 +200,9 @@ class spectralIndex:
             for index in index_dict.keys():
                 # calculate the spectral index
                 if index == 'nbr':
-                    if b4 == None:
+                    if b4 is None:
                         b4 = self.input_band4.ReadAsArray(0, y, ncol,1)
-                    if b7 == None:
+                    if b7 is None:
                         b7 = self.input_band7.ReadAsArray(0, y, ncol, 1)
                     newVals = 1000.0 * NBR(b4, b7, nodata)
                     newVals[qa < 0] = nodata
@@ -210,9 +212,9 @@ class spectralIndex:
                     my_output_band.WriteArray(newVals, 0, y)
 
                 elif index == 'nbr2':
-                    if b5 == None:
+                    if b5 is None:
                         b5 = self.input_band5.ReadAsArray(0, y, ncol, 1)
-                    if b7 == None:
+                    if b7 is None:
                         b7 = self.input_band7.ReadAsArray(0, y, ncol, 1)
                     newVals = 1000.0 * NBR2(b5, b7, nodata)
                     newVals[qa < 0] = nodata
@@ -222,9 +224,9 @@ class spectralIndex:
                     my_output_band.WriteArray(newVals, 0, y)
 
                 elif index == 'ndmi':
-                    if b4 == None:
+                    if b4 is None:
                         b4 = self.input_band4.ReadAsArray(0, y, ncol, 1)
-                    if b5 == None:
+                    if b5 is None:
                         b5 = self.input_band5.ReadAsArray(0, y, ncol, 1)
                     newVals = 1000.0 * NDMI(b4, b5, nodata)
                     newVals[qa < 0] = nodata
@@ -234,9 +236,9 @@ class spectralIndex:
                     my_output_band.WriteArray(newVals, 0, y)
 
                 elif index == 'ndvi':
-                    if b4 == None:
+                    if b4 is None:
                         b4 = self.input_band4.ReadAsArray(0, y, ncol, 1)
-                    if b3 == None:
+                    if b3 is None:
                         b3 = self.input_band3.ReadAsArray(0, y, ncol, 1)
                     newVals = 1000.0 * NDVI(b3, b4, nodata)
                     newVals[qa < 0] = nodata
@@ -265,7 +267,7 @@ class spectralIndex:
                 # make histogram
                 my_output_band = output_band.get(index)
                 histogram = my_output_band.GetDefaultHistogram()
-                if not histogram == None:
+                if not histogram is None:
                     my_output_band.SetDefaultHistogram(histogram[0], \
                         histogram[1], histogram[3])
     
@@ -281,3 +283,4 @@ class spectralIndex:
         del (driver)
 
         return SUCCESS
+######end of spectralIndex class######

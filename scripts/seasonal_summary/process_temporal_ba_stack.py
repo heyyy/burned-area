@@ -31,6 +31,10 @@ from parallel_worker import *
 # Usage: process_temporal_stack.py --help prints the help message
 ############################################################################
 class temporalBAStack():
+    """Class for handling the seasonal summary and annual maximum processing
+       of a temporal stack of scenes.
+    """
+
     # Data attributes
     input_dir = "None"        # base directory where lndsr products reside
     refl_dir = "None"         # reflective data directory
@@ -55,35 +59,34 @@ class temporalBAStack():
         pass
 
 
-    ########################################################################
-    # Description: generate_stack will determine lndsr files residing in the
-    #     input_dir, then write a simple list_file and a more involved
-    #     stack_file outlining the files to be processed and some of their
-    #     data attributes.
-    #
-    # History:
-    #   Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-    #       Geographic Science Center
-    #   Updated on 4/26/2013 by Gail Schmidt, USGS/EROS LSRD Project
-    #       Modified to write a list file as well as the stack file.  Also
-    #       added headers for the python functions and support for a log file.
-    #
-    # Inputs:
-    #   input_dir - name of the directory in which to find the lndsr products
-    #       to be processed (should be initiated already)
-    #   stack_file - name of stack file to create; list of the lndsr products
-    #       to be processed in addition to the date, path/row, sensor, bounding
-    #       coords, pixel size, and UTM zone
-    #   list_file - name of list file to create; simple list of lndsr products
-    #       to be processed from the current directory
-    #
-    # Returns:
-    #     ERROR - error generating the stack and list files
-    #     SUCCESS - successful processing
-    #
-    # Notes:
-    #######################################################################
     def generate_stack (self, stack_file, list_file):
+        """Creates the CSV stack file for lndsr files in the input directory.
+        Description: generate_stack will determine lndsr files residing in the
+            input_dir, then write a simple list_file and a more involved
+            stack_file outlining the files to be processed and some of their
+            data attributes.
+        
+        History:
+          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+              Geographic Science Center
+          Updated on 4/26/2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to write a list file as well as the stack file.  Also
+              added headers for the python functions and support for a log file.
+        
+        Args:
+          input_dir - name of the directory in which to find the lndsr products
+              to be processed (should be initiated already)
+          stack_file - name of stack file to create; list of the lndsr products
+              to be processed in addition to the date, path/row, sensor,
+              bounding coords, pixel size, and UTM zone
+          list_file - name of list file to create; simple list of lndsr
+              products to be processed from the current directory
+        
+        Returns:
+            ERROR - error generating the stack and list files
+            SUCCESS - successful processing
+        """
+
         # define CSV delimiter
         delim = ','
         
@@ -184,29 +187,29 @@ class temporalBAStack():
         return SUCCESS
 
 
-    ########################################################################
-    # Description: stackSpatialExtent will open the input CSV file, which
-    #     contains the bounding extents for the current temporal stack,
-    #     and returns a dictionary of east, west, north, south extents.
-    #
-    # History:
-    #   Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-    #       Geographic Science Center
-    #   Updated on 4/29/2013 by Gail Schmidt, USGS/EROS LSRD Project
-    #       Modified to utilize a log file if passed along.
-    #
-    # Inputs:
-    #   bounding_extents_file - name of file which contains the bounding
-    #       extents; first line should identify east, west, north, south
-    #       coords; second line should contain the projection coords themselves
-    #
-    # Returns:
-    #     None - error reading the bounding extents
-    #     return_dict - dictionary of spatial extents
-    #
-    # Notes:
-    #######################################################################
     def stackSpatialExtent(self, bounding_extents_file):
+        """Returns the spatial extents of all files in the temporal stack.
+        Description: stackSpatialExtent will open the input CSV file, which
+            contains the bounding extents for the current temporal stack,
+            and returns a dictionary of east, west, north, south extents.
+        
+        History:
+          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+              Geographic Science Center
+          Updated on 4/29/2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to utilize a log file if passed along.
+        
+        Args:
+          bounding_extents_file - name of file which contains the bounding
+              extents; first line should identify east, west, north, south
+              coords; second line should contain the projection coords
+              themselves
+        
+        Returns:
+            None - error reading the bounding extents
+            return_dict - dictionary of spatial extents
+        """
+
         # check to make sure the input file exists before opening
         if not os.path.exists (bounding_extents_file):
             msg = 'Bounding extents file does not exist: ' + \
@@ -233,34 +236,33 @@ class temporalBAStack():
         return return_dict
 
 
-    ########################################################################
-    # Description: hdf2tif will convert the HDF file to GeoTIFF.  It sets
-    #     the noData value to -9999.
-    #
-    # History:
-    #   Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-    #       Geographic Science Center
-    #   Updated on 4/30/2013 by Gail Schmidt, USGS/EROS LSRD Project
-    #       Took out the conversion of projection coords (x,y) to
-    #           line, sample (i,j) space and vice versa.  This speeds up the
-    #           processing time a bit.
-    #       Removed some of the redundant tagging of QA as noData.
-    #       Removed the redundant histogram and build pyramids code which is
-    #           also done by polishImage
-    #       Modified to utilize a log file if passed along.
-    #
-    # Inputs:
-    #   input_file - name of the input HDF reflectance file to be converted
-    #   output_file - name of the output GeoTIFF file which contains bands 1-7
-    #       and a QA band
-    #
-    # Returns:
-    #     ERROR - error converting the HDF file to GeoTIFF
-    #     SUCCESS - successful processing
-    #
-    # Notes:
-    #######################################################################
     def hdf2tif(self, input_file, output_file):
+        """Converts the HDF file to GeoTiff.
+        Description: hdf2tif will convert the HDF file to GeoTiff.  It sets
+            the noData value to -9999.
+        
+        History:
+          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+              Geographic Science Center
+          Updated on 4/30/2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Took out the conversion of projection coords (x,y) to
+                  line, sample (i,j) space and vice versa.  This speeds up the
+                  processing time a bit.
+              Removed some of the redundant tagging of QA as noData.
+              Removed the redundant histogram and build pyramids code which is
+                  also done by polishImage
+              Modified to utilize a log file if passed along.
+        
+        Args:
+          input_file - name of the input HDF reflectance file to be converted
+          output_file - name of the output GeoTIFF file which contains bands
+              1-7 and a QA band
+        
+        Returns:
+            ERROR - error converting the HDF file to GeoTIFF
+            SUCCESS - successful processing
+        """
+
         # test to make sure the input file exists
         if not os.path.exists(input_file):
             msg = 'Input file does not exist: ' + input_file
@@ -276,7 +278,7 @@ class temporalBAStack():
         
         # open the input file
         hdfAttr = HDF_Scene(input_file, self.log_handler)
-        if hdfAttr == None:
+        if hdfAttr is None:
             # error message already written in the constructor
             return ERROR
     
@@ -327,35 +329,35 @@ class temporalBAStack():
         if self.make_histos:
             # create histograms
             histogram = output_band1.GetDefaultHistogram()
-            if not histogram == None:
+            if not histogram is None:
                 output_band1.SetDefaultHistogram(histogram[0], histogram[1],  \
                     histogram[3])
             histogram = output_band1.GetDefaultHistogram()
-            if not histogram == None:
+            if not histogram is None:
                 output_band2.SetDefaultHistogram(histogram[0], histogram[1],  \
                     histogram[3])
             histogram = output_band2.GetDefaultHistogram()
-            if not histogram == None:
+            if not histogram is None:
                 output_band3.SetDefaultHistogram(histogram[0], histogram[1],  \
                     histogram[3])
             histogram = output_band3.GetDefaultHistogram()
-            if not histogram == None:
+            if not histogram is None:
                 output_band4.SetDefaultHistogram(histogram[0], histogram[1],  \
                     histogram[3])
             histogram = output_band4.GetDefaultHistogram()
-            if not histogram == None:
+            if not histogram is None:
                 output_band5.SetDefaultHistogram(histogram[0], histogram[1],  \
                     histogram[3])
             histogram = output_band5.GetDefaultHistogram()
-            if not histogram == None:
+            if not histogram is None:
                 output_band6.SetDefaultHistogram(histogram[0], histogram[1],  \
                     histogram[3])
             histogram = output_band6.GetDefaultHistogram()
-            if not histogram == None:
+            if not histogram is None:
                 output_band7.SetDefaultHistogram(histogram[0], histogram[1],  \
                     histogram[3])
             histogram = output_band_QA.GetDefaultHistogram()
-            if not histogram == None:
+            if not histogram is None:
                 output_band_QA.SetDefaultHistogram(histogram[0], histogram[1], \
                     histogram[3])  
         
@@ -378,35 +380,35 @@ class temporalBAStack():
         return SUCCESS
 
 
-    ########################################################################
-    # Description: stackHdfToTiff will convert the HDF files to GeoTIFF and
-    #     then resample the GeoTIFF files to the bounding extents.  It also
-    #     computes the spectral indices.
-    #
-    # History:
-    #   Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-    #       Geographic Science Center
-    #   Updated on 4/29/2013 by Gail Schmidt, USGS/EROS LSRD Project
-    #       Modified to utilize a log file if passed along.
-    #       Make the histograms and overviews optional.
-    #
-    # Inputs:
-    #   bounding_extents_file - name of file which contains the bounding
-    #       extents
-    #   stack_file - name of stack file to create; list of the lndsr products
-    #       to be processed in addition to the date, path/row, sensor, bounding
-    #       coords, pixel size, and UTM zone
-    #
-    # Returns:
-    #     ERROR - error converting all the HDF files to GeoTIFF and resampling
-    #     SUCCESS - successful processing
-    #
-    # Notes:
-    #######################################################################
     def stackHDFToTiff(self, bounding_extents_file, stack_file):
+        """Converts the HDF files in the temporal stack to GeoTiff resampling
+           to the specified geographic extents.
+        Description: stackHdfToTiff will convert the HDF files to GeoTIFF and
+            then resample the GeoTIFF files to the bounding extents.  It also
+            computes the spectral indices.
+        
+        History:
+          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+              Geographic Science Center
+          Updated on 4/29/2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to utilize a log file if passed along.
+              Make the histograms and overviews optional.
+        
+        Args:
+          bounding_extents_file - name of file which contains the bounding
+              extents
+          stack_file - name of stack file to create; list of the lndsr products
+              to be processed in addition to the date, path/row, sensor,
+              bounding coords, pixel size, and UTM zone
+        
+        Returns:
+            ERROR - error converting all the HDF files to GeoTiff or resampling
+            SUCCESS - successful processing
+        """
+
         # read the spatial extents
         self.spatial_extent = self.stackSpatialExtent (bounding_extents_file)
-        if self.spatial_extent == None:
+        if self.spatial_extent is None:
             # error message already written
             return ERROR
 
@@ -483,34 +485,34 @@ class temporalBAStack():
         return SUCCESS
 
 
-    ########################################################################
-    # Description: sceneHdfToTiff will convert the HDF file to GeoTIFF and
-    #     then resample the GeoTIFF file to the bounding extents.  It will
-    #     also compute the spectral indices for the scene.
-    #
-    # History:
-    #   Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-    #       Geographic Science Center
-    #   Updated on 5/7/2013 by Gail Schmidt, USGS/EROS LSRD Project
-    #       Modified to allow for multiprocessing at the scene level.
-    #
-    # Inputs:
-    #   hdf_file - name of hdf file to process
-    #
-    # Returns:
-    #     ERROR - error converting all the HDF files to GeoTIFF and resampling
-    #     SUCCESS - successful processing
-    #
-    # Notes:
-    #######################################################################
     def sceneHDFToTiff(self, hdf_file):
-        startTime0 = time.time()
+        """Converts the HDF file to GeoTiff resampling to the specified
+           geographic extent and computes spectral indices.
+        Description: sceneHdfToTiff will convert the HDF file to GeoTIFF and
+            then resample the GeoTIFF file to the bounding extents.  It will
+            also compute the spectral indices for the scene.
+        
+        History:
+          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+              Geographic Science Center
+          Updated on 5/7/2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to allow for multiprocessing at the scene level.
+        
+        Args:
+          hdf_file - name of hdf file to process
+        
+        Returns:
+            ERROR - error converting the HDF file to GeoTiff or resampling or
+                determining spectral indices
+            SUCCESS - successful processing
+        """
    
         # generate the HDF, GeoTIFF, and temporary GeoTIFF filename.  use
         # tempfile to get a unique filename and then close it right away.
         # use the filename itself to process the string like we did with
         # just temp.tif.  we have to have unique filenames for running in
         # parallel.
+        startTime0 = time.time()
         msg = '############################################################'
         logIt (msg, self.log_handler)
         tif_file = hdf_file.replace('.hdf', '.tif')
@@ -531,7 +533,7 @@ class temporalBAStack():
             logIt (msg, self.log_handler)
             return ERROR
         endTime = time.time()
-        msg = '    Processing time = ' + str(endTime-startTime) + ' seconds'
+        msg = '    Processing time = %d seconds' % endTime-startTime
         logIt (msg, self.log_handler)
 
         # resample the .tif file to our maximum bounding coords
@@ -539,13 +541,17 @@ class temporalBAStack():
         msg = '   Resizing temp (%s) to max bounds (%s)' % (temp_file.name, \
             tif_file)
         logIt (msg, self.log_handler)
-        cmd = 'gdal_merge.py -o ' + tif_file + ' -co "INTERLEAVE=BAND" -co "TILED=YES" -init -9999 -n -9999 -a_nodata -9999 -ul_lr ' + str(self.spatial_extent['West']) + ' ' + str(self.spatial_extent['North']) + ' ' + str(self.spatial_extent['East']) + ' ' + str(self.spatial_extent['South']) + ' ' + temp_file.name
+        cmd = 'gdal_merge.py -o %s -co "INTERLEAVE=BAND" -co "TILED=YES" ' \
+            '-init -9999 -n -9999 -a_nodata -9999 -ul_lr %d %d %d %d %s' % \
+        (tif_file, self.spatial_extent['West'], self.spatial_extent['North'],
+         self.spatial_extent['East'], self.spatial_extent['South'], \
+         temp_file.name
         msg = '    ' + cmd
         logIt (msg, self.log_handler)
         os.system(cmd)
 
         endTime = time.time()
-        msg = '    Processing time = ' + str(endTime-startTime) + ' seconds'
+        msg = '    Processing time = %d seconds' % endTime-startTime
         logIt (msg, self.log_handler)
    
         # remove the temp file since it is no longer needed
@@ -566,8 +572,7 @@ class temporalBAStack():
                 return ERROR
             
             endTime = time.time()
-            msg = '    Processing time = ' + str(endTime-startTime) +  \
-                ' seconds'
+            msg = '    Processing time = %d seconds' % endTime-startTime
             logIt (msg, self.log_handler)
 
         # calculate ndvi, ndmi, nbr, nbr2 from the converted tif file and
@@ -596,41 +601,42 @@ class temporalBAStack():
         del (idx_dict)
         
         endTime = time.time()
-        msg = '    Processing time = ' + str(endTime-startTime) + ' seconds'
+        msg = '    Processing time = %d seconds' % endTime-startTime
         logIt (msg, self.log_handler)
 
         endTime0 = time.time()
-        msg = '***Total scene processing time = ' +  \
-            str(endTime0 - startTime0) + ' seconds'
+        msg = '***Total scene processing time = %d seconds' %  \
+            endTime0 - startTime0
         logIt (msg, self.log_handler)
         return SUCCESS
 
 
-    ########################################################################
-    # Description: generateSeasonalSummaries will generate the seasonal
-    # summaries for the temporal stack.  If a log file was specified then the
-    # output from each application will be logged to that file.
-    #
-    # Inputs:
-    #   stack_file - name of stack file to create; list of the lndsr products
-    #       to be processed in addition to the date, path/row, sensor, bounding
-    #       coords, pixel size, and UTM zone
-    #
-    # Returns:
-    #     ERROR - error generating the seasonal summaries
-    #     SUCCESS - successful processing
-    #
-    # Notes:
-    #   1. Seasons are defined as:
-    #      winter = dec (previous year), jan, and feb
-    #      spring = mar, apr, may
-    #      summer = jun, jul, aug
-    #      fall = sep, oct, nov
-    #   2. Seasonal summaries are the mean value for each season for bands
-    #      3, 4, 5, 7, ndvi, ndmi, nbr, and nbr2.
-    #   3. Good count is the number of 'lloks' with no QA flag set
-    #######################################################################
     def generateSeasonalSummaries (self, stack_file):
+        """Generates the seasonal summaries for the temporal stack.
+        Description: generateSeasonalSummaries will generate the seasonal
+        summaries for the temporal stack.  If a log file was specified then the
+        output from each application will be logged to that file.
+        
+        Args:
+          stack_file - name of stack file to create; list of the lndsr products
+              to be processed in addition to the date, path/row, sensor,
+              bounding coords, pixel size, and UTM zone
+        
+        Returns:
+            ERROR - error generating the seasonal summaries
+            SUCCESS - successful processing
+        
+        Notes:
+          1. Seasons are defined as:
+             winter = dec (previous year), jan, and feb
+             spring = mar, apr, may
+             summer = jun, jul, aug
+             fall = sep, oct, nov
+          2. Seasonal summaries are the mean value for each season for bands
+             3, 4, 5, 7, ndvi, ndmi, nbr, and nbr2.
+          3. Good count is the number of 'lloks' with no QA flag set
+        """
+
         # make sure the stack file exists
         if not os.path.exists(stack_file):
             msg = 'Could not open stack file: ' + stack_file
@@ -647,7 +653,7 @@ class temporalBAStack():
         self.csv_data = recfromcsv (stack_file, delimiter=',', names=True,  \
             dtype="string")
         f_in = None
-        if self.csv_data == None:
+        if self.csv_data is None:
             msg = 'Error reading the stack file: ' + stack_file
             logIt (msg, self.log_handler)
             return ERROR
@@ -669,7 +675,7 @@ class temporalBAStack():
         # open the first file in the stack (GeoTIFF) to get ncols and nrows
         # and other associated info for the stack of scenes
         tifBand1 = TIF_Scene_1_band(first_file, 1, self.log_handler)
-        if tifBand1 == None:
+        if tifBand1 is None:
             msg = 'Error reading the GeoTIFF file: ' + first_file
             logIt (msg, self.log_handler)
             return ERROR
@@ -709,43 +715,44 @@ class temporalBAStack():
                 return ERROR
 
         endTime = time.time()
-        msg = 'Processing time = ' + str(endTime-startTime) + ' seconds'
+        msg = 'Processing time = %d seconds' % endTime-startTime
         logIt (msg, self.log_handler)
  
         return SUCCESS
 
 
-    ########################################################################
-    # Description: generateYearSeasonalSummaries will generate the seasonal
-    # summaries for the current year.  If a log file was specified then the
-    # output from each application will be logged to that file.
-    #
-    # History:
-    #   Updated on 5/22/2013 by Gail Schmidt, USGS/EROS LSRD Project
-    #       Modified to process all the indices one line  at a time (vs. the
-    #       entire band) since this is faster.
-    #   Updated on 9/20/2013 by Gail Schmidt, USGS/EROS LSRD Project
-    #       Modified to process a summary product with fill if there aren't
-    #       any valid inputs for the current season/year.
-    #
-    # Inputs:
-    #   year - year to process the seasonal summaries
-    #
-    # Returns:
-    #     ERROR - error generating the seasonal summaries for this year
-    #     SUCCESS - successful processing
-    #
-    # Notes:
-    #   1. Seasons are defined as:
-    #      winter = dec (previous year), jan, and feb
-    #      spring = mar, apr, may
-    #      summer = jun, jul, aug
-    #      fall = sep, oct, nov
-    #   2. Seasonal summaries are the mean value for each season for bands
-    #      3, 4, 5, 7, ndvi, ndmi, nbr, and nbr2.
-    #   3. Good count is the number of 'lloks' with no QA flag set
-    #######################################################################
     def generateYearSeasonalSummaries (self, year):
+        """Generates the seasonal summaries for the specified year.
+        Description: generateYearSeasonalSummaries will generate the seasonal
+        summaries for the current year.  If a log file was specified then the
+        output from each application will be logged to that file.
+        
+        History:
+          Updated on 5/22/2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to process all the indices one line  at a time (vs. the
+              entire band) since this is faster.
+          Updated on 9/20/2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to process a summary product with fill if there aren't
+              any valid inputs for the current season/year.
+        
+        Args:
+          year - year to process the seasonal summaries
+        
+        Returns:
+            ERROR - error generating the seasonal summaries for this year
+            SUCCESS - successful processing
+        
+        Notes:
+          1. Seasons are defined as:
+             winter = dec (previous year), jan, and feb
+             spring = mar, apr, may
+             summer = jun, jul, aug
+             fall = sep, oct, nov
+          2. Seasonal summaries are the mean value for each season for bands
+             3, 4, 5, 7, ndvi, ndmi, nbr, and nbr2.
+          3. Good count is the number of 'lloks' with no QA flag set
+        """
+
         # loop through seasons
         last_year = year - 1
         for season in ['winter', 'spring', 'summer', 'fall']:
@@ -794,7 +801,7 @@ class temporalBAStack():
                 base_file = os.path.basename(temp.replace('.hdf', '.tif'))
                 mask_file = '%s%s' % (dir_name, base_file)
                 mask_dataset = gdal.Open (mask_file, gdalconst.GA_ReadOnly)
-                if mask_dataset == None:
+                if mask_dataset is None:
                     msg = 'Could not open mask file: ' + mask_file
                     logIt (msg, self.log_handler)
                     return ERROR
@@ -835,7 +842,7 @@ class temporalBAStack():
             good_looks_dataset = gdal.Open(good_looks_file,  \
                 gdalconst.GA_Update)
             if good_looks_dataset is None:
-                msg = 'Could not create output file: ', good_looks_file
+                msg = 'Could not create output file: ' + good_looks_file
                 logIt (msg, self.log_handler)
                 return ERROR
             
@@ -899,7 +906,7 @@ class temporalBAStack():
                         '.hdf', '.tif')
                     temp_file = '%s%s' % (dir_name, base_file)
                     my_ds = gdal.Open (temp_file, gdalconst.GA_ReadOnly)
-                    if my_ds == None:
+                    if my_ds is None:
                         msg = 'Could not open index/band file: ' + temp_file
                         logIt (msg, self.log_handler)
                         return ERROR
@@ -919,7 +926,7 @@ class temporalBAStack():
                         my_temp_band = my_ds.GetRasterBand(1)
 
                     # make sure the band is valid
-                    if my_temp_band == None:
+                    if my_temp_band is None:
                         msg = 'Could not open raster band for ' + ind
                         logIt (msg, self.log_handler)
                         return ERROR
@@ -927,7 +934,7 @@ class temporalBAStack():
 
                 # loop through each line in the image and process
                 for y in range (0, self.nrow):
-#                    print 'Line: ' + str(y)
+#                    print 'Line: %d' % y
                     # loop through the current set of files and process them
                     for i in range(0, n_files):
 #                        print '  Stacking file: ' + files[i]
@@ -984,24 +991,25 @@ class temporalBAStack():
         return SUCCESS
 
 
-    ########################################################################
-    # Description: generateAnnualMaximums will generate the maximum values
-    # for each year in the temporal stack.  If a log file was specified then
-    # the output from each application will be logged to that file.
-    #
-    # Inputs:
-    #   stack_file - name of stack file to create; list of the lndsr products
-    #       to be processed in addition to the date, path/row, sensor, bounding
-    #       coords, pixel size, and UTM zone
-    #
-    # Returns:
-    #     ERROR - error generating the annual maximums
-    #     SUCCESS - successful processing
-    #
-    # Notes:
-    #   1. The seasons will be ignored.
-    #######################################################################
     def generateAnnualMaximums (self, stack_file):
+        """Generates the annual maximums for the temporal stack.
+        Description: generateAnnualMaximums will generate the maximum values
+        for each year in the temporal stack.  If a log file was specified then
+        the output from each application will be logged to that file.
+        
+        Args:
+          stack_file - name of stack file to create; list of the lndsr products
+              to be processed in addition to the date, path/row, sensor,
+              bounding coords, pixel size, and UTM zone
+        
+        Returns:
+            ERROR - error generating the annual maximums
+            SUCCESS - successful processing
+        
+        Notes:
+          1. The seasons will be ignored.
+        """
+
         # make sure the stack file exists
         if not os.path.exists(stack_file):
             msg = 'Could not open stack file: ' + stack_file
@@ -1018,7 +1026,7 @@ class temporalBAStack():
         self.csv_data = recfromcsv (stack_file, delimiter=',', names=True,  \
             dtype="string")
         f_in = None
-        if self.csv_data == None:
+        if self.csv_data is None:
             msg = 'Error reading the stack file: ' + stack_file
             logIt (msg, self.log_handler)
             return ERROR
@@ -1040,7 +1048,7 @@ class temporalBAStack():
         # open the first file in the stack (GeoTIFF) to get ncols and nrows
         # and other associated info for the stack of scenes
         tifBand1 = TIF_Scene_1_band(first_file, 1, self.log_handler)
-        if tifBand1 == None:
+        if tifBand1 is None:
             msg = 'Error reading the GeoTIFF file: ' + first_file
             logIt (msg, self.log_handler)
             return ERROR
@@ -1080,31 +1088,32 @@ class temporalBAStack():
                 return ERROR
 
         endTime = time.time()
-        msg = 'Processing time = ' + str(endTime-startTime) + ' seconds'
+        msg = 'Processing time = %d seconds' % endTime-startTime
         logIt (msg, self.log_handler)
  
         return SUCCESS
 
 
-    ########################################################################
-    # Description: generateYearMaximums will generate the maximums for the
-    # current year.  If a log file was specified then the output from each
-    # application will be logged to that file.
-    #
-    # History:
-    #
-    # Inputs:
-    #   year - year to process the maximums
-    #
-    # Returns:
-    #     ERROR - error generating the maximums for this year
-    #     SUCCESS - successful processing
-    #
-    # Notes:
-    #   1. Maximums are the max value for each year for ndvi, ndmi, nbr,
-    #      and nbr2.
-    #######################################################################
     def generateYearMaximums (self, year):
+        """Generates the annual maximums for the specified year.
+        Description: generateYearMaximums will generate the maximums for the
+        current year.  If a log file was specified then the output from each
+        application will be logged to that file.
+        
+        History:
+        
+        Args:
+          year - year to process the maximums
+        
+        Returns:
+            ERROR - error generating the maximums for this year
+            SUCCESS - successful processing
+        
+        Notes:
+          1. Maximums are the max value for each year for ndvi, ndmi, nbr,
+             and nbr2.
+        """
+
         # determine which files apply to the current year
         year_files = (self.csv_data['year'] == year)
         n_files = sum (year_files)
@@ -1131,7 +1140,7 @@ class temporalBAStack():
             base_file = os.path.basename(temp.replace('.hdf', '.tif'))
             mask_file = '%s%s' % (dir_name, base_file)
             mask_dataset = gdal.Open (mask_file, gdalconst.GA_ReadOnly)
-            if mask_dataset == None:
+            if mask_dataset is None:
                 msg = 'Could not open mask file: ' + mask_file
                 logIt (msg, self.log_handler)
                 return ERROR
@@ -1186,7 +1195,7 @@ class temporalBAStack():
                 base_file = os.path.basename(files[i]).replace('.hdf', '.tif')
                 temp_file = '%s%s' % (dir_name, base_file)
                 my_ds = gdal.Open (temp_file, gdalconst.GA_ReadOnly)
-                if my_ds == None:
+                if my_ds is None:
                     msg = 'Could not open index file: ' + temp_file
                     logIt (msg, self.log_handler)
                     return ERROR
@@ -1196,7 +1205,7 @@ class temporalBAStack():
                 my_indx_band = my_ds.GetRasterBand(1)
 
                 # make sure the band is valid
-                if my_indx_band == None:
+                if my_indx_band is None:
                     msg = 'Could not open raster band for ' + ind
                     logIt (msg, self.log_handler)
                     return ERROR
@@ -1204,7 +1213,7 @@ class temporalBAStack():
 
             # loop through each line in the image and process
             for y in range (0, self.nrow):
-#                print 'Line: ' + str(y)
+#                print 'Line: %d' % y
                 # loop through the current set of files and process them
                 for i in range(0, n_files):
 #                    print '  Stacking file: ' + files[i]
@@ -1245,51 +1254,53 @@ class temporalBAStack():
         return SUCCESS
 
 
-    ########################################################################
-    # Description: processStack will process the temporal stack of data
-    # needed for burned area processing.  If a log file was specified, then
-    # the output from each application will be logged to that file.
-    #
-    # History:
-    #   Updated on 8/15/2013 by Gail Schmidt, USGS/EROS LSRD Project
-    #       Modified to add processing of the annual maximums.
-    #   Updated on 12/2/2013 by Gail Schmidt, USGS/EROS LSRD Project
-    #       Modified to use argparser vs. optionparser, since optionparser
-    #       is deprecated.
-    #
-    # Inputs:
-    #   input_dir - name of the directory in which to find the lndsr products
-    #       to be processed
-    #   logfile - name of the logfile for logging information; if None then
-    #       the output will be written to stdout
-    #   make_histos - if the user wants to generate histograms and overview
-    #       pyramids of the output GeoTIFF products, then set this cmd-line
-    #       option
-    #   usebin - this specifies if the BA exes reside in the $BIN directory;
-    #       if None then the BA exes are expected to be in the PATH
-    #
-    # Returns:
-    #     ERROR - error running the BA applications and script
-    #     SUCCESS - successful processing
-    #
-    # Notes:
-    #   1. The script obtains the path of the input stack of temporal data
-    #      and changes directory to that path for running the burned area
-    #      temporal stack code.  If the input directory is not writable, then
-    #      this script exits with an error.
-    #   2. If the input_dir is not specified and the information is going
-    #      to be grabbed from the command line, then it's assumed all the
-    #      parameters will be pulled from the command line.
-    #######################################################################
     def processStack (self, input_dir=None, logfile=None, make_histos=None,  \
         usebin=None):
+        """Processes the temporal stack of data to generate seasonal summaries
+           and annual maximums for each year in the stack.
+        Description: processStack will process the temporal stack of data
+        needed for burned area processing.  If a log file was specified, then
+        the output from each application will be logged to that file.
+        
+        History:
+          Updated on 8/15/2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to add processing of the annual maximums.
+          Updated on 12/2/2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to use argparser vs. optionparser, since optionparser
+              is deprecated.
+        
+        Args:
+          input_dir - name of the directory in which to find the lndsr products
+              to be processed
+          logfile - name of the logfile for logging information; if None then
+              the output will be written to stdout
+          make_histos - if the user wants to generate histograms and overview
+              pyramids of the output GeoTIFF products, then set this cmd-line
+              option
+          usebin - this specifies if the BA exes reside in the $BIN directory;
+              if None then the BA exes are expected to be in the PATH
+        
+        Returns:
+            ERROR - error running the BA applications and script
+            SUCCESS - successful processing
+        
+        Notes:
+          1. The script obtains the path of the input stack of temporal data
+             and changes directory to that path for running the burned area
+             temporal stack code.  If the input directory is not writable, then
+             this script exits with an error.
+          2. If the input_dir is not specified and the information is going
+             to be grabbed from the command line, then it's assumed all the
+             parameters will be pulled from the command line.
+        """
+
         # if no parameters were passed then get the info from the
         # command line
-        msg = "Start time:" +  \
+        msg = 'Start time:' +  \
             str(datetime.datetime.now().strftime("%b %d %Y %H:%M:%S"))
         logIt (msg, self.log_handler)
         startTime0 = time.time()
-        if input_dir == None:
+        if input_dir is None:
             # get the command line argument for the input parameters
             parser = ArgumentParser(  \
                 description='Generate the seasonal summaries for the ' \
@@ -1325,19 +1336,19 @@ class temporalBAStack():
 
             # input directory
             input_dir = options.input_dir
-            if input_dir == None:
+            if input_dir is None:
                 parser.error ("missing input directory command-line argument");
                 return ERROR
 
             # number of processors
-            if options.num_processors != None:
+            if options.num_processors is not None:
                 self.num_processors = options.num_processors
 
         # open the log file if it exists; use line buffering for the output
         self.log_handler = None
-        if logfile != None:
+        if logfile is not None:
             self.log_handler = open (logfile, 'w', buffering=1)
-        msg = 'Burned area temporal stack processing of directory: %s' % \
+        msg = 'Burned area temporal stack processing of directory: ' +  \
             input_dir
         logIt (msg, self.log_handler)
         
@@ -1352,12 +1363,12 @@ class temporalBAStack():
         if usebin:
             # get the BIN dir environment variable
             bin_dir = os.environ.get('BIN')
-            if bin_dir == None:
+            if bin_dir is None:
                 msg = 'ERROR: BIN environment variable not defined'
                 logIt (msg, self.log_handler)
                 return ERROR
             bin_dir = bin_dir + '/'
-            msg = 'BIN environment variable: %s' % bin_dir
+            msg = 'BIN environment variable: ' + bin_dir
             logIt (msg, self.log_handler)
         else:
             # don't use a path to the external applications
@@ -1377,7 +1388,7 @@ class temporalBAStack():
                 'need write access to this directory.' % input_dir
             logIt (msg, self.log_handler)
             return ERROR
-        msg = 'Changing directories for burned area stack processing: %s' % \
+        msg = 'Changing directories for burned area stack processing: ' + \
             input_dir
         logIt (msg, self.log_handler)
 
@@ -1444,11 +1455,11 @@ class temporalBAStack():
             return ERROR
 
         endTime0 = time.time()
-        msg = '***Total stack processing time = ' +   \
-            str (endTime0 - startTime0) + ' seconds'
+        msg = '***Total stack processing time = %d seconds' % \
+            endTime0 - startTime0
         logIt (msg, self.log_handler)
 
-        msg = "End time:" + \
+        msg = 'End time:' + \
             str(datetime.datetime.now().strftime("%b %d %Y %H:%M:%S"))
         logIt (msg, self.log_handler)
 

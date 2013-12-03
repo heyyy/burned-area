@@ -25,6 +25,9 @@ from log_it import *
 #       Modified to use fmask band for QA vs. LEDAPS QA bands.
 ############################################################################
 class HDF_Scene:
+    """Class for handling HDF scene related functions.
+    """
+
     filename = ""
     NorthBoundingCoordinate = 0
     SouthBoundingCoordinate = 0
@@ -80,28 +83,27 @@ class HDF_Scene:
     key_fill_QA = None
     key_fmask_QA = None
 
-    ########################################################################
-    # Description: class constructor verifies the input file exists, then
-    #     opens it, reads the metadata, and establishes pointers to the
-    #     various SDSs.
-    #
-    # History:
-    #   Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-    #       Geographic Science Center
-    #   Updated on 4/30/2013 by Gail Schmidt, USGS/EROS LSRD Project
-    #       Modified to utilize a log file if passed along.
-    #
-    # Inputs:
-    #   fname - name of the input HDF reflectance file to be processed
-    #   log_handler - open log file for logging or None for stdout
-    #
-    # Returns:
-    #     None - error opening or reading the file via GDAL
-    #     Object - successful processing
-    #
-    # Notes:
-    #######################################################################
     def __init__ (self, fname, log_handler=None):
+        """Class constructor.
+        Description: class constructor verifies the input file exists, then
+            opens it, reads the metadata, and establishes pointers to the
+            various SDSs.
+        
+        History:
+          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+              Geographic Science Center
+          Updated on 4/30/2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to utilize a log file if passed along.
+        
+        Args:
+          fname - name of the input HDF reflectance file to be processed
+          log_handler - open log file for logging or None for stdout
+        
+        Returns:
+            None - error opening or reading the file via GDAL
+            Object - successful processing
+        """
+
         # make sure the file exists then open it with GDAL
         if not os.path.exists(fname):
             msg = 'Input file does not exist: ' + fname
@@ -166,39 +168,39 @@ class HDF_Scene:
         self.dataset = None
 
         # validate all the SDSs were found
-        if self.key1 == None:
+        if self.key1 is None:
             msg = 'Input band1 does not exist in ' + fname
             logIt (msg, log_handler)
             return None
-        if self.key2 == None:
+        if self.key2 is None:
             msg = 'Input band2 does not exist in ' + fname
             logIt (msg, log_handler)
             return None
-        if self.key3 == None:
+        if self.key3 is None:
             msg = 'Input band3 does not exist in ' + fname
             logIt (msg, log_handler)
             return None
-        if self.key4 == None:
+        if self.key4 is None:
             msg = 'Input band4 does not exist in ' + fname
             logIt (msg, log_handler)
             return None
-        if self.key5 == None:
+        if self.key5 is None:
             msg = 'Input band5 does not exist in ' + fname
             logIt (msg, log_handler)
             return None
-        if self.key6 == None:
+        if self.key6 is None:
             msg = 'Input band6 does not exist in ' + fname
             logIt (msg, log_handler)
             return None
-        if self.key7 == None:
+        if self.key7 is None:
             msg = 'Input band7 does not exist in ' + fname
             logIt (msg, log_handler)
             return None
-        if self.key_fill_QA == None:
+        if self.key_fill_QA is None:
             msg = 'Input fill_QA band does not exist in ' + fname
             logIt (msg, log_handler)
             return None
-        if self.key_fmask_QA == None:
+        if self.key_fmask_QA is None:
             msg = 'Input fmask_band band does not exist in ' + fname
             logIt (msg, log_handler)
             return None
@@ -227,39 +229,39 @@ class HDF_Scene:
         self.band_fmask_QA = self.subdataset_fmask_QA.GetRasterBand(1)
 
         # Verify the bands were actually accessed successfully
-        if self.band1 == None:
+        if self.band1 is None:
             msg = 'Input band1 connection failed'
             logIt (msg, log_handler)
             return None
-        if self.band2 == None:
+        if self.band2 is None:
             msg = 'Input band2 connection failed'
             logIt (msg, log_handler)
             return None
-        if self.band3 == None:
+        if self.band3 is None:
             msg = 'Input band3 connection failed'
             logIt (msg, log_handler)
             return None
-        if self.band4 == None:
+        if self.band4 is None:
             msg = 'Input band4 connection failed'
             logIt (msg, log_handler)
             return None
-        if self.band5 == None:
+        if self.band5 is None:
             msg = 'Input band5 connection failed'
             logIt (msg, log_handler)
             return None
-        if self.band6 == None:
+        if self.band6 is None:
             msg = 'Input band6 connection failed'
             logIt (msg, log_handler)
             return None
-        if self.band7 == None:
+        if self.band7 is None:
             msg = 'Input band7 connection failed'
             logIt (msg, log_handler)
             return None
-        if self.band_fill_QA == None:
+        if self.band_fill_QA is None:
             msg = 'Input band_fill_QA connection failed'
             logIt (msg, log_handler)
             return None
-        if self.band_fmask_QA == None:
+        if self.band_fmask_QA is None:
             msg = 'Input band_fmask_QA connection failed'
             logIt (msg, log_handler)
             return None
@@ -291,19 +293,20 @@ class HDF_Scene:
             time.strptime(self.mdata['AcquisitionDate'][0:10], "%Y-%m-%d")
 
 
-    ########################################################################
-    # Description: class destructor cleans up all the sub dataset and band
-    #     pointers.
-    #
-    # History:
-    #   Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-    #       Geographic Science Center
-    #
-    # Inputs: None
-    #
-    # Returns: Nothing
-    #######################################################################
     def __del__ (self):
+        """Class destructor.
+        Description: class destructor cleans up all the sub dataset and band
+            pointers.
+        
+        History:
+          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+              Geographic Science Center
+        
+        Args: None
+        
+        Returns: Nothing
+        """
+
         self.dataset = None
         self.subdataset1 = None
         self.subdataset2 = None
@@ -326,75 +329,72 @@ class HDF_Scene:
         self.band_fmask_QA = None
 
 
-    ########################################################################
-    # Description: xy2ij converts projection coordinates (x,y) to pixel
-    #     space (i,j)
-    #
-    # History:
-    #   Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-    #       Geographic Science Center
-    #
-    # Inputs:
-    #   x - x projection coordinate
-    #   y - y projection coordinate
-    #
-    # Returns:
-    #     (col, row) - i,j pixel referring to x,y coordinate
-    #
-    # Notes:
-    #######################################################################
     def xy2ij(self, x, y):
+        """Convert from projection space to pixel space.
+        Description: xy2ij converts projection coordinates (x,y) to pixel
+            space (i,j)
+        
+        History:
+          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+              Geographic Science Center
+        
+        Args:
+          x - x projection coordinate
+          y - y projection coordinate
+        
+        Returns:
+            (col, row) - i,j pixel referring to x,y coordinate
+        """
+
         col = int((x - self.WestBoundingCoordinate) / self.dX)
         row = int((y - self.NorthBoundingCoordinate) / self.dY)
         return([col, row])
 
 
-    ########################################################################
-    # Description: ij2xy converts pixel space values (i,j) to projection
-    #     coordinates (x,y)
-    #
-    # History:
-    #   Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-    #       Geographic Science Center
-    #
-    # Inputs:
-    #   row - row (line) pixel space coordinate
-    #   col - column (sample) pixel space coordinate
-    #
-    # Returns:
-    #     (x, y) - x,y projection coord referring to pixel i,j
-    #
-    # Notes:
-    #######################################################################
     def ij2xy(self, col, row):
+        """Convert from pixel space to projection space.
+        Description: ij2xy converts pixel space values (i,j) to projection
+            coordinates (x,y)
+        
+        History:
+          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+              Geographic Science Center
+        
+        Args:
+          row - row (line) pixel space coordinate
+          col - column (sample) pixel space coordinate
+        
+        Returns:
+            (x, y) - x,y projection coord referring to pixel i,j
+        """
+
         x = self.WestBoundingCoordinate + (col * self.dX)
         y = self.NorthBoundingCoordinate + (row * self.dY)
         return([x,y])
 
 
-    ########################################################################
-    # Description: getStackBandValues reads a stack of pixel values (in the Z
-    #     direction) at the specified x,y location
-    #
-    # History:
-    #   Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-    #       Geographic Science Center
-    #   Updated on 10/30/2013 by Gail Schmidt, USGS/EROS LSRD Project
-    #       Modified to use fmask band for QA vs. LEDAPS QA bands.
-    #
-    # Inputs:
-    #   x - x projection coordinate
-    #   y - y projection coordinate
-    #
-    # Returns:
-    #     None - if pixel location does not fall within the coordinates of
-    #         this scene
-    #     pixel stack - stack of values for the x,y location as band1, band2,
-    #         band3, band4, band5, band6, band7, and QA band
-    #
-    # Notes:
-    #######################################################################
     def getStackBandValues(self, x, y):
+        """Reads a stack of pixels at the specified pixel location.
+        Description: getStackBandValues reads a stack of pixel values (in the Z
+            direction) at the specified x,y location
+        
+        History:
+          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+              Geographic Science Center
+          Updated on 10/30/2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to use fmask band for QA vs. LEDAPS QA bands.
+        
+        Args:
+          x - x projection coordinate
+          y - y projection coordinate
+        
+        Returns:
+            None - if pixel location does not fall within the coordinates of
+                this scene
+            pixel stack - stack of values for the x,y location as band1, band2,
+                band3, band4, band5, band6, band7, and QA band
+        """
+
         if (x < self.EastBoundingCoordinate) and  \
            (x > self.WestBoundingCoordinate) and  \
            (y < self.NorthBoundingCoordinate) and  \
@@ -436,34 +436,33 @@ class HDF_Scene:
             return (None)
 
 
-    ########################################################################
-    # Description: getRowOfBandValues reads a row of band values for each
-    #     of the bands specified at the associated row for the projection
-    #     y coordinate.  The projection y coordinate is converted to the
-    #     actual row/line in the current scene, and then that row is read
-    #     (reading all the samples in the line) and returned.
-    #
-    # History:
-    #   Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-    #       Geographic Science Center
-    #   Updated on 5/1/2013 by Gail Schmidt, USGS/EROS LSRD Project
-    #       Modified to validate the y projection coordinate falls within
-    #       the current scene.
-    #   Updated on 10/30/2013 by Gail Schmidt, USGS/EROS LSRD Project
-    #       Modified to use fmask band for QA vs. LEDAPS QA bands.
-    #
-    # Inputs:
-    #   y - y projection coordinate
-    #
-    # Returns:
-    #     None - if pixel location does not fall within the coordinates of
-    #         this scene
-    #     Array - associated line of data y location as band1, band2,
-    #         band3, band4, band5, band6, band7, and QA band
-    #
-    # Notes:
-    #######################################################################
     def getRowOfBandValues(self, y):
+        """Reads a line of band values at projection y location.
+        Description: getRowOfBandValues reads a row of band values for each
+            of the bands specified at the associated row for the projection
+            y coordinate.  The projection y coordinate is converted to the
+            actual row/line in the current scene, and then that row is read
+            (reading all the samples in the line) and returned.
+        
+        History:
+          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+              Geographic Science Center
+          Updated on 5/1/2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to validate the y projection coordinate falls within
+              the current scene.
+          Updated on 10/30/2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to use fmask band for QA vs. LEDAPS QA bands.
+        
+        Args:
+          y - y projection coordinate
+        
+        Returns:
+            None - if pixel location does not fall within the coordinates of
+                this scene
+            Array - associated line of data y location as band1, band2,
+                band3, band4, band5, band6, band7, and QA band
+        """
+
         if (y < self.NorthBoundingCoordinate) and  \
            (y > self.SouthBoundingCoordinate):
 
@@ -499,30 +498,29 @@ class HDF_Scene:
             return (None)
 
 
-    ########################################################################
-    # Description: getLineOfBandValues reads a row of band values for each
-    #     of the bands at the specified row.
-    #
-    # History:
-    #   Created on 5/1/2013 by Gail Schmidt, USGS/EROS LSRD Project
-    #       Based on the getRowOfBandValues except it passes in the actual
-    #           line to be read vs. the projection coordinates and therefore
-    #           needing to convert proj x,y to line,sample (i,j).
-    #   Updated on 10/30/2013 by Gail Schmidt, USGS/EROS LSRD Project
-    #       Modified to use fmask band for QA vs. LEDAPS QA bands.
-    #
-    # Inputs:
-    #   j - row (line) pixel space coordinate
-    #
-    # Returns:
-    #     None - if pixel location does not fall within the coordinates of
-    #         this scene
-    #     Array - associated line of data y location as band1, band2,
-    #         band3, band4, band5, band6, band7, and QA band
-    #
-    # Notes:
-    #######################################################################
     def getLineOfBandValues(self, j):
+        """Reads a line of band values at line j.
+        Description: getLineOfBandValues reads a row of band values for each
+            of the bands at the specified row.
+        
+        History:
+          Created on 5/1/2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Based on the getRowOfBandValues except it passes in the actual
+                  line to be read vs. the projection coordinates and therefore
+                  needing to convert proj x,y to line,sample (i,j).
+          Updated on 10/30/2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to use fmask band for QA vs. LEDAPS QA bands.
+        
+        Args:
+          j - row (line) pixel space coordinate
+        
+        Returns:
+            None - if pixel location does not fall within the coordinates of
+                this scene
+            Array - associated line of data y location as band1, band2,
+                band3, band4, band5, band6, band7, and QA band
+        """
+
         # read the line from each of the bands in the scene, including
         # the QA bands
         x1 = self.band1.ReadAsArray(0, j, self.NCol, 1)[0,]
@@ -550,30 +548,29 @@ class HDF_Scene:
             'band5':x5, 'band6':x6, 'band7':x7, 'QA':QA } )
 
 
-    ########################################################################
-    # Description: getBandValues reads an entire band of data for the
-    #     specified band.  If it's the QA band, then special processing will
-    #     occur to combine the various QA band values into one representative
-    #     band.
-    #
-    # History:
-    #   Created on 5/1/2013 by Gail Schmidt, USGS/EROS LSRD Project
-    #   Updated on 10/30/2013 by Gail Schmidt, USGS/EROS LSRD Project
-    #       Modified to use fmask band for QA vs. LEDAPS QA bands.
-    #
-    # Inputs:
-    #   band - string representing which band to read (band1, band2, band3,
-    #          band4, band5, band6, band7, band_qa)
-    #   log_handler - open log file for logging or None for stdout
-    #
-    # Returns:
-    #     None - if error occurred trying to read the band or combine the
-    #         QA bands
-    #     Array - associated band of data
-    #
-    # Notes:
-    #######################################################################
     def getBandValues(self, band, log_handler=None):
+        """Reads the specified band.
+        Description: getBandValues reads an entire band of data for the
+            specified band.  If it's the QA band, then special processing will
+            occur to combine the various QA band values into one representative
+            band.
+        
+        History:
+          Created on 5/1/2013 by Gail Schmidt, USGS/EROS LSRD Project
+          Updated on 10/30/2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to use fmask band for QA vs. LEDAPS QA bands.
+        
+        Args:
+          band - string representing which band to read (band1, band2, band3,
+                 band4, band5, band6, band7, band_qa)
+          log_handler - open log file for logging or None for stdout
+        
+        Returns:
+            None - if error occurred trying to read the band or combine the
+                QA bands
+            Array - associated band of data
+        """
+
         if not (band in ['band1', 'band2', 'band3', 'band4', 'band5', \
             'band6', 'band7', 'band_qa']):
             print 'Band ' + band + 'is not supported. Needs to be one of ' \
@@ -617,3 +614,5 @@ class HDF_Scene:
             QA[fmask_QA == 4] = -6   # cloud
             QA[fill_QA > 0] = -9999  # fill
             return QA
+
+#####end of HDF_Scene class#####
