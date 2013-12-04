@@ -24,7 +24,7 @@ import getopt
 
 import numpy
 import scipy.ndimage
-#import skimage.measure
+import skimage.measure
 
 from argparse import ArgumentParser
 from osgeo import gdal
@@ -60,6 +60,9 @@ def logIt (msg, log_handler):
 #     probabilities.
 #
 # History:
+#   Updated on 12/4/2013 by Gail Schmidt, USGS/EROS
+#       Modified output classification names to have a .tif extension since
+#       they are GeoTiff files.
 #
 # Usage: do_threshold_stack.py --help prints the help message
 ############################################################################
@@ -71,8 +74,8 @@ class BurnAreaThreshold():
         pass
 
 
-    def writeResults(self, outputData, outputFilename, outputRAT=None,  \
-        make_histos=False):
+    def writeResults(self, outputData, outputFilename, geotrans, prj, nodata, \
+        outputRAT=None, makeHistos=False):
         """Writes an array of data to an output file.
         Description: simple function to write an array of data to an output
             Geotiff file
@@ -84,8 +87,13 @@ class BurnAreaThreshold():
         Args:
           outputData - output data structure to be written
           outputFilename - name of GeoTiff file to write the array of data
+          geotrans - affine transform for mapping pixel coordinates into
+              projection space (returned from GDAL GetGeoTransform())
+          prj - projection coordinate system (returned from GDAL
+              GetProjectionRef())
+          nodata - fill or nodata data value for the output image
           outputRAT - name of output raster attribute table (RAT)
-          make_histos - should histograms and overview pyramids be generated
+          makeHistos - should histograms and overview pyramids be generated
               for the output GeoTIFF products?  Default is false.
         
         Returns:
@@ -110,7 +118,7 @@ class BurnAreaThreshold():
             bp_band.SetDefaultRAT(outputRAT)
         
         # generate the histograms and overviews if specified
-        if make_histos:
+        if makeHistos:
             histogram = bp_band.GetDefaultHistogram()
             bp_band.SetDefaultHistogram(histogram[0], histogram[1],  \
                 histogram[3])
@@ -457,6 +465,9 @@ class BurnAreaThreshold():
             if options.flood_fill_prob_thresh is not None:
                 flood_fill_prob_thresh = options.flood_fill_prob_thresh
 
+            if options.make_histos is not None:
+                make_histos = options.make_histos
+
         # open the log file if it exists; use line buffering for the output
         log_handler = None
         if logfile is not None:
@@ -497,7 +508,7 @@ class BurnAreaThreshold():
                 output_dir
             logIt (msg, log_handler)
             os.makedirs(output_dir, 0755)
-    
+
         # save the current working directory for return to upon error or when
         # processing is complete
         mydir = os.getcwd()
@@ -558,7 +569,7 @@ class BurnAreaThreshold():
             
             # determine the output classification name
             fname = os.path.basename(bp_file_name).replace(  \
-                'burn_probability', 'burn_class')
+                'burn_probability.hdf', 'burn_class.tif')
             bc_file_name = output_dir + "/" + fname
             
             # process the current burn probability file
@@ -604,11 +615,12 @@ class BurnAreaThreshold():
             bp_rats.append(bp_scar_results[1])
                 
             # output the burn classifications for this scene
-            msg = 'Writing output to %s ... ' % outputFilename
+            msg = 'Writing output to %s ... ' % bc_file_name
             logIt (msg, log_handler)
             self.writeResults(outputData=bp_scar_results[0],
-                outputFilename=bc_file_name, outputRAT=bp_scar_results[1],
-                make_histos=options.make_histos)
+                outputFilename=bc_file_name, geotrans=geotrans, prj=prj,
+                nodata=nodata, outputRAT=bp_scar_results[1],
+                makeHistos=make_histos)
 
         # successful completion.  return to the original directory.
         msg = 'Completion of burn threshold.'

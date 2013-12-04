@@ -16,6 +16,7 @@ import sys
 import os
 import time
 import getopt
+import csv
 
 import numpy
 
@@ -64,9 +65,56 @@ class AnnualBurnSummary():
         pass
 
 
-    def runAnnualBurnSummaries(self, stack_file=None, bp_dir=None, bc_dir=None,
-        output_dir=None, start_year=None, end_year=None, block_size=1024,
-        make_histos=False, logfile=None):
+    def readSpatialExtent(self, bounding_extents_file, log_handler):
+        """Reads the spatial extents from the bounding extents file.
+        Description: readSpatialExtent will open the input CSV file, which
+            contains the bounding extents for the current temporal stack,
+            and returns a dictionary of east, west, north, south extents.
+        
+        History:
+          Created by Gail Schmidt, USGS/EROS LSRD Project
+        
+        Args:
+          bounding_extents_file - name of file which contains the bounding
+              extents; first line should identify east, west, north, south
+              coords; second line should contain the projection coords
+              themselves
+        
+        Returns:
+            None - error reading the bounding extents
+            return_dict - dictionary of spatial extents
+        """
+
+        # check to make sure the input file exists before opening
+        if not os.path.exists (bounding_extents_file):
+            msg = 'Bounding extents file does not exist: ' + \
+                bounding_extents_file
+            logIt (msg, log_handler)
+            return None
+
+        # open the CSV file, read the column headings in the first line, then
+        # read the spatial extents in the second line
+        reader = csv.reader (open (bounding_extents_file, 'rb'))
+        header = reader.next()  # read the column headings
+        values = reader.next()  # read the values
+
+        # return a dictionary of results. strip the leading and ending
+        # white space from the header values since they may have white space
+        # between the comma separators in the CSV file
+        return_dict = dict([
+            [header[0].strip(), float(values[0])], \
+            [header[1].strip(), float(values[1])], \
+            [header[2].strip(), float(values[2])], \
+            [header[3].strip(), float(values[3])] \
+        ])
+
+        return return_dict
+
+
+    def runAnnualBurnSummaries(self, stack_file=None,
+        bounding_extents_file=None, bp_dir=None, bc_dir=None, output_dir=None,
+        start_year=None, end_year=None, block_size=1024, make_histos=False,
+        logfile=None):
         """Processes the annual burn summaries for each year in the stack.
         Description: routine to process the annual burn summaries for each
             pixel.
@@ -77,11 +125,19 @@ class AnnualBurnSummary():
           Updated on Dec. 2, 2013 by Gail Schmidt, USGS/EROS LSRD Project
               Modified to use argparser vs. optionparser, since optionparser
               is deprecated.
+          Updated on Dec. 4, 2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to resize the scene-based burn probabilities and
+              classifications to the maximum geographic extent for stacking
+              annual summaries.
         
         Args:
           stack_file - input CSV file with information about the files to be
               processed.  this is generated as part of the seasonal summaries
               application.
+          bounding_extents_file - name of file which contains the bounding
+              extents; first line should identify east, west, north, south
+              coords; second line should contain the projection coords
+              themselves
           bp_dir - location of the burn probability files
           bc_dir - location of the burn classification files
           output_dir - location to write the output burn classifications
@@ -109,6 +165,11 @@ class AnnualBurnSummary():
                 dest='stack_file',
                 help='input file, csv delimited, each row contains '  \
                      'information about a landsat image',
+                metavar='FILE', required=True)
+            parser.add_argument ('-b', '--bounding_extents_file', type=str,
+                dest='bounding_extents_file',
+                help='input file, csv delimited, containing the bounding '  \
+                     'geographic extents of the stack',
                 metavar='FILE', required=True)
             parser.add_argument ('-p', '--bp_dir', type=str, dest='bp_dir',
                 help='input directory, location to find input burn '  \
@@ -148,6 +209,12 @@ class AnnualBurnSummary():
             stack_file = options.stack_file
             if stack_file is None:
                 parser.error ("missing CSV stack file cmd-line argument")
+                return ERROR
+
+            bounding_extents_file = options.bounding_extents_file
+            if bounding_extents_file is None:
+                parser.error ("missing CSV bounding extensts file "  \
+                    "cmd-line argument")
                 return ERROR
 
             bp_dir = options.bp_dir
@@ -206,6 +273,12 @@ class AnnualBurnSummary():
             logIt (msg, log_handler)
             return ERROR
     
+        if not os.path.exists(bounding_extents_file):
+            msg = 'CSV bounding extents file does not exist: ' +  \
+                bounding_extents_file
+            logIt (msg, log_handler)
+            return ERROR
+    
         if not os.path.exists(bp_dir):
             msg = 'Burn probability directory does not exist: ' + bp_dir
             logIt (msg, log_handler)
@@ -217,7 +290,7 @@ class AnnualBurnSummary():
             return ERROR
     
         if not os.path.exists(output_dir):
-            msg = 'Output directory does not exist: %s. Creating ...' % \
+            msg = 'Output directory does not exist: %s. Creating ...' %  \
                 output_dir
             logIt (msg, log_handler)
             os.makedirs(output_dir, 0755)
@@ -225,7 +298,7 @@ class AnnualBurnSummary():
         # save the current working directory for return to upon error or when
         # processing is complete
         mydir = os.getcwd()
-        msg = 'Changing directories for burn threshold processing: ' +
+        msg = 'Changing directories for burn threshold processing: ' +  \
             output_dir
         logIt (msg, log_handler)
         os.chdir (output_dir)
@@ -252,34 +325,102 @@ class AnnualBurnSummary():
         stack_mask = (stack['year'] >= start_year) & (stack['year'] <= end_year)
         stack2 = stack[ stack_mask, :]
 
-        print 'DEBUG: Here is our stack!'
-        print stack2
+        # read the spatial extents from the input file
+        spatial_extent = self.readSpatialExtent (bounding_extents_file,  \
+            log_handler)
+        if spatial_extent is None:
+            # error message already written
+            os.chdir (mydir)
+            return ERROR
+        print 'DEBUG: spatial_extents: ' + str(spatial_extent)
+
+        # resize the individual scenes to the maximum geographic extent for
+        # all the scenes in the stack, similar to what was done for the 
+        # seasonal summaries and annual maximums and using the same maximum
+        # bounding coordinates. gdal_merge outputs by default to GeoTiff.
+        for year in range(end_year,start_year-1,-1):
+            stack_mask = stack2['year'] == year
+            stack3 = stack2[ stack_mask, :]    
+
+            # loop through the files in the stack for the specified year
+            for i in range(0, stack3.shape[0]):
+                file_name = stack3['file_'][i]
+                
+                # create the burn probability and classification filenames
+                # from the lndsr filenames in the CSV
+                fname = os.path.basename(file_name).replace('lndsr.','')
+                fname = fname.replace('.hdf','_burn_probability.hdf')
+                bp_file_name = bp_dir + "/" + fname
+                fname = fname.replace('.hdf','.tif')
+                bp_resize_name = bp_dir + "/resize_" + fname
+                if not os.path.exists(bp_file_name):
+                    msg = 'burn probability file does not exist: ' +  \
+                        bp_file_name
+                    logIt (msg, log_handler)
+                    os.chdir (mydir)
+                    return ERROR
+
+                fname = os.path.basename(file_name).replace('lndsr.','')
+                fname = fname.replace('.hdf','_burn_class.tif')
+                bc_file_name = bc_dir + "/" + fname
+                bc_resize_name = bc_dir + "/resize_" + fname
+                if not os.path.exists(bc_file_name):
+                    msg = 'burn classification file does not exist: ' +  \
+                        bc_file_name
+                    logIt (msg, log_handler)
+                    os.chdir (mydir)
+                    return ERROR
+
+                msg = '   Resizing temp (%s) to max bounds (%s)' %  \
+                    (bp_file_name, bp_resize_name)
+                logIt (msg, log_handler)
+                cmd = 'gdal_merge.py -o %s -co "INTERLEAVE=BAND" '  \
+                    '-co "TILED=YES" -init -9999 -n -9999 -a_nodata -9999 ' \
+                    '-ul_lr %d %d %d %d %s' % (bp_resize_name, \
+                    spatial_extent['West'], spatial_extent['North'], \
+                    spatial_extent['East'], spatial_extent['South'], \
+                    bp_file_name)
+                print 'DEBUG: ' + cmd
+                os.system(cmd)
+
+                msg = '   Resizing temp (%s) to max bounds (%s)' %  \
+                    (bc_file_name, bc_resize_name)
+                logIt (msg, log_handler)
+                cmd = 'gdal_merge.py -o %s -co "INTERLEAVE=BAND" '  \
+                    '-co "TILED=YES" -init -9999 -n -9999 -a_nodata -9999 ' \
+                    '-ul_lr %d %d %d %d %s' % (bc_resize_name, \
+                    spatial_extent['West'], spatial_extent['North'], \
+                    spatial_extent['East'], spatial_extent['South'], \
+                    bc_file_name)
+                print 'DEBUG: ' + cmd
+                os.system(cmd)
 
         # given that all burn products in this temporal stack have the same
         # scene extents and projection information, just obtain that
         # information from the first file and use it for all of the files
-        # use the lndsr filename in the CSV file to obtain the burn
+        # use the lndsr filename in the CSV file to obtain the resized burn
         # probability filename
         file_name = stack2['file_'][0]
         fname = os.path.basename(file_name).replace('lndsr.','')
-        fname = fname.replace('.hdf','_burn_probability.hdf')
-        bp_file_name = bp_dir + "/" + fname
-        if not os.path.exists(bp_file_name):
-            msg = 'burn probability file does not exist: ' + bp_file_name
+        fname = fname.replace('.hdf','_burn_probability.tif')
+        bp_resize_name = bp_dir + "/resize_" + fname
+        if not os.path.exists(bp_resize_name):
+            msg = 'resized burn probability file does not exist: ' +  \
+                bp_resize_name
             logIt (msg, log_handler)
             os.chdir (mydir)
             return ERROR
 
-        bp_dataset = gdal.Open(bp_file_name)
+        bp_dataset = gdal.Open(bp_resize_name)
         if bp_dataset is None:
-            msg = 'Failed to open bp file: ' + bp_file_name
+            msg = 'Failed to open bp file: ' + bp_resize_name
             logIt (msg, log_handler)
             os.chdir (mydir)
             return ERROR
         
         bp_band = bp_dataset.GetRasterBand(1)
         if bp_band is None:
-            msg = 'Failed to open bp band 1 from ' + bp_file_name
+            msg = 'Failed to open bp band 1 from ' + bp_resize_name
             logIt (msg, log_handler)
             os.chdir (mydir)
             return ERROR
@@ -338,36 +479,36 @@ class AnnualBurnSummary():
             for i in range(0, stack3.shape[0]):
                 file_name = stack3['file_'][i]
                 
-                # grab the burn probability and burn classification filenames
-                # from the lndsr filenames in the CSV
+                # construct the resized burn probability and classification
+                # filenames from the lndsr filenames in the CSV
                 fname = os.path.basename(file_name).replace('lndsr.','')
-                fname = fname.replace('.hdf','_burn_probability.hdf')
-                bp_file_name = bp_dir + "/" + fname
-                if not os.path.exists(bp_file_name):
-                    msg = 'burn probability file does not exist: ' +  \
-                        bp_file_name
+                fname = fname.replace('.hdf','_burn_probability.tif')
+                bp_resize_name = bp_dir + "/" + "resize_" + fname
+                if not os.path.exists(bp_resize_name):
+                    msg = 'resized burn probability file does not exist: ' +  \
+                        bp_resize_name
                     logIt (msg, log_handler)
                     os.chdir (mydir)
                     return ERROR
 
-                msg = 'Reading %s ...' % bp_file_name
+                msg = 'Reading %s ...' % bp_resize_name
                 logIt (msg, log_handler)
-                input_datasets[i,0] = gdal.Open(bp_file_name)
+                input_datasets[i,0] = gdal.Open(bp_resize_name)
                 input_bands[i,0] = input_datasets[i,0].GetRasterBand(1)
                 
                 fname = os.path.basename(file_name).replace('lndsr.','')
-                fname = fname.replace('.hdf','_burn_class.hdf')
-                bc_file_name = bc_dir + "/" + fname
-                if not os.path.exists(bc_file_name):
-                    msg = 'burn classification file does not exist: ' +  \
-                        bc_file_name
+                fname = fname.replace('.hdf','_burn_class.tif')
+                bc_resize_name = bc_dir + "/resize_" + fname
+                if not os.path.exists(bc_resize_name):
+                    msg = 'resized burn classification file does not '  \
+                        'exist: ' + bc_resize_name
                     logIt (msg, log_handler)
                     os.chdir (mydir)
                     return ERROR
 
-                msg = 'Reading %s ...' % bc_file_name
+                msg = 'Reading %s ...' % bc_resize_name
                 logIt (msg, log_handler)
-                input_datasets[i,1] = gdal.Open(bc_file_name)
+                input_datasets[i,1] = gdal.Open(bc_resize_name)
                 input_bands[i,1] = input_datasets[i,1].GetRasterBand(1)
 
             # open the output datasets
