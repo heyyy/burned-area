@@ -188,7 +188,8 @@ class temporalBAStack():
 
 
     def stackSpatialExtent(self, bounding_extents_file):
-        """Returns the spatial extents of all files in the temporal stack.
+        """Returns the spatial extents of all files in the temporal stack
+           from the spatial extents file.
         Description: stackSpatialExtent will open the input CSV file, which
             contains the bounding extents for the current temporal stack,
             and returns a dictionary of east, west, north, south extents.
