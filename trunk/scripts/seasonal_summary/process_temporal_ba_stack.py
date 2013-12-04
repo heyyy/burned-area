@@ -5,7 +5,7 @@ from __future__ import division
 import sys
 import os
 import re
-import commands
+import subprocess
 import time
 import datetime
 import csv
@@ -1416,7 +1416,7 @@ class temporalBAStack():
         bounding_box_file = "bounding_box_coordinates.csv"
         cmdstr = "%sdetermine_max_extent --list_file=%s --extent_file=%s " \
             "--verbose" % (bin_dir, list_file, bounding_box_file)
-        (status, output) = commands.getstatusoutput (cmdstr)
+        (status, output) = subprocess.getstatusoutput (cmdstr)
         logIt (output, self.log_handler)
         exit_code = status >> 8
         if exit_code != 0:

@@ -2,7 +2,7 @@
 import sys
 import os
 import re
-import commands
+import subprocess
 import datetime
 from argparse import ArgumentParser
 
@@ -160,7 +160,7 @@ class BoostedRegression():
         cmdstr = "%spredict_burned_area --config_file %s --verbose" %  \
             (bin_dir, config_file)
         print 'DEBUG: boosted regression command: %s' % cmdstr
-        (status, output) = commands.getstatusoutput (cmdstr)
+        (status, output) = subprocess.getstatusoutput (cmdstr)
         logIt (output, log_handler)
         exit_code = status >> 8
         if exit_code != 0:

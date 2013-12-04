@@ -2,7 +2,6 @@
 import sys
 import os
 import re
-import commands
 import datetime
 from argparse import ArgumentParser
 
