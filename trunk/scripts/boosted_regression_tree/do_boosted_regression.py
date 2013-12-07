@@ -159,12 +159,13 @@ class BoostedRegression():
         # if any errors occur.
         cmdstr = "%spredict_burned_area --config_file %s --verbose" %  \
             (bin_dir, config_file)
-        print 'DEBUG: boosted regression command: %s' % cmdstr
-        (status, output) = subprocess.getstatusoutput (cmdstr)
-        logIt (output, log_handler)
-        exit_code = status >> 8
-        if exit_code != 0:
-            msg = 'Error running boosted regression. Processing will terminate.'
+        cmdlist = cmdstr.split(' ')
+        try:
+            output = subprocess.check_output (cmdlist, stderr=None)
+            logIt (output, log_handler)
+        except subprocess.CalledProcessError, e:
+            msg = 'Error running boosted regression. Processing will '  \
+                'terminate.\n ' + e.output
             logIt (msg, log_handler)
             os.chdir (mydir)
             return ERROR

@@ -27,7 +27,7 @@ class BoostedRegressionConfig():
 
 
     def runGenerateConfig (self, config_file=None, seasonal_sum_dir=None,
-        input_hdf_file=None, model_file=None):
+        input_hdf_file=None, output_dir=None, model_file=None):
         """Generates the configuration file.
         Description: runGenerateConfig will use the input parameters to
         generate the configuration file needed for running the boosted
@@ -41,7 +41,11 @@ class BoostedRegressionConfig():
 
         Args:
           config_file - name of the configuration file to be created or
-                        overwritten
+              overwritten
+          seasonal_sum_dir - name of the directory where the seasonal
+              summaries reside for this scene
+          input_hdf_file - name of the HDF file to be processed
+          model_file - name of the geographic model to be used
        
         Returns:
             ERROR - error generating the configuration file
@@ -52,13 +56,13 @@ class BoostedRegressionConfig():
         if config_file is None:
             # get the command line argument for the reflectance file
             parser = ArgumentParser(description='Generate the configuration ' \
-                file for boosted regression')
+                'file for boosted regression')
             parser.add_argument ('-c', '--config_file', type=str,
                 dest='config_file',
                 help='name of configuration file', metavar='FILE')
             parser.add_argument ('-s', '--seasonal_sum_dir', type=str,
                 dest='seasonal_sum_dir',
-                help='directory location of the seasonal summaries for this' \
+                help='directory location of the seasonal summaries for this ' \
                   'scene', metavar='DIR')
             parser.add_argument ('-i', '--input_hdf_file', type=str,
                 dest='input_hdf_file',
@@ -90,26 +94,26 @@ class BoostedRegressionConfig():
             input_hdf_file = options.input_hdf_file
 
             if options.model_file is None:
-                parser.error (missing the model file command-line argument);
+                parser.error ('missing the model file command-line argument');
                 return ERROR
             model_file = options.model_file
 
         # make sure the seasonal summary directory exists
-        if not os.path.isdir(seasonal_sum_dir):
+        if not os.path.exists(seasonal_sum_dir):
             msg = 'Error: seasonal summary directory does not exist or is ' \
                 'not accessible: %s' % seasonal_sum_dir
             print msg
             return ERROR
 
         # make sure the input HDF file exists
-        if not os.path.isfile(input_hdf_file):
+        if not os.path.exists(input_hdf_file):
             msg = 'Error: input HDF file does not exist or is not ' \
                 'accessible: %s' % input_hdf_file
             print msg
             return ERROR
 
         # make sure the model file exists
-        if not os.path.isfile(model_file):
+        if not os.path.exists(model_file):
             msg = 'Error: XML model file does not exist or is not ' \
                 'accessible: %s' % model_file
             print msg
@@ -119,7 +123,8 @@ class BoostedRegressionConfig():
         # the input string into a list where the second element in the list
         # is the scene name for the file.  Example input filename is
         # lndsr.LT50350322002237LGS01.hdf.
-        infile_list = input_hdf_file.split('.')
+        base_file = os.path.basename(input_hdf_file)
+        infile_list = base_file.split('.')
         output_hdf_file = '%s_burn_probability.hdf' % infile_list[1]
 
         # open the configuration file for writing

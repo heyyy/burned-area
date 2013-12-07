@@ -2,7 +2,10 @@
 import multiprocessing, Queue
 import time
 from log_it import *
-from process_temporal_ba_stack import temporalBAStack
+
+#if temporalBAStack is already imported from a higher level script, then
+#this import is not needed
+#from process_temporal_ba_stack import temporalBAStack
  
 class parallelSceneWorker(multiprocessing.Process):
     """Runs the HDF to GeoTiff conversion in parallel for a stack of scenes.
@@ -102,7 +105,7 @@ class parallelMaxWorker(multiprocessing.Process):
                 break
  
             # process the scene
-            print 'Processing year %d ...' % year
+            msg = 'Processing year %d ...' % year
             logIt (msg, self.stackObject.log_handler)
             status = SUCCESS
             status = self.stackObject.generateYearMaximums (year)

@@ -450,15 +450,15 @@ class AnnualBurnSummary():
     
         # process the data for the years specified
         # create images for:
-        #    1. first date a burn scar was observed
-        #    2. number of times burn scar was observed
-        #    3. number of good looks
-        #    4. maximum probability for burn scar
+        #    1. first date a burn scar was observed (burn_scar)
+        #    2. number of times burn scar was observed (burn_count)
+        #    3. number of good looks (good_looks_count)
+        #    4. maximum probability for burn scar (max_burn_prob)
     
-        # loop through the years in the stack, in reverse
+        # loop through the years in the stack
         msg = 'Processing burn files for %d-%d' % (end_year, start_year)
         logIt (msg, log_handler)
-        for year in range(end_year,start_year-1,-1):
+        for year in range(start_year,end_year+1):
             msg = '########################################################'
             logIt (msg, log_handler)
             msg = 'Processing %d ...' % year
@@ -575,16 +575,17 @@ class AnnualBurnSummary():
                     input_data[i,1,:,:] = input_bands[i,1].ReadAsArray(  \
                         startCol, startRow, endCol-startCol, endRow-startRow)
                 
-                # find the maximum burn probability
+                # find the maximum burn probability (using burn prob)
                 bp_max = numpy.apply_over_axes(numpy.max, input_data[:,0,:,:], \
                     axes=[0])[0,:,:]
                 
                 # find the count of burns - how many times a pixel burned
+                # (using burn class)
                 bc = numpy.apply_over_axes(numpy.sum,  \
                     input_data[:,1,:,:] >= 1, axes=[0])[0,:,:]
                 bc[bp_max == nodata] = nodata
     
-                # find the first date of burn scar
+                # find the first date of burn scar (using burn class)
                 bdi = numpy.apply_over_axes(numpy.argmax,  \
                     input_data[:,1,:,:] >= 1, axes=[0])[0,:,:]
                 
@@ -593,7 +594,7 @@ class AnnualBurnSummary():
                 bd[bc == 0] = 0
                 bd[bp_max == nodata] = nodata
                 
-                # find the number of good looks
+                # find the number of good looks (using burn class)
                 gc = numpy.apply_over_axes(numpy.sum,  \
                     input_data[:,1,:,:] >= 0, axes=[0])[0,:,:]
                 gc[bp_max == nodata] = nodata
@@ -617,6 +618,22 @@ class AnnualBurnSummary():
                     output_datasets[i].BuildOverviews(  \
                         overviewlist=[3,9,27,81,243,729])
                     output_datasets[i].FlushCache()
+
+            # cleanup the resized images
+            for i in range(0, stack3.shape[0]):
+                file_name = stack3['file_'][i]
+
+                # construct the resized burn probability and classification
+                # filenames from the lndsr filenames in the CSV
+                fname = os.path.basename(file_name).replace('lndsr.','')
+                fname = fname.replace('.hdf','_burn_probability.tif')
+                bp_resize_name = bp_dir + "/" + "resize_" + fname
+                os.remove(bp_resize_name)
+
+                fname = os.path.basename(file_name).replace('lndsr.','')
+                fname = fname.replace('.hdf','_burn_class.tif')
+                bc_resize_name = bc_dir + "/resize_" + fname
+                os.remove(bc_resize_name)
 
         # successful completion.  return to the original directory.
         msg = 'Completion of annual burn summaries.'

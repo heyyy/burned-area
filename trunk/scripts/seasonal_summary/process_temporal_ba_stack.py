@@ -534,7 +534,7 @@ class temporalBAStack():
             logIt (msg, self.log_handler)
             return ERROR
         endTime = time.time()
-        msg = '    Processing time = %d seconds' % endTime-startTime
+        msg = '    Processing time = %f seconds' % (endTime-startTime)
         logIt (msg, self.log_handler)
 
         # resample the .tif file to our maximum bounding coords
@@ -546,13 +546,13 @@ class temporalBAStack():
             '-init -9999 -n -9999 -a_nodata -9999 -ul_lr %d %d %d %d %s' % \
         (tif_file, self.spatial_extent['West'], self.spatial_extent['North'],
          self.spatial_extent['East'], self.spatial_extent['South'], \
-         temp_file.name
+         temp_file.name)
         msg = '    ' + cmd
         logIt (msg, self.log_handler)
         os.system(cmd)
 
         endTime = time.time()
-        msg = '    Processing time = %d seconds' % endTime-startTime
+        msg = '    Processing time = %f seconds' % (endTime-startTime)
         logIt (msg, self.log_handler)
    
         # remove the temp file since it is no longer needed
@@ -573,7 +573,7 @@ class temporalBAStack():
                 return ERROR
             
             endTime = time.time()
-            msg = '    Processing time = %d seconds' % endTime-startTime
+            msg = '    Processing time = %f seconds' % (endTime-startTime)
             logIt (msg, self.log_handler)
 
         # calculate ndvi, ndmi, nbr, nbr2 from the converted tif file and
@@ -602,12 +602,12 @@ class temporalBAStack():
         del (idx_dict)
         
         endTime = time.time()
-        msg = '    Processing time = %d seconds' % endTime-startTime
+        msg = '    Processing time = %f seconds' % (endTime-startTime)
         logIt (msg, self.log_handler)
 
         endTime0 = time.time()
-        msg = '***Total scene processing time = %d seconds' %  \
-            endTime0 - startTime0
+        msg = '***Total scene processing time = %f seconds' %  \
+            (endTime0 - startTime0)
         logIt (msg, self.log_handler)
         return SUCCESS
 
@@ -716,7 +716,7 @@ class temporalBAStack():
                 return ERROR
 
         endTime = time.time()
-        msg = 'Processing time = %d seconds' % endTime-startTime
+        msg = 'Processing time = %f seconds' % (endTime-startTime)
         logIt (msg, self.log_handler)
  
         return SUCCESS
@@ -1089,7 +1089,7 @@ class temporalBAStack():
                 return ERROR
 
         endTime = time.time()
-        msg = 'Processing time = %d seconds' % endTime-startTime
+        msg = 'Processing time = %f seconds' % (endTime-startTime)
         logIt (msg, self.log_handler)
  
         return SUCCESS
@@ -1256,7 +1256,7 @@ class temporalBAStack():
 
 
     def processStack (self, input_dir=None, logfile=None, make_histos=None,  \
-        usebin=None):
+        num_processors=1, usebin=None):
         """Processes the temporal stack of data to generate seasonal summaries
            and annual maximums for each year in the stack.
         Description: processStack will process the temporal stack of data
@@ -1344,6 +1344,8 @@ class temporalBAStack():
             # number of processors
             if options.num_processors is not None:
                 self.num_processors = options.num_processors
+        else:
+            self.num_processors = num_processors
 
         # open the log file if it exists; use line buffering for the output
         self.log_handler = None
@@ -1414,15 +1416,16 @@ class temporalBAStack():
 
         # run the executable to determine the maximum bounding extent of
         # the temporal stack of products.  exit if any errors occur.
-        bounding_box_file = "bounding_box_coordinates.csv"
-        cmdstr = "%sdetermine_max_extent --list_file=%s --extent_file=%s " \
-            "--verbose" % (bin_dir, list_file, bounding_box_file)
-        (status, output) = subprocess.getstatusoutput (cmdstr)
-        logIt (output, self.log_handler)
-        exit_code = status >> 8
-        if exit_code != 0:
+        bounding_box_file = 'bounding_box_coordinates.csv'
+        cmdstr = '%sdetermine_max_extent --list_file=%s --extent_file=%s ' \
+            '--verbose' % (bin_dir, list_file, bounding_box_file)
+        cmdlist = cmdstr.split(' ')
+        try:
+            output = subprocess.check_output (cmdlist, stderr=None)
+            logIt (output, self.log_handler)
+        except subprocess.CalledProcessError, e:
             msg = 'Error running determine_max_extent. Processing will ' \
-                'terminate.'
+                'terminate.\n ' + e.output
             logIt (msg, self.log_handler)
             os.chdir (mydir)
             return ERROR
@@ -1456,13 +1459,14 @@ class temporalBAStack():
             return ERROR
 
         endTime0 = time.time()
-        msg = '***Total stack processing time = %d seconds' % \
-            endTime0 - startTime0
+        msg = '***Total stack processing time = %f seconds' % \
+            (endTime0 - startTime0)
         logIt (msg, self.log_handler)
 
         msg = 'End time:' + \
             str(datetime.datetime.now().strftime("%b %d %Y %H:%M:%S"))
         logIt (msg, self.log_handler)
+        return SUCCESS
 
 ######end of temporalBAStack class######
 
