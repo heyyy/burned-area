@@ -517,9 +517,6 @@ class BurnAreaThreshold():
         logIt (msg, log_handler)
         os.chdir (output_dir)
 
-        # start of threshold processing
-        start_time0 = time.time()
-    
         # open the stack file
         stack = numpy.recfromcsv(stack_file, delimiter=",", names=True,  \
             dtype="string")

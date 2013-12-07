@@ -7,7 +7,6 @@ from osgeo import osr
 from osgeo import gdal_array
 from osgeo import gdalconst
 import os
-import time
 from log_it import *
 
 
