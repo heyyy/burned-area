@@ -23,8 +23,10 @@ Date        Programmer       Reason
                              products to allow for processing of multiple
                              scenes in the same directory.  Also added code to
                              remove these temporary resized files.
-9/10/2011   Gail Schmidt     Modified to use the cfmask QA values which are
+9/10/2013   Gail Schmidt     Modified to use the cfmask QA values which are
                              more accurate than the SR QA values
+12/8/2013   Gail Schmidt     Backed out the use of the cfmask values and
+                             returned to using the LEDAPS SR QA values
 
 NOTES:
 ******************************************************************************/
@@ -339,9 +341,14 @@ printf ("DEBUG: random string %s\n", timestr);
        land/water data.  These will hold a single line and single/multiple
        bands, depending on what is being represented.  For predMat (predicted
        matrix), bands 0-5 are the reflective bands (1-5, and 7), 6=NDVI, 7=NDMI,
-       8=NBR, 9=NBR2.  cfmaskMat represents the fmask_band band. */
+       8=NBR, 9=NBR2.  cloudMat represents the cloud_QA band.  cloudShadMat
+       represents the cloud_shadow_QA.  landWaterMat represents the
+       land_water_QA band.  fillMat represents the fill_QA band. */
     pba.predMat.create (input->size.s, 10, CV_32FC1);
-    pba.cfmaskMat.create (input->size.s, 1, CV_8U);
+    pba.fillMat.create (input->size.s, 1, CV_8U);
+    pba.cloudMat.create (input->size.s, 1, CV_8U);
+    pba.cloudShadMat.create (input->size.s, 1, CV_8U);
+    pba.landWaterMat.create (input->size.s, 1, CV_8U);
 
     cout << second_clock::local_time() << " ======= Predict Started ======== "
          << endl;
@@ -438,7 +445,10 @@ printf ("DEBUG: random string %s\n", timestr);
 
     /* Release the data arrays */
     pba.predMat.release();
-    pba.cfmaskMat.release();
+    pba.fillMat.release();
+    pba.cloudMat.release();
+    pba.cloudShadMat.release();
+    pba.landWaterMat.release();
     pba.lySummaryMat.release();
     pba.maxIndxMat.release();
 

@@ -170,8 +170,10 @@ Date          Programmer       Reason
 9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
                                Modified to write probability mappings vs.
                                simple burn/unburned classifications
-9/10/2011     Gail Schmidt     Modified to use the cfmask QA values which are
+9/10/2013     Gail Schmidt     Modified to use the cfmask QA values which are
                                more accurate than the SR QA values
+12/8/2013     Gail Schmidt     Backed out the use of the cfmask and returned
+                               to using the LEDAPS SR QA values
 
 NOTES:
   1. It's assumed the model has already been trained and/or loaded.
@@ -224,7 +226,7 @@ bool PredictBurnedArea::predictModel
             sample.at<float>(sample_indx++) = maxIndxMat.at<float>(y,indx);
 
         /* Add the deltas of the annual maximums for the indices */
-        if (cfmaskMat.at<unsigned char>(y) == CFMASK_FILL) { // fill
+        if (fillMat.at<unsigned char>(y) != 0) { // fill
             for (indx = 0; indx < PBA_NINDXS; indx++)
                 sample.at<float>(sample_indx++) = LNDSR_FILL;
         }
@@ -249,10 +251,10 @@ bool PredictBurnedArea::predictModel
            prediction for this pixel. If the pixel is cloud, shadow, or water,
            then set it to PBA_CLOUD_WATER. If the pixel is fill then set it to
            PBA_FILL. */
-        if (cfmaskMat.at<unsigned char>(y) != CFMASK_CLOUD &&
-            cfmaskMat.at<unsigned char>(y) != CFMASK_SHADOW &&
-            cfmaskMat.at<unsigned char>(y) != CFMASK_WATER) {
-            if (cfmaskMat.at<unsigned char>(y) != CFMASK_FILL) {
+        if (cloudMat.at<unsigned char>(y) == 0 &&
+            cloudShadMat.at<unsigned char>(y) == 0 &&
+            landWaterMat.at<unsigned char>(y) == 0) {
+            if (fillMat.at<unsigned char>(y) == 0) {
                 /* do the probability mapping for burned (class of 1) */
                 float response = gbtrees.predict_prob (sample, 1);
                 output->buf[0][y] = (int16) (response * 100.0 + 0.5);
