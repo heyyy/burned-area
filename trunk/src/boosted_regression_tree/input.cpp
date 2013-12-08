@@ -50,8 +50,11 @@ const char *INPUT_FILL_VALUE = "_FillValue";
 
 /* Band names for the QA bands that will be read from the surface reflectance
    product.  Needs to match the QA_Band_t enumerated type in
-   PredictBurnedArea.h.  Right now it's just the cfmask QA band. */
-const char *qa_band_names[NUM_QA_BAND] = {"fmask_band"};
+   PredictBurnedArea.h */
+/* CFMASK: const char *qa_band_names[NUM_QA_BAND] = {"fmask_band"}; */
+const char *qa_band_names[NUM_QA_BAND] = {"fill_QA", "DDV_QA", "cloud_QA",
+  "cloud_shadow_QA", "snow_QA", "land_water_QA", "adjacent_cloud_QA"};
+
 
 /******************************************************************************
 MODULE: OpenInput
@@ -72,8 +75,9 @@ Date          Programmer       Reason
 9/15/2012     Jodi Riegle      Original development (based largely on routines
                                from the LEDAPS lndsr application)
 9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
-9/10/2011     Gail Schmidt     Modified to use the cfmask QA values which are
+9/10/2013     Gail Schmidt     Modified to use the cfmask QA values which are
                                more accurate than the SR QA values
+12/8/2013     Gail Schmidt     Restored the LEDAPS SR QA values
 
 NOTES:
 *****************************************************************************/
@@ -554,7 +558,7 @@ bool PredictBurnedArea::calcBands
 {
     for (int i = 0; i < ds_input->size.s; i++) {
         /* NDVI - using bands 4 and 3 */
-        if ((cfmaskMat.at<unsigned char>(i) == CFMASK_FILL) ||
+        if ((fillMat.at<unsigned char>(i) != 0) ||
             (predMat.at<float>(i,PREDMAT_B4) + predMat.at<float>(i,PREDMAT_B3)
             == 0)) { //avoid division by 0 and fill data
             predMat.at<float>(i,PREDMAT_NDVI) = 0;
@@ -567,7 +571,7 @@ bool PredictBurnedArea::calcBands
         }
 
         /* NDMI - using bands 4 and 5 */
-        if ((cfmaskMat.at<unsigned char>(i) == CFMASK_FILL) ||
+        if ((fillMat.at<unsigned char>(i) != 0) ||
             (predMat.at<float>(i,PREDMAT_B4) + predMat.at<float>(i,PREDMAT_B5)
             == 0)) { //avoid division by 0 and fill data
             predMat.at<float>(i,PREDMAT_NDMI) = 0; //avoid division by 0
@@ -580,7 +584,7 @@ bool PredictBurnedArea::calcBands
         }
 
         /* NBR - using bands 4 and 7 */
-        if ((cfmaskMat.at<unsigned char>(i) == CFMASK_FILL) ||
+        if ((fillMat.at<unsigned char>(i) != 0) ||
             (predMat.at<float>(i,PREDMAT_B4) + predMat.at<float>(i,PREDMAT_B7)
             == 0)) { //avoid division by 0 and fill data
             predMat.at<float>(i,PREDMAT_NBR) = 0; //avoid division by 0
@@ -593,7 +597,7 @@ bool PredictBurnedArea::calcBands
         }
 
         /* NBR2 - using bands 5 and 7 */
-        if ((cfmaskMat.at<unsigned char>(i) == CFMASK_FILL) ||
+        if ((fillMat.at<unsigned char>(i) != 0) ||
             (predMat.at<float>(i,PREDMAT_B5) + predMat.at<float>(i,PREDMAT_B7)
             == 0)) { //avoid division by 0 and fill data
             predMat.at<float>(i,PREDMAT_NBR2) = 0; //avoid division by 0
@@ -630,9 +634,12 @@ Date          Programmer       Reason
 9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
 9/10/2013     Gail Schmidt     Modified to use the cfmask QA mask for cloud,
                                snow, etc.
+12/8/2013     Gail Schmidt     Backed out use of cfmask and returned to using
+                               the LEDAPS SR mask for QA
 
 NOTES:
-  1. QA data read is stored in class variables cfmaskMat (type cv::Mat).
+  1. QA data read is stored in class variables fillMat, cloudMat, cloudShadMat,
+     and landWaterMat (all of type cv::Mat).
 *****************************************************************************/
 bool PredictBurnedArea::GetInputQALine
 (
@@ -666,11 +673,30 @@ bool PredictBurnedArea::GetInputQALine
     == HDF_ERROR)
     RETURN_ERROR("reading input", "GetInputQALine", false);
 
-  if (strcmp(ds_input->qa_sds[iband].name, "fmask_band") ==0) {
+  if (strcmp(ds_input->qa_sds[iband].name, "fill_QA") ==0) {
       for (int i=0; i<ds_input->size.s; i++) {
-           cfmaskMat.at<unsigned char>(i,0) = data[i];
+           fillMat.at<unsigned char>(i,0) = data[i];
       }
   }
+
+  else if (strcmp(ds_input->qa_sds[iband].name, "cloud_QA") ==0) {
+      for (int i=0; i<ds_input->size.s; i++) {
+           cloudMat.at<unsigned char>(i,0) = data[i];
+      }
+  }
+
+  else if (strcmp(ds_input->qa_sds[iband].name, "cloud_shadow_QA") ==0) {
+      for (int i=0; i<ds_input->size.s; i++) {
+           cloudShadMat.at<unsigned char>(i,0) = data[i];
+      }
+  }
+
+  else if (strcmp(ds_input->qa_sds[iband].name, "land_water_QA") ==0) {
+      for (int i=0; i<ds_input->size.s; i++) {
+           landWaterMat.at<unsigned char>(i,0) = data[i];
+      }
+  }
+
   else {
       RETURN_ERROR("invalid QA band", "GetInputQALine", false);
   }

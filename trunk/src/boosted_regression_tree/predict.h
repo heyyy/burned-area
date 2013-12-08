@@ -38,10 +38,4 @@ using namespace std;
 /* define the pixel values for fill for the output prediction scenes */
 #define PBA_FILL -9999
 
-/* specify the cfmask values */
-#define CFMASK_WATER 1
-#define CFMASK_SHADOW 2
-#define CFMASK_SNOW 3
-#define CFMASK_CLOUD 4
-
 #endif /* PREDICT_H_ */

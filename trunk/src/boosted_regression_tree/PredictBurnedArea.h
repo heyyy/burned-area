@@ -68,10 +68,16 @@ typedef enum {PREDMAT_B1=0, PREDMAT_B2, PREDMAT_B3, PREDMAT_B4, PREDMAT_B5,
    used for filling the sample matrix for the actual predictions. */
 #define EXPECTED_CSV_INPUTS 50
 
-/* QA bands to be read from the surface reflectance product - cfmask_QA */
-#define CFMASK_FILL 256
+/* QA bands - fill_QA, DDV_QA, cloud_QA, cloud_shadow_QA, snow_QA,
+   land_water_QA, adjacent_cloud_QA */
 typedef enum {
-  CFMASK,
+  FILL,
+  DDV,
+  CLOUD,
+  CLOUD_SHADOW,
+  SNOW,
+  LAND_WATER,
+  ADJ_CLOUD,
   NUM_QA_BAND
 } QA_Band_t;
 
@@ -177,7 +183,10 @@ public:
 
     CvMLData cvml;           // contains the training data
     cv::Mat predMat;         // array for input data and predictions
-    cv::Mat cfmaskMat;       // array for cfmask data
+    cv::Mat fillMat;         // array for fill data
+    cv::Mat cloudMat;        // array for cloud data
+    cv::Mat cloudShadMat;    // array for cloud shadows
+    cv::Mat landWaterMat;    // array for land/water mask
     cv::Mat lySummaryMat;    // array for last years seasonal summaries
                              // 1D array representing [PBA_NSEASONS][PBA_NBANDS]
     cv::Mat maxIndxMat;      // array for the maximum indices
