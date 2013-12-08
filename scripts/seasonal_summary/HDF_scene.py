@@ -23,6 +23,9 @@ from log_it import *
 #       vegetation.
 #   Updated on 10/30/2013 by Gail Schmidt, USGS/EROS LSRD Project
 #       Modified to use fmask band for QA vs. LEDAPS QA bands.
+#   Updated on 12/8/2013 by Gail Schmidt, USGS/EROS LSRD Project
+#       Backed out the use of the fmask and returned to using the LEDAPS
+#       SR QA bands.
 ############################################################################
 class HDF_Scene:
     """Class for handling HDF scene related functions.
@@ -59,7 +62,11 @@ class HDF_Scene:
     subdataset6 = None
     subdataset7 = None 
     subdataset_fill_QA = None
-    subdataset_fmask_QA = None
+    subdataset_cloud_QA = None
+    subdataset_shadow_QA = None
+    subdataset_snow_QA = None
+    subdataset_land_water_QA = None
+    subdataset_adjacent_cloud_QA = None
 
     # bands
     band1 = None
@@ -70,7 +77,11 @@ class HDF_Scene:
     band6 = None
     band7 = None
     band_fill_QA = None
-    band_fmask_QA = None
+    band_cloud_QA = None
+    band_shadow_QA = None
+    band_snow_QA = None
+    band_land_water_QA = None
+    band_adjacent_cloud_QA = None
 
     # keys used to find bands in the HDF files
     key1 = None
@@ -81,7 +92,11 @@ class HDF_Scene:
     key6 = None
     key7 = None
     key_fill_QA = None
-    key_fmask_QA = None
+    key_cloud_QA = None
+    key_shadow_QA = None
+    key_snow_QA = None
+    key_land_water_QA = None
+    key_adjacent_cloud_QA = None
 
     def __init__ (self, fname, log_handler=None):
         """Class constructor.
@@ -161,8 +176,20 @@ class HDF_Scene:
             if sd[1].find('Grid:fill_QA') > 0:
                 self.key_fill_QA = sd[0]
 
-            if sd[1].find('Grid:fmask_band') > 0:
-                self.key_fmask_QA = sd[0]  
+            if sd[1].find('Grid:cloud_QA') > 0:
+                self.key_cloud_QA = sd[0]
+
+            if sd[1].find('Grid:cloud_shadow_QA') > 0:
+                self.key_shadow_QA = sd[0]
+
+            if sd[1].find('Grid:snow_QA') > 0:
+                self.key_snow_QA = sd[0]
+
+            if sd[1].find('Grid:land_water_QA') > 0:
+                self.key_land_water_QA = sd[0]
+
+            if sd[1].find('Grid:adjacent_cloud_QA') > 0:
+                self.key_adjacent_cloud_QA = sd[0]  
 
         # close the main dataset
         self.dataset = None
@@ -200,11 +227,27 @@ class HDF_Scene:
             msg = 'Input fill_QA band does not exist in ' + fname
             logIt (msg, log_handler)
             return None
-        if self.key_fmask_QA is None:
-            msg = 'Input fmask_band band does not exist in ' + fname
+        if self.key_cloud_QA is None:
+            msg = 'Input cloud_QA band does not exist in ' + fname
             logIt (msg, log_handler)
             return None
-    
+        if self.key_shadow_QA is None:
+            msg = 'Input cloud_shadow_QA band does not exist in ' + fname
+            logIt (msg, log_handler)
+            return None
+        if self.key_snow_QA is None:
+            msg = 'Input snow_QA band does not exist in ' + fname
+            logIt (msg, log_handler)
+            return None
+        if self.key_land_water_QA is None:
+            msg = 'Input land_water_QAband does not exist in ' + fname
+            logIt (msg, log_handler)
+            return None
+        if self.key_adjacent_cloud_QA is None:
+            msg = 'Input adjacent_cloud_QA band does not exist in ' + fname
+            logIt (msg, log_handler)
+            return None
+ 
         # open connections to the individual bands
         self.subdataset1 = gdal.Open(self.subdatasets[self.key1])
         self.subdataset2 = gdal.Open(self.subdatasets[self.key2])
@@ -214,9 +257,16 @@ class HDF_Scene:
         self.subdataset6 = gdal.Open(self.subdatasets[self.key6])
         self.subdataset7 = gdal.Open(self.subdatasets[self.key7])
         self.subdataset_fill_QA = gdal.Open(self.subdatasets[self.key_fill_QA])
-        self.subdataset_fmask_QA =  \
-            gdal.Open(self.subdatasets[self.key_fmask_QA])
-        
+        self.subdataset_cloud_QA =  \
+            gdal.Open(self.subdatasets[self.key_cloud_QA])
+        self.subdataset_shadow_QA =  \
+            gdal.Open(self.subdatasets[self.key_shadow_QA])
+        self.subdataset_snow_QA = gdal.Open(self.subdatasets[self.key_snow_QA])
+        self.subdataset_land_water_QA =  \
+            gdal.Open(self.subdatasets[self.key_land_water_QA])
+        self.subdataset_adjacent_cloud_QA =  \
+            gdal.Open(self.subdatasets[self.key_adjacent_cloud_QA])
+
         # create connections to the bands
         self.band1 = self.subdataset1.GetRasterBand(1)
         self.band2 = self.subdataset2.GetRasterBand(1)
@@ -226,7 +276,12 @@ class HDF_Scene:
         self.band6 = self.subdataset6.GetRasterBand(1)
         self.band7 = self.subdataset7.GetRasterBand(1)
         self.band_fill_QA = self.subdataset_fill_QA.GetRasterBand(1)
-        self.band_fmask_QA = self.subdataset_fmask_QA.GetRasterBand(1)
+        self.band_cloud_QA = self.subdataset_cloud_QA.GetRasterBand(1)
+        self.band_shadow_QA = self.subdataset_shadow_QA.GetRasterBand(1)
+        self.band_snow_QA = self.subdataset_snow_QA.GetRasterBand(1)
+        self.band_land_water_QA = self.subdataset_land_water_QA.GetRasterBand(1)
+        self.band_adjacent_cloud_QA =  \
+            self.subdataset_adjacent_cloud_QA.GetRasterBand(1)
 
         # Verify the bands were actually accessed successfully
         if self.band1 is None:
@@ -261,8 +316,24 @@ class HDF_Scene:
             msg = 'Input band_fill_QA connection failed'
             logIt (msg, log_handler)
             return None
-        if self.band_fmask_QA is None:
-            msg = 'Input band_fmask_QA connection failed'
+        if self.band_cloud_QA is None:
+            msg = 'Input band_cloud_QA connection failed'
+            logIt (msg, log_handler)
+            return None
+        if self.band_shadow_QA is None:
+            msg = 'Input band_shadow_QA connection failed'
+            logIt (msg, log_handler)
+            return None
+        if self.band_snow_QA is None:
+            msg = 'Input band_snow_QA connection failed'
+            logIt (msg, log_handler)
+            return None
+        if self.band_land_water_QA is None:
+            msg = 'Input band_land_water_QA connection failed'
+            logIt (msg, log_handler)
+            return None
+        if self.band_adjacent_cloud_QA is None:
+            msg = 'Input band_adjacent_cloud_QA connection failed'
             logIt (msg, log_handler)
             return None
 
@@ -316,7 +387,11 @@ class HDF_Scene:
         self.subdataset6 = None
         self.subdataset7 = None
         self.subdataset_fill_QA = None
-        self.subdataset_fmask_QA = None
+        self.subdataset_cloud_QA = None
+        self.subdataset_shadow_QA = None
+        self.subdataset_snow_QA = None
+        self.subdataset_land_water_QA = None
+        self.subdataset_adjacent_cloud_QA = None
 
         self.band1 = None
         self.band2 = None
@@ -326,7 +401,11 @@ class HDF_Scene:
         self.band6 = None
         self.band7 = None
         self.band_fill_QA = None
-        self.band_fmask_QA = None
+        self.band_cloud_QA = None
+        self.band_shadow_QA = None
+        self.band_snow_QA = None
+        self.band_land_water_QA = None
+        self.band_adjacent_cloud_QA = None
 
 
     def xy2ij(self, x, y):
@@ -383,6 +462,9 @@ class HDF_Scene:
               Geographic Science Center
           Updated on 10/30/2013 by Gail Schmidt, USGS/EROS LSRD Project
               Modified to use fmask band for QA vs. LEDAPS QA bands.
+          Updated on 12/8/2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to back out the fmask band and return to the LEDAPS
+              QA bands.
         
         Args:
           x - x projection coordinate
@@ -414,19 +496,27 @@ class HDF_Scene:
             x7 = self.band7.ReadAsArray(ij[0], ij[1], 1, 1)[0,0]
 
             fill_QA = self.band_fill_QA.ReadAsArray(ij[0], ij[1], 1, 1)[0,0]
-            fmask_QA = self.band_fmask_QA.ReadAsArray(ij[0], ij[1], 1, 1)[0,0]
+            cloud_QA = self.band_cloud_QA.ReadAsArray(ij[0], ij[1], 1, 1)[0,0] 
+            shadow_QA = self.band_shadow_QA.ReadAsArray(ij[0], ij[1], 1, 1)[0,0]
+            snow_QA = self.band_snow_QA.ReadAsArray(ij[0], ij[1], 1, 1)[0,0]
+            land_water_QA =  \
+                self.band_land_water_QA.ReadAsArray(ij[0], ij[1], 1, 1)[0,0]
+            adjacent_cloud_QA =  \
+                self.band_adjacent_cloud_QA.ReadAsArray(ij[0], ij[1], 1, 1)[0,0]
 
             # turn the QA values into one overall value with -9999 representing
             # the noData value
             QA = 0
-            if fmask_QA == 1:  # water
+            if land_water_QA > 0:
                 QA = -3
-            if fmask_QA == 3:  # snow
+            if snow_QA > 0:
                 QA = -4
-            if fmask_QA == 2:  # cloud shadow
+            if adjacent_cloud_QA > 0:
                 QA = -5
-            if fmask_QA == 4:  # cloud
+            if shadow_QA > 0:
                 QA = -6
+            if cloud_QA > 0:
+                QA = -7
             if fill_QA > 0:    # fill
                 QA = -9999
                 
@@ -452,7 +542,89 @@ class HDF_Scene:
               the current scene.
           Updated on 10/30/2013 by Gail Schmidt, USGS/EROS LSRD Project
               Modified to use fmask band for QA vs. LEDAPS QA bands.
+          Updated on 12/8/2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to back out the fmask band and return to the LEDAPS
+              QA bands.
         
+        Args:
+          x - x projection coordinate
+          y - y projection coordinate
+        
+        Returns:
+            None - if pixel location does not fall within the coordinates of
+                this scene
+            pixel stack - stack of values for the x,y location as band1, band2,
+                band3, band4, band5, band6, band7, and QA band
+        """
+
+        if (x < self.EastBoundingCoordinate) and  \
+           (x > self.WestBoundingCoordinate) and  \
+           (y < self.NorthBoundingCoordinate) and  \
+           (y > self.SouthBoundingCoordinate):
+
+            # get the i,j pixel for the x,y projection coordinates
+            ij = self.xy2ij(x,y)
+
+            # read the pixel from each of the bands in the scene, including
+            # the QA bands
+            x1 = self.band1.ReadAsArray(ij[0], ij[1], 1, 1)[0,0]
+            x2 = self.band2.ReadAsArray(ij[0], ij[1], 1, 1)[0,0]
+            x3 = self.band3.ReadAsArray(ij[0], ij[1], 1, 1)[0,0]
+            x4 = self.band4.ReadAsArray(ij[0], ij[1], 1, 1)[0,0]
+            x5 = self.band5.ReadAsArray(ij[0], ij[1], 1, 1)[0,0]
+            x6 = self.band6.ReadAsArray(ij[0], ij[1], 1, 1)[0,0]
+            x7 = self.band7.ReadAsArray(ij[0], ij[1], 1, 1)[0,0]
+
+            fill_QA = self.band_fill_QA.ReadAsArray(ij[0], ij[1], 1, 1)[0,0]
+            cloud_QA = self.band_cloud_QA.ReadAsArray(ij[0], ij[1], 1, 1)[0,0] 
+            shadow_QA = self.band_shadow_QA.ReadAsArray(ij[0], ij[1], 1, 1)[0,0]
+            snow_QA = self.band_snow_QA.ReadAsArray(ij[0], ij[1], 1, 1)[0,0]
+            land_water_QA =  \
+                self.band_land_water_QA.ReadAsArray(ij[0], ij[1], 1, 1)[0,0]
+            adjacent_cloud_QA =  \
+                self.band_adjacent_cloud_QA.ReadAsArray(ij[0], ij[1], 1, 1)[0,0]
+
+            # turn the QA values into one overall value with -9999 representing
+            # the noData value
+            QA = 0
+            if land_water_QA > 0:
+                QA = -3
+            if snow_QA > 0:
+                QA = -4
+            if adjacent_cloud_QA > 0:
+                QA = -5
+            if shadow_QA > 0:
+                QA = -6
+            if cloud_QA > 0:
+                QA = -7
+            if fill_QA > 0:    # fill
+                QA = -9999
+                
+            return( {'band1':x1, 'band2':x2, 'band3':x3, 'band4':x4, \
+                'band5':x5, 'band6':x6, 'band7':x7, 'QA':QA} )
+        else:
+            return (None)
+
+
+    def getRowOfBandValues(self, y):
+        """Reads a line of band values at projection y location.
+        Description: getRowOfBandValues reads a row of band values for each
+            of the bands specified at the associated row for the projection
+            y coordinate.  The projection y coordinate is converted to the
+            actual row/line in the current scene, and then that row is read
+            (reading all the samples in the line) and returned.
+        
+        History:
+          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+              Geographic Science Center
+          Updated on 5/1/2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to validate the y projection coordinate falls within
+              the current scene.
+          Updated on 10/30/2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to use fmask band for QA vs. LEDAPS QA bands.
+          Updated on 12/8/2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to back out the fmask band and return to the LEDAPS
+              QA bands.
         Args:
           y - y projection coordinate
         
@@ -480,16 +652,24 @@ class HDF_Scene:
             x7 = self.band7.ReadAsArray(0, ij[1], self.NCol, 1)[0,]
             
             fill_QA = self.band_fill_QA.ReadAsArray(0, ij[1], self.NCol, 1)[0,]
-            fmask_QA = self.band_fmask_QA.ReadAsArray(  \
+            snow_QA = self.band_snow_QA.ReadAsArray(0, ij[1], self.NCol, 1)[0,]
+            land_water_QA = self.band_land_water_QA.ReadAsArray(  \
                 0, ij[1], self.NCol, 1)[0,]
-            
+            adjacent_cloud_QA = self.band_adjacent_cloud_QA.ReadAsArray(  \
+                0, ij[1], self.NCol, 1)[0,]
+            shadow_QA = self.band_shadow_QA.ReadAsArray(  \
+                0, ij[1], self.NCol, 1)[0,]
+            cloud_QA = self.band_cloud_QA.ReadAsArray(  \
+                0, ij[1], self.NCol, 1)[0,]
+
             # turn the QA values into one overall value with -9999 representing
             # the noData value
             QA = zeros( shape(fill_QA), dtype=int16)
-            QA[fmask_QA == 1] = -3   # water
-            QA[fmask_QA == 3] = -4   # snow
-            QA[fmask_QA == 2] = -5   # cloud shadow
-            QA[fmask_QA == 4] = -6   # cloud
+            QA[land_water_QA > 0] = -3
+            QA[snow_QA > 0] = -4
+            QA[shadow_QA > 0] = -5
+            QA[adjacent_cloud_QA > 0] = -6
+            QA[cloud_QA > 0] = -7
             QA[fill_QA > 0] = -9999  # fill
 
             return( {'band1':x1, 'band2':x2, 'band3':x3, 'band4':x4,  \
@@ -510,6 +690,9 @@ class HDF_Scene:
                   needing to convert proj x,y to line,sample (i,j).
           Updated on 10/30/2013 by Gail Schmidt, USGS/EROS LSRD Project
               Modified to use fmask band for QA vs. LEDAPS QA bands.
+          Updated on 12/8/2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to back out the fmask band and return to the LEDAPS
+              QA bands.
         
         Args:
           j - row (line) pixel space coordinate
@@ -532,16 +715,23 @@ class HDF_Scene:
         x7 = self.band7.ReadAsArray(0, j, self.NCol, 1)[0,]
         
         fill_QA = self.band_fill_QA.ReadAsArray(0, j, self.NCol, 1)[0,]
-        fmask_QA = self.band_fmask_QA.ReadAsArray(0, j, self.NCol, 1)[0,]
-        
+        snow_QA = self.band_snow_QA.ReadAsArray(0, j, self.NCol, 1)[0,]
+        land_water_QA =   \
+            self.band_land_water_QA.ReadAsArray(0, j, self.NCol, 1)[0,]
+        adjacent_cloud_QA =   \
+            self.band_adjacent_cloud_QA.ReadAsArray(0, j, self.NCol, 1)[0,]
+        shadow_QA = self.band_shadow_QA.ReadAsArray(0, j, self.NCol, 1)[0,]
+        cloud_QA = self.band_cloud_QA.ReadAsArray(0, j, self.NCol, 1)[0,]
+
         # combine all the QA bands to one output with negative values to
         # indicate the various types of QA values, with -9999 representing
         # the noData value
         QA = zeros (shape(fill_QA), dtype=int16)
-        QA[fmask_QA == 1] = -3   # water
-        QA[fmask_QA == 3] = -4   # snow
-        QA[fmask_QA == 2] = -5   # cloud shadow
-        QA[fmask_QA == 4] = -6   # cloud
+        QA[land_water_QA > 0] = -3
+        QA[snow_QA > 0] = -4
+        QA[shadow_QA > 0] = -5
+        QA[adjacent_cloud_QA > 0] = -6
+        QA[cloud_QA > 0] = -7
         QA[fill_QA > 0] = -9999  # fill
 
         return( {'band1':x1, 'band2':x2, 'band3':x3, 'band4':x4,  \
@@ -559,6 +749,9 @@ class HDF_Scene:
           Created on 5/1/2013 by Gail Schmidt, USGS/EROS LSRD Project
           Updated on 10/30/2013 by Gail Schmidt, USGS/EROS LSRD Project
               Modified to use fmask band for QA vs. LEDAPS QA bands.
+          Updated on 12/8/2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to back out the fmask band and return to the LEDAPS
+              QA bands.
         
         Args:
           band - string representing which band to read (band1, band2, band3,
@@ -602,16 +795,21 @@ class HDF_Scene:
         elif band == 'band_qa':        
             # read all the QA-related bands
             fill_QA = self.band_fill_QA.ReadAsArray()
-            fmask_QA = self.band_fmask_QA.ReadAsArray()
+            snow_QA = self.band_snow_QA.ReadAsArray()
+            land_water_QA = self.band_land_water_QA.ReadAsArray()
+            adjacent_cloud_QA = self.band_adjacent_cloud_QA.ReadAsArray()
+            shadow_QA = self.band_shadow_QA.ReadAsArray()
+            cloud_QA = self.band_cloud_QA.ReadAsArray()
         
             # combine all the QA bands to one output with negative values to
             # indicate the various types of QA values, with -9999 representing
             # the noData value
             QA = zeros (shape(fill_QA), dtype=int16)
-            QA[fmask_QA == 1] = -3   # water
-            QA[fmask_QA == 3] = -4   # snow
-            QA[fmask_QA == 2] = -5   # cloud shadow
-            QA[fmask_QA == 4] = -6   # cloud
+            QA[land_water_QA > 0] = -3
+            QA[snow_QA > 0] = -4
+            QA[shadow_QA > 0] = -5
+            QA[adjacent_cloud_QA > 0] = -6
+            QA[cloud_QA > 0] = -7
             QA[fill_QA > 0] = -9999  # fill
             return QA
 
