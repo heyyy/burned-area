@@ -255,7 +255,7 @@ bool PredictBurnedArea::predictModel
            PBA_FILL. */
         if (cloudMat.at<unsigned char>(y) == 0 &&
             cloudShadMat.at<unsigned char>(y) == 0 &&
-            landWaterMat.at<unsigned char>(y) == 0) &&
+            landWaterMat.at<unsigned char>(y) == 0 &&
             adjCloudMat.at<unsigned char>(y) == 0) {
             if (fillMat.at<unsigned char>(y) == 0) {
                 /* do the probability mapping for burned (class of 1) */
