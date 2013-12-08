@@ -636,10 +636,11 @@ Date          Programmer       Reason
                                snow, etc.
 12/8/2013     Gail Schmidt     Backed out use of cfmask and returned to using
                                the LEDAPS SR mask for QA
+12/8/2013     Gail Schmidt     Added support for the adjacent cloud QA band
 
 NOTES:
   1. QA data read is stored in class variables fillMat, cloudMat, cloudShadMat,
-     and landWaterMat (all of type cv::Mat).
+     landWaterMat, adjCloudMat (all of type cv::Mat).
 *****************************************************************************/
 bool PredictBurnedArea::GetInputQALine
 (
@@ -694,6 +695,12 @@ bool PredictBurnedArea::GetInputQALine
   else if (strcmp(ds_input->qa_sds[iband].name, "land_water_QA") ==0) {
       for (int i=0; i<ds_input->size.s; i++) {
            landWaterMat.at<unsigned char>(i,0) = data[i];
+      }
+  }
+
+  else if (strcmp(ds_input->qa_sds[iband].name, "adjacent_cloud_QA") ==0) {
+      for (int i=0; i<ds_input->size.s; i++) {
+           adjCloudMat.at<unsigned char>(i,0) = data[i];
       }
   }
 

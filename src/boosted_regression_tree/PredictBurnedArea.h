@@ -187,6 +187,7 @@ public:
     cv::Mat cloudMat;        // array for cloud data
     cv::Mat cloudShadMat;    // array for cloud shadows
     cv::Mat landWaterMat;    // array for land/water mask
+    cv::Mat adjCloudMat;     // array for adjacent cloud data
     cv::Mat lySummaryMat;    // array for last years seasonal summaries
                              // 1D array representing [PBA_NSEASONS][PBA_NBANDS]
     cv::Mat maxIndxMat;      // array for the maximum indices
