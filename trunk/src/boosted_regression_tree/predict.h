@@ -31,8 +31,8 @@ NOTES:
 
 using namespace std;
 
-/* define the pixel values for cloud, cloud shadow, and water for the output
-   prediction scenes */
+/* define the pixel values for cloud, cloud shadow, adjacent cloud, and water
+   for the output prediction scenes */
 #define PBA_CLOUD_WATER -9998
 
 /* define the pixel values for fill for the output prediction scenes */

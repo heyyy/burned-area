@@ -71,6 +71,8 @@ Date          Programmer       Reason
 ----------    ---------------  -------------------------------------
 9/15/2012     Jodi Riegle      Original development
 9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
+12/8/2013     Gail Schmidt     Added support for the adjacent cloud mask for
+                               the overall QA values
 
 NOTES:
   1. predict_burned_area --help will provide input information.
@@ -343,12 +345,14 @@ printf ("DEBUG: random string %s\n", timestr);
        matrix), bands 0-5 are the reflective bands (1-5, and 7), 6=NDVI, 7=NDMI,
        8=NBR, 9=NBR2.  cloudMat represents the cloud_QA band.  cloudShadMat
        represents the cloud_shadow_QA.  landWaterMat represents the
-       land_water_QA band.  fillMat represents the fill_QA band. */
+       land_water_QA band.  adjCloudMat represents the adjacent_cloud_QA.
+       fillMat represents the fill_QA band. */
     pba.predMat.create (input->size.s, 10, CV_32FC1);
     pba.fillMat.create (input->size.s, 1, CV_8U);
     pba.cloudMat.create (input->size.s, 1, CV_8U);
     pba.cloudShadMat.create (input->size.s, 1, CV_8U);
     pba.landWaterMat.create (input->size.s, 1, CV_8U);
+    pba.adjCloudMat.create (input->size.s, 1, CV_8U);
 
     cout << second_clock::local_time() << " ======= Predict Started ======== "
          << endl;
@@ -449,6 +453,7 @@ printf ("DEBUG: random string %s\n", timestr);
     pba.cloudMat.release();
     pba.cloudShadMat.release();
     pba.landWaterMat.release();
+    pba.adjCloudMat.release();
     pba.lySummaryMat.release();
     pba.maxIndxMat.release();
 
