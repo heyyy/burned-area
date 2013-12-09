@@ -338,7 +338,7 @@ class AnnualBurnSummary():
         # all the scenes in the stack, similar to what was done for the 
         # seasonal summaries and annual maximums and using the same maximum
         # bounding coordinates. gdal_merge outputs by default to GeoTiff.
-        for year in range(end_year,start_year-1,-1):
+        for year in range(start_year,end_year+1):
             stack_mask = stack2['year'] == year
             stack3 = stack2[ stack_mask, :]    
 
@@ -456,7 +456,7 @@ class AnnualBurnSummary():
         #    4. maximum probability for burn scar (max_burn_prob)
     
         # loop through the years in the stack
-        msg = 'Processing burn files for %d-%d' % (end_year, start_year)
+        msg = 'Processing burn files for %d-%d' % (start_year, end_year)
         logIt (msg, log_handler)
         for year in range(start_year,end_year+1):
             msg = '########################################################'
