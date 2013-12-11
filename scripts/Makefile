@@ -1,0 +1,17 @@
+#------------------------------------------------------------------------------
+# Makefile
+#
+# Simple makefile for installing the scripts.
+#------------------------------------------------------------------------------
+
+# Target for the executable
+all:
+
+install:
+	install -d $(BIN)
+	install -m 755 boosted_regression_tree/*.py $(BIN)
+	install -m 755 burn_threshold/*.py $(BIN)
+	install -m 755 seasonal_summary/*.py $(BIN)
+
+clean:
+

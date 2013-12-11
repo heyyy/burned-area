@@ -36,12 +36,11 @@ determine_max_extent: $(OBJ) $(INC)
 	$(CC) $(EXTRA) -o $(EXE) $(OBJ) $(EOSLIB) $(LIB)
 
 install:
-	cp $(EXE) $(BIN)
-	cp ../../scripts/seasonal_summary/*.py $(BIN)
-	cp ../../scripts/burn_threshold/*.py $(BIN)
+	install -d $(BIN)
+	install -m 755 $(EXE) $(BIN)
 
 clean:
-	$(RM) *.o $(EXE)
+	$(RM) $(OBJ) $(EXE)
 
 $(OBJ): $(INC)
 
