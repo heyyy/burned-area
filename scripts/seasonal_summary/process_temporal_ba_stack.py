@@ -638,7 +638,7 @@ class temporalBAStack():
             tif_file)
         logIt (msg, self.log_handler)
         cmd = 'gdal_merge.py -o %s -co "INTERLEAVE=BAND" -co "TILED=YES" ' \
-            '-init -9999 -n -9999 -ul_lr %d %d %d %d %s' % \
+            '-init -9999 -n -9999 -a_nodata -9999 -ul_lr %d %d %d %d %s' % \
         (tif_file, self.spatial_extent['West'], self.spatial_extent['North'],
          self.spatial_extent['East'], self.spatial_extent['South'], \
          temp_file.name)
