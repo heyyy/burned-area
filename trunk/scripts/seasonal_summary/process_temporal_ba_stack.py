@@ -10,6 +10,7 @@ import time
 import datetime
 import csv
 import tempfile
+import shutil
 import multiprocessing, Queue
 from argparse import ArgumentParser
 
@@ -59,6 +60,102 @@ class temporalBAStack():
         pass
 
 
+    def is_scene_l1g (self, mtl_file):
+        """Looks at the MTL file and determines if the scene is L1G.
+        Description: is_scene_l1g will read the DATA_TYPE from the metadata
+            file and return True or False, depending on whether the scene
+            is L1G.
+
+        History:
+          Created on 12/11/2013 by Gail Schmidt, USGS/EROS LSRD Project
+        
+        Args:
+          mtl_file - name of the metadata file to read and parse
+
+        Returns:
+            True - scene is L1G
+            False - scene is L1T
+        """
+
+        # open and read the input metadata file
+        metadata_file = open(mtl_file, "r")
+        text_list = metadata_file.readlines()
+        metadata_file.close()
+        num_lines = len(text_list)
+
+        # loop through each of the lines and check for the DATA_TYPE field
+        for i in range(num_lines):
+            curr_line = text_list[i].rstrip('\n')
+            if '=' in curr_line:
+                (field, field_value) = curr_line.split('=')
+                field = field.strip()
+                if field == 'DATA_TYPE':
+                    field_value = field_value.replace('"', '').strip()
+                    if field_value == 'L1G':
+                        return True
+
+        return False
+
+
+    def exclude_l1g_files (self):
+        """Loops through the HDF files in the input directory and excludes
+           the L1G scenes, leaving the L1T scenes.
+        Description: exclude_l1g_files will loop through the HDF files in the
+            input_dir, read the DATA_TYPE from the associated _MTL.txt file,
+            and move the lndsr and _MTL.txt file for that scene to a
+            subdirectory called 'exclude_l1g'.
+
+        History:
+          Created on 12/11/2013 by Gail Schmidt, USGS/EROS LSRD Project
+        
+        Args: None
+
+        Returns:
+            ERROR - error excluding the L1G files
+            SUCCESS - successful processing
+        """
+
+        # loop through the HDF files in the input directory
+        l1g_dir = self.input_dir + 'exclude_l1g/'
+        for f_in in sort(os.listdir(self.input_dir)):
+            if f_in.endswith(".hdf") and (f_in.find("lndsr") == 0):
+                input_file = self.input_dir + f_in
+                scene_file = f_in
+
+                # get the scene name from the current file
+                # (Ex. lndsr.LT50170391984072XXX07.hdf)
+                base_file = os.path.basename(scene_file)
+                scene_name = base_file.replace('lndsr.', '')
+                scene_name = scene_name.replace('.hdf', '')
+
+                # determine the _MTL.txt filename
+                mtl_name = scene_name + '_MTL.txt'
+                input_mtl_file = self.input_dir + mtl_name
+
+                # read the _MTL.txt file and determine if the scene is L1G
+                is_l1g = self.is_scene_l1g (input_mtl_file)
+
+                # if the scene is L1G, then move the scene and MTL file to the
+                # exclude_l1g subdirectory
+                if is_l1g:
+                    # create the L1G exclude directory if it doesn't exist
+                    if not os.path.exists(l1g_dir):
+                        msg = 'L1G exclude directory does not exist: %s. '  \
+                            'Creating ...' % l1g_dir
+                        logIt (msg, self.log_handler)
+                        os.makedirs(l1g_dir, 0755)
+
+                    # move the lndsr and metadata file
+                    output_file = l1g_dir + scene_file
+                    output_mtl_file = l1g_dir + mtl_name
+                    msg = 'Moving %s to %s' % (input_file, l1g_dir)
+                    logIt (msg, self.log_handler)
+                    msg = 'Moving %s to %s' % (input_mtl_file, l1g_dir)
+                    logIt (msg, self.log_handler)
+                    shutil.move (input_file, output_file)
+                    shutil.move (input_mtl_file, output_mtl_file)
+
+
     def generate_stack (self, stack_file, list_file):
         """Creates the CSV stack file for lndsr files in the input directory.
         Description: generate_stack will determine lndsr files residing in the
@@ -74,8 +171,6 @@ class temporalBAStack():
               added headers for the python functions and support for a log file.
         
         Args:
-          input_dir - name of the directory in which to find the lndsr products
-              to be processed (should be initiated already)
           stack_file - name of stack file to create; list of the lndsr products
               to be processed in addition to the date, path/row, sensor,
               bounding coords, pixel size, and UTM zone
@@ -543,7 +638,7 @@ class temporalBAStack():
             tif_file)
         logIt (msg, self.log_handler)
         cmd = 'gdal_merge.py -o %s -co "INTERLEAVE=BAND" -co "TILED=YES" ' \
-            '-init -9999 -n -9999 -a_nodata -9999 -ul_lr %d %d %d %d %s' % \
+            '-init -9999 -n -9999 -ul_lr %d %d %d %d %s' % \
         (tif_file, self.spatial_extent['West'], self.spatial_extent['North'],
          self.spatial_extent['East'], self.spatial_extent['South'], \
          temp_file.name)
@@ -1255,8 +1350,8 @@ class temporalBAStack():
         return SUCCESS
 
 
-    def processStack (self, input_dir=None, logfile=None, make_histos=None,  \
-        num_processors=1, usebin=None):
+    def processStack (self, input_dir=None, exclude_l1g=None, logfile=None,  \
+        make_histos=None, num_processors=1, usebin=None):
         """Processes the temporal stack of data to generate seasonal summaries
            and annual maximums for each year in the stack.
         Description: processStack will process the temporal stack of data
@@ -1273,6 +1368,10 @@ class temporalBAStack():
         Args:
           input_dir - name of the directory in which to find the lndsr products
               to be processed
+          exclude_l1g - if True, then the L1G files are excluded from the
+              processing stack and only the L1T files are processed.  These
+              L1G files are also moved to a directory called exclude_l1g in
+              the input directory.
           logfile - name of the logfile for logging information; if None then
               the output will be written to stdout
           make_histos - if the user wants to generate histograms and overview
@@ -1327,6 +1426,12 @@ class temporalBAStack():
                 action='store_true',
                 help='use BIN environment variable as the location of '  \
                     'external burned area apps')
+            parser.add_argument ('--exclude_l1g', dest='exclude_l1g',
+                default=False, action='store_true',
+                help='if True, then the L1G files are excluded from the '  \
+                     'temporal stack and only the L1T files are processed. ' \
+                     'These L1G files are also moved to a directory called ' \
+                     'exclude_l1g in the input directory.')
 
             options = parser.parse_args()
     
@@ -1334,6 +1439,7 @@ class temporalBAStack():
             logfile = options.logfile
             self.make_histos = options.make_histos
             usebin = options.usebin
+            exclude_l1g = options.exclude_l1g
 
             # input directory
             input_dir = options.input_dir
@@ -1399,6 +1505,10 @@ class temporalBAStack():
         # processing is complete
         mydir = os.getcwd()
         os.chdir (input_dir)
+
+        # go to the input_directory and exclude the L1G files, if specified
+        if exclude_l1g:
+            self.exclude_l1g_files()
 
         # generate the stack and list files for processing to identify the
         # list of reflectance files to be processed
