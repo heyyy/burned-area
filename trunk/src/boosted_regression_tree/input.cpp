@@ -704,10 +704,6 @@ bool PredictBurnedArea::GetInputQALine
       }
   }
 
-  else {
-      RETURN_ERROR("invalid QA band", "GetInputQALine", false);
-  }
-
   return true;
 }
 
