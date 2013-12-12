@@ -562,8 +562,8 @@ class temporalBAStack():
         # spawn workers to process each scene in the stack - convert from HDF
         # to GeoTIFF, create histograms and pyramids, and calculate the
         # spectral indices
-        msg = 'Spawning %d scenes for processing via %d processors ....' %  \
-            (num_scenes, self.num_processors)
+        msg = 'Spawning %d scenes for HDF to GeoTiff via %d '  \
+            'processors ....' % (num_scenes, self.num_processors)
         logIt (msg, self.log_handler)
         for i in range(self.num_processors):
             worker = parallelSceneWorker(work_queue, result_queue, self)
@@ -637,7 +637,7 @@ class temporalBAStack():
         msg = '   Resizing temp (%s) to max bounds (%s)' % (temp_file.name, \
             tif_file)
         logIt (msg, self.log_handler)
-        cmd = 'gdal_merge.py -o %s -co "INTERLEAVE=BAND" -co "TILED=YES" ' \
+        cmd = 'gdal_merge.py -o %s -co "INTERLEAVE=BAND" ' \
             '-init -9999 -n -9999 -a_nodata -9999 -ul_lr %d %d %d %d %s' % \
         (tif_file, self.spatial_extent['West'], self.spatial_extent['North'],
          self.spatial_extent['East'], self.spatial_extent['South'], \
@@ -794,8 +794,8 @@ class temporalBAStack():
  
         # spawn workers to process each year in the stack - generate the
         # seasonal summaries
-        msg = 'Spawning %d years for processing via %d processors ....' %  \
-            (num_years, self.num_processors)
+        msg = 'Spawning %d years for processing seasonal summaries via %d '  \
+            'processors ....' % (num_years, self.num_processors)
         logIt (msg, self.log_handler)
         for i in range(self.num_processors):
             worker = parallelSummaryWorker(work_queue, result_queue, self)
@@ -1167,8 +1167,8 @@ class temporalBAStack():
  
         # spawn workers to process each year in the stack - generate the
         # seasonal summaries
-        msg = 'Spawning %d years for processing via %d processors ....' %  \
-            (num_years, self.num_processors)
+        msg = 'Spawning %d years for processing annual maximums via %d '  \
+            'processors ....' % (num_years, self.num_processors)
         logIt (msg, self.log_handler)
         for i in range(self.num_processors):
             worker = parallelMaxWorker(work_queue, result_queue, self)
