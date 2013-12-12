@@ -384,7 +384,7 @@ printf ("DEBUG: random string %s\n", timestr);
         /* Read the QA bands for the current line */
         for (int ib = 0; ib < input->nqa_band; ib++) {
             if (!pba.GetInputQALine (input, ib, iline)) {
-                sprintf (errstr, "reading input image data for line %d, "
+                sprintf (errstr, "reading input QA data for line %d, "
                     "band %d", 0, 1);
                 ERROR(errstr, "main");
             }
