@@ -45,6 +45,7 @@ class BoostedRegressionConfig():
           seasonal_sum_dir - name of the directory where the seasonal
               summaries reside for this scene
           input_hdf_file - name of the HDF file to be processed
+          output_dir - location of burn probability product to be written
           model_file - name of the geographic model to be used
        
         Returns:
@@ -68,6 +69,10 @@ class BoostedRegressionConfig():
                 dest='input_hdf_file',
                 help='name of the input HDF file to be processed',
                 metavar='FILE')
+            parser.add_argument ('-o', '--output_dir', type=str,
+                dest='output_dir',
+                help='location of burn probability product to be written',
+                metavar='DIR')
             parser.add_argument ('-m', '--model_file', type=str,
                 dest='model_file', help='name of the XML model to load',
                 metavar='FILE')
@@ -119,13 +124,21 @@ class BoostedRegressionConfig():
             print msg
             return ERROR
 
+        # make sure the output directory exists
+        if not os.path.exists(output_dir):
+            msg = 'Error: output directory does not exist or is not ' \
+                'accessible: %s' % output_dir
+            print msg
+            return ERROR
+
         # determine the output filename using the input HDF filename; split
         # the input string into a list where the second element in the list
         # is the scene name for the file.  Example input filename is
         # lndsr.LT50350322002237LGS01.hdf.
         base_file = os.path.basename(input_hdf_file)
         infile_list = base_file.split('.')
-        output_hdf_file = '%s_burn_probability.hdf' % infile_list[1]
+        output_hdf_file = '%s/%s_burn_probability.hdf' %  \
+            (output_dir, infile_list[1])
 
         # open the configuration file for writing
         config_handler = open (config_file, 'w')
