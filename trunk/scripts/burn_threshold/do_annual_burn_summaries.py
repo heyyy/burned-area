@@ -375,7 +375,7 @@ class AnnualBurnSummary():
                     (bp_file_name, bp_resize_name)
                 logIt (msg, log_handler)
                 cmd = 'gdal_merge.py -o %s -co "INTERLEAVE=BAND" '  \
-                    '-init -9999 -n -9999 -a_nodata -9999 ' \
+                    '-co "TILED=YES" -init -9999 -n -9999 -a_nodata -9999 ' \
                     '-ul_lr %d %d %d %d %s' % (bp_resize_name, \
                     spatial_extent['West'], spatial_extent['North'], \
                     spatial_extent['East'], spatial_extent['South'], \
@@ -387,7 +387,7 @@ class AnnualBurnSummary():
                     (bc_file_name, bc_resize_name)
                 logIt (msg, log_handler)
                 cmd = 'gdal_merge.py -o %s -co "INTERLEAVE=BAND" '  \
-                    '-init -9999 -n -9999 -a_nodata -9999 ' \
+                    '-co "TILED=YES" -init -9999 -n -9999 -a_nodata -9999 ' \
                     '-ul_lr %d %d %d %d %s' % (bc_resize_name, \
                     spatial_extent['West'], spatial_extent['North'], \
                     spatial_extent['East'], spatial_extent['South'], \
