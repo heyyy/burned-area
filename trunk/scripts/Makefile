@@ -12,6 +12,7 @@ install:
 	install -m 755 boosted_regression_tree/*.py $(BIN)
 	install -m 755 burn_threshold/*.py $(BIN)
 	install -m 755 seasonal_summary/*.py $(BIN)
+	install -m 755 *.py $(BIN)
 
 clean:
 
