@@ -8,7 +8,7 @@ Release Date: January 8, 2014
 * Burned area source code - available via the [https://code.google.com/p/burned-area/source/checkout burned-area Google Projects Source] link
 
 === Installation ===
-Same installation instructions as for Version 1.0.0, however a high-level Makefile is now available for the overall BA source code.  Thus the user can utilize the Makefile at the top level and it will traverse into the subdirectories to build the source code as needed.
+Same installation instructions as for Version 1.0.0, however a high-level Makefile is now available for the overall burned-area source code.  Thus the user can utilize the Makefile at the top level and it will traverse into the subdirectories to build the source code as needed.
 
 === Dependencies ===
 Same dependencies as for Version 1.0.0
