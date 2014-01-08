@@ -637,7 +637,7 @@ class temporalBAStack():
         msg = '   Resizing temp (%s) to max bounds (%s)' % (temp_file.name, \
             tif_file)
         logIt (msg, self.log_handler)
-        cmd = 'gdal_merge.py -o %s -co "INTERLEAVE=BAND" ' \
+        cmd = 'gdal_merge.py -o %s -co "INTERLEAVE=BAND" -co "TILED=YES" ' \
             '-init -9999 -n -9999 -a_nodata -9999 -ul_lr %d %d %d %d %s' % \
         (tif_file, self.spatial_extent['West'], self.spatial_extent['North'],
          self.spatial_extent['East'], self.spatial_extent['South'], \
@@ -649,7 +649,7 @@ class temporalBAStack():
         endTime = time.time()
         msg = '    Processing time = %f seconds' % (endTime-startTime)
         logIt (msg, self.log_handler)
-   
+
         # remove the temp file since it is no longer needed
         os.remove (temp_file.name)
 
@@ -1364,6 +1364,10 @@ class temporalBAStack():
           Updated on 12/2/2013 by Gail Schmidt, USGS/EROS LSRD Project
               Modified to use argparser vs. optionparser, since optionparser
               is deprecated.
+          Updated on 12/16/2013 by Gail Schmidt, USGS/EROS LSRD Project
+              Cleaned up the temporary lndsr*.tif files in the subdirectories.
+              These are the files that were reprojected to the common
+              geographic extents.
         
         Args:
           input_dir - name of the directory in which to find the lndsr products
@@ -1568,9 +1572,19 @@ class temporalBAStack():
             os.chdir (mydir)
             return ERROR
 
+        # clean up the temporary files that were created as part of this
+        # processing
+        cleanup_dirs = [refl_dir, ndvi_dir, ndmi_dir, nbr_dir, nbr2_dir,
+            mask_dir]
+        for mydir in cleanup_dirs:
+            for file in os.listdir(mydir):
+                if file.beginswith("lndsr.") & file.endswith(".txt"):
+                    os.remove(os.path.join(dir,file))
+
+        # dump out the processing time, convert seconds to hours
         endTime0 = time.time()
-        msg = '***Total stack processing time = %f seconds' % \
-            (endTime0 - startTime0)
+        msg = '***Total stack processing time = %f hours' % \
+            ((endTime0 - startTime0) / 1440.0)
         logIt (msg, self.log_handler)
 
         msg = 'End time:' + \
