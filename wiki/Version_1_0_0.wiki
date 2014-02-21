@@ -7,7 +7,7 @@ Release Date: September 6, 2013
 * Burned Area source code - available via the [http://code.google.com/p/burned-area/source/checkout Burned-Area Google Projects Source] link
 
   * Non-members may check out a read-only working copy anonymously over HTTP.
-  * svn checkout http://burned-area.googlecode.com/svn/tags/ burned-area-read-only 
+  * svn checkout http://burned-area.googlecode.com/svn/tags/version_1.0.0 burned-area-read-only 
 
 === Installation ===
   # Install dependent libraries - HDF-EOS GCTP, HDF4, HDF-EOS2, TIFF, GeoTIFF, JPEG, SZIP, ZLIB, Boost, and OpenCV.
