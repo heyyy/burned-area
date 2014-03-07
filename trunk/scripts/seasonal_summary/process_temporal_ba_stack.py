@@ -1574,11 +1574,11 @@ class temporalBAStack():
 
         # clean up the temporary files that were created as part of this
         # processing
-        cleanup_dirs = [refl_dir, ndvi_dir, ndmi_dir, nbr_dir, nbr2_dir,
-            mask_dir]
+        cleanup_dirs = [self.refl_dir, self.ndvi_dir, self.ndmi_dir,
+            self.nbr_dir, self.nbr2_dir, self.mask_dir]
         for mydir in cleanup_dirs:
             for file in os.listdir(mydir):
-                if file.beginswith("lndsr.") & file.endswith(".txt"):
+                if file.beginswith("lndsr.") & file.endswith(".tif"):
                     os.remove(os.path.join(dir,file))
 
         # dump out the processing time, convert seconds to hours
