@@ -432,7 +432,7 @@ model_hash = {'010026':'gbt_mountain_west_model.xml',  # 010
               '032029':'gbt_mountain_west_model.xml',
               '032030':'gbt_mountain_west_model.xml',
               '032031':'gbt_mountain_west_model.xml',
-              '032032':'gbt_mountain_west_model.xml',
+              '032032':'gbt_gp_west_model.xml',
               '032033':'gbt_mountain_west_model.xml',
               '032034':'gbt_mountain_west_model.xml',
               '032035':'gbt_mountain_west_model.xml',

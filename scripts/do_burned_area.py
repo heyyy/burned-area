@@ -294,6 +294,14 @@ class BurnedArea():
         for i in range(num_scenes):
             curr_file = sr_list[i].rstrip('\n')
 
+            # if the file has been moved to the exclude directory for L1Gs
+            # then skip processing
+            exclude_file = curr_file.replace('lndsr.', 'exclude_l1g/lndsr.')
+            if os.path.exists(exclude_file):
+                # skip to the next scene
+                msg = '  ' + curr_file + 'moved to exclude L1G directory. Skip.'
+                continue
+
             # filter out the start_year scenes since we need the previous
             # year to run the boosted regression algorithm
             base_file = os.path.basename(curr_file)
