@@ -8,23 +8,19 @@ RM = rm -f
 EXTRA = -Wall -g
 
 # Define the include files
-INC = bool.h determine_max_extent.h
-INCDIR  = -I. -I$(HDFINC) -I$(HDFEOS_INC) -I$(HDFEOS_GCTPINC) -I$(JPEGINC) \
-          -I$(SZIPINC) -I$(ZLIBINC)
+INC = determine_max_extent.h
+INCDIR  = -I. -I$(XML2INC) -I$(ESPAINC)
 NCFLAGS = $(EXTRA) $(INCDIR)
 
 # Define the source code and object files
 SRC = get_args.c                   \
-      error_handler.c              \
       read_extent.c                \
       determine_max_extent.c
 
 OBJ = $(SRC:.c=.o)
 
 # Define the object libraries
-LIB   = -L$(HDFLIB) -lmfhdf -ldf -lxdr -L$(JPEGLIB) -ljpeg \
-        -L$(ZLIBLIB) -lz -L$(SZIPLIB) -lsz -lm
-EOSLIB = -L$(HDFEOS_LIB) -lhdfeos -L$(HDFEOS_GCTPLIB) -lGctp
+LIB   = -L$(ESPALIB) -l_espa_raw_binary -l_espa_common -L$(XML2LIB) -lxml2 -lm
 
 # Define the executable
 EXE = determine_max_extent
@@ -33,7 +29,7 @@ EXE = determine_max_extent
 all: $(EXE)
 
 determine_max_extent: $(OBJ) $(INC)
-	$(CC) $(EXTRA) -o $(EXE) $(OBJ) $(EOSLIB) $(LIB)
+	$(CC) $(EXTRA) -o $(EXE) $(OBJ) $(LIB)
 
 install:
 	install -d $(BIN)

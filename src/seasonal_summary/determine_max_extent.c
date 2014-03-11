@@ -20,6 +20,8 @@ HISTORY:
 Date          Programmer       Reason
 ----------    ---------------  -------------------------------------
 04/24/2013    Gail Schmidt     Original Development
+03/10/2014    Gail Schmidt     Update to work with the ESPA internal file
+                               format
 
 NOTES:
 ******************************************************************************/
@@ -28,12 +30,10 @@ int main (int argc, char *argv[])
     bool verbose;              /* verbose flag for printing messages */
     char FUNC_NAME[] = "main"; /* function name */
     char errmsg[STR_SIZE];     /* error message */
-    char *hdf_grid_name = "Grid";  /* name of the grid for HDF-EOS */
-    char **refl_infile = NULL; /* array to hold the list of input reflectance
-                                  filenames */
+    char **xml_infile = NULL; /* array to hold list of input XML filenames */
     char *list_infile=NULL;    /* file containing the temporal list of
                                   reflectance products to be processed */
-    char *extent_outfile=NULL;   /* output file for the maximum extents */
+    char *extent_outfile=NULL; /* output file for the maximum extents */
 
     int i;                     /* looping variable */
     int retval;                /* return status */
@@ -52,7 +52,7 @@ int main (int argc, char *argv[])
     double temp_south_coord;   /* south bounding coordinate of current file */
 
     FILE *list_fptr=NULL;      /* input file pointer for list of files */
-    FILE *extent_fptr=NULL;   /* output file pointer for file extents */
+    FILE *extent_fptr=NULL;    /* output file pointer for file extents */
 
     printf ("Determining maximum extents ...\n");
 
@@ -90,17 +90,16 @@ int main (int argc, char *argv[])
         nlines++;
 
     /* Allocate memory for the list of filenames */
-    refl_infile = (char **) calloc (nlines, sizeof (char *));
-    if (refl_infile != NULL)
+    xml_infile = (char **) calloc (nlines, sizeof (char *));
+    if (xml_infile != NULL)
     {
         for (i = 0; i < nlines; i++)
         {
-            refl_infile[i] = (char *) calloc (STR_SIZE, sizeof (char));
-            if (refl_infile[i] == NULL)
+            xml_infile[i] = (char *) calloc (STR_SIZE, sizeof (char));
+            if (xml_infile[i] == NULL)
             {
                 sprintf (errmsg, "Error allocating memory for array of %d "
-                    "strings to hold the list of reflectance filenames.",
-                    nlines);
+                    "strings to hold the list of XML filenames.", nlines);
                 error_handler (true, FUNC_NAME, errmsg);
                 fclose (list_fptr);
                 exit (ERROR);
@@ -116,12 +115,12 @@ int main (int argc, char *argv[])
         exit (ERROR);
     }
 
-    /* Read the list of reflectance files in the input file */
+    /* Read the list of XML files in the input file */
     rewind (list_fptr);
     curr_line = 0;
     for (i = 0; i < nlines; i++)
     {
-        count = fscanf (list_fptr, "%s[^\n]", &refl_infile[curr_line][0]);
+        count = fscanf (list_fptr, "%s[^\n]", &xml_infile[curr_line][0]);
         if (count == EOF)
             break;
         else if (count == 0)
@@ -146,15 +145,15 @@ int main (int argc, char *argv[])
     for (i = 0; i < nfiles; i++)
     {
         if (verbose)
-            printf ("\nProcessing current file %d: %s\n", i, refl_infile[i]);
+            printf ("\nProcessing current file %d: %s\n", i, xml_infile[i]);
 
         /* Process the current file */
-        retval = read_extent (refl_infile[i], hdf_grid_name, &temp_east_coord,
+        retval = read_extent (xml_infile[i], &temp_east_coord,
             &temp_west_coord, &temp_north_coord, &temp_south_coord);
         if (retval != SUCCESS)
         {  /* trouble processing this file so skip and go to the next one */
             sprintf (errmsg, "Error processing file %s.  Skipping and moving "
-                "to the next file.", refl_infile[i]);
+                "to the next file.", xml_infile[i]);
             error_handler (false, FUNC_NAME, errmsg);
             continue;
         }
@@ -201,7 +200,7 @@ int main (int argc, char *argv[])
 
     if (verbose)
     {
-        printf ("Maximum extents of list --\n");
+        printf ("\nMaximum extents of list --\n");
         printf ("  East: %lf\n", east_coord);
         printf ("  West: %lf\n", west_coord);
         printf ("  North: %lf\n", north_coord);
@@ -218,10 +217,10 @@ int main (int argc, char *argv[])
 
     /* Free the filename pointers */
     for (i = 0; i < nlines; i++)
-        if (refl_infile[i])
-            free (refl_infile[i]);
-    if (refl_infile)
-        free (refl_infile);
+        if (xml_infile[i])
+            free (xml_infile[i]);
+    if (xml_infile)
+        free (xml_infile);
 
     if (list_infile != NULL)
         free (list_infile);
@@ -260,7 +259,7 @@ void usage ()
 
     printf ("\nwhere the following parameters are required:\n");
     printf ("    -list_file: name of the input text file containing the list "
-            "of reflectance products to be processed, one file per line\n");
+            "of XML files to be processed, one file per line\n");
     printf ("    -extent_file: name of the output file containing the "
             "maximum spatial extents in projection coords\n");
     printf ("\nwhere the following parameters are optional:\n");
