@@ -237,17 +237,15 @@ class BurnedArea():
 
         # validate starting and ending year
         if start_year is not None:
-            if (start_year < 1984) | (start_year > 2013):
-                msg = 'start_year falls outside 1984-2013: %d' % start_year
+            if (start_year < 1984):
+                msg = 'start_year cannot begin before 1984: %d' % start_year
                 logIt (msg, log_handler)
-                os.chdir (mydir)
                 return ERROR
 
         if end_year is not None:
-            if (end_year < 1984) | (end_year > 2013):
-                msg = 'end_year falls outside 1984-2013: %d' % end_year
+            if (end_year < 1984):
+                msg = 'end_year cannot begin before 1984: %d' % end_year
                 logIt (msg, log_handler)
-                os.chdir (mydir)
                 return ERROR
 
         if (end_year is not None) & (start_year is not None):
