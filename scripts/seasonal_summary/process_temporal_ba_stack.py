@@ -1578,8 +1578,8 @@ class temporalBAStack():
             self.nbr_dir, self.nbr2_dir, self.mask_dir]
         for mydir in cleanup_dirs:
             for file in os.listdir(mydir):
-                if file.beginswith("lndsr.") & file.endswith(".tif"):
-                    os.remove(os.path.join(dir,file))
+                if file.startswith("lndsr.") & file.endswith(".tif"):
+                    os.remove(os.path.join(mydir,file))
 
         # dump out the processing time, convert seconds to hours
         endTime0 = time.time()
