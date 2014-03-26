@@ -1,5 +1,4 @@
 #! /usr/bin/env python
-# from sys import path
 from numpy import *
 from osgeo import gdal
 from osgeo import ogr
@@ -16,35 +15,25 @@ from log_it import *
 # to obtain particular attributes and data from the file.
 #
 # History:
-#   Updated on 3/24/2013 by Gail Schmidt, USGS/EROS
-#       Modified to ....
+#   Updated on 3/26/2014 by Gail Schmidt, USGS/EROS
+#       Removed metadata reads from the old TIF files that were not being
+#       used
 ############################################################################
 class ENVI_Scene:
     """Class to work with the single band ENVI files.
     """
 
-    filename = ""
-    NorthBoundingCoordinate = 0
-    SouthBoundingCoordinate = 0
-    WestBoundingCoordinate = 0
-    EastBoundingCoordinate = 0
-    dX = 0
-    dY = 0
-    NRow = 0
-    NCol = 0
-    NoData = 0
+    filename = ""                 # name of input image file
+    dX = 0                        # pixel size in X direction
+    dY = 0                        # pixel size in Y direction
+    NRow = 0                      # number of lines in the scene
+    NCol = 0                      # number of samples in the scene
+    NoData = 0                    # fill value
+    NorthBoundingCoordinate = 0   # northern bounding coord
+    SouthBoundingCoordinate = 0   # southern bounding coord
+    WestBoundingCoordinate = 0    # western bounding coord
+    EastBoundingCoordinate = 0    # eastern bounding coord
     
-    # not filled at the moment
-    WRS_Path = 0
-    WRS_Row = 0
-    Satellite = ""
-    SolarAzimuth = 0
-    SolarZenith = 0
-    AcquisitionDate = ""
-    month = 0
-    day = 0
-    year = 0
-
     # datasets created by gdal.Open
     dataset = None
 

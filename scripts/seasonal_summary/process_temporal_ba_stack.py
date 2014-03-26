@@ -3,6 +3,7 @@
 # not being a floating point
 from __future__ import division
 import sys
+import glob
 import os
 import re
 import subprocess
@@ -240,7 +241,7 @@ class temporalBAStack():
 
         # open the CSV file, read the column headings in the first line, then
         # read the spatial extents in the second line
-        reader = csv.reader (open (bounding_extents_file, 'rb'))
+        reader = csv.reader (open (bounding_extents_file, 'r'))
         header = reader.next()  # read the column headings
         values = reader.next()  # read the values
 
@@ -292,7 +293,7 @@ class temporalBAStack():
             return ERROR
 
         # open the stack file and read the header of the stack file
-        stack = csv.reader (open (stack_file, 'rb'))
+        stack = csv.reader (open (stack_file, 'r'))
         header_row = stack.next()
         for elem in range (0, len(header_row)):
             header_row[elem] = header_row[elem].strip()
@@ -352,21 +353,24 @@ class temporalBAStack():
         # spawn workers to process each scene in the stack - resample each
         # band, create histograms and pyramids, and calculate the spectral
         # indices
-#        msg = 'Spawning %d scenes for resampling via %d '  \
-#            'processors ....' % (num_scenes, self.num_processors)
-#        logIt (msg, self.log_handler)
-#        for i in range(self.num_processors):
-#            worker = parallelSceneWorker(work_queue, result_queue, self)
-#            worker.start()
+        msg = 'Spawning %d scenes for resampling via %d '  \
+            'processors ....' % (num_scenes, self.num_processors)
+        logIt (msg, self.log_handler)
+        for i in range(self.num_processors):
+            worker = parallelSceneWorker(work_queue, result_queue, self)
+            worker.start()
  
         # collect the results off the queue
-#        for i in range(num_scenes):
-#            status = result_queue.get()
-#            if status != SUCCESS:
-#                msg = 'Error resampling bands in XML file (file %d in the ' \
-#                    'stack).' % i
-#                logIt (msg, self.log_handler)
-#                return ERROR
+        for i in range(num_scenes):
+            status = result_queue.get()
+            if status != SUCCESS:
+                msg = 'Error resampling bands in XML file (file %d in the ' \
+                    'stack).' % i
+                logIt (msg, self.log_handler)
+                return ERROR
+
+        # close the stack file
+        stack = None
 
         return SUCCESS
 
@@ -1350,16 +1354,27 @@ class temporalBAStack():
             os.chdir (mydir)
             return ERROR
 
+        # open the stack file and read the header of the stack file
+        stack = csv.reader (open (stack_file, 'r'))
+        header_row = stack.next()
+        for elem in range (0, len(header_row)):
+            header_row[elem] = header_row[elem].strip()
+
         # clean up the temporary files that were created as part of this
         # processing
-#        cleanup_dirs = [self.refl_dir, self.ndvi_dir, self.ndmi_dir,
-#            self.nbr_dir, self.nbr2_dir, self.mask_dir]
-#        for mydir in cleanup_dirs:
-#            for file in os.listdir (mydir):
-#                for scene in enumerate (stack):
-#                    xml_file = scene[1][header_row.index('file')]
-#                    if file.startswith(xml_file.replace ('.xml', '')):
-#                        os.remove(os.path.join(mydir,file))
+        cleanup_dirs = [self.refl_dir, self.ndvi_dir, self.ndmi_dir,
+            self.nbr_dir, self.nbr2_dir, self.mask_dir]
+        for scene in enumerate (stack):
+            for mydir in cleanup_dirs:
+                full_xml_file = scene[1][header_row.index('file')]
+                xml_file = os.path.basename (full_xml_file.replace ('.xml', ''))
+                rm_files = glob.glob (mydir + xml_file + '*')
+                for file in rm_files:
+#                    print 'Remove: ' + file
+                    os.remove (os.path.join (file))
+
+        # close the stack file
+        stack = None
 
         # dump out the processing time, convert seconds to hours
         endTime0 = time.time()
