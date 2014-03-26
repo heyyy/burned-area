@@ -18,32 +18,24 @@ from log_it import *
 # opening the image and QA surface reflectance data.
 #
 # History:
-#   Updated on ?/??/2014 by Gail Schmidt, USGS/EROS
-#       Blah
+#   Updated on 3/26/2014 by Gail Schmidt, USGS/EROS
+#       Removed metadata reads from the old HDF files that were not being
+#       used
 ############################################################################
 class XML_Scene:
     """Class for handling ESPA scene related functions.
     """
 
-    band_dict = {}            # dictionary of bands in the current XML file
-    xml_file = ""             # name of XML file
-    dX = 0                    # pixel size in X direction
-    dY = 0                    # pixel size in Y direction
-    NRow = 0                  # number of lines in the scene
-    NCol = 0                  # number of samples in the scene
-    WRS_Path = 0              # WRS path
-    WRS_Row = 0               # WRS row
-    Satellite = ""            # satellite name
-    SolarAzimuth = 0          # solar azimuth angle
-    SolarZenith = 0           # solar zenith angle
-    AcquisitionDate = ""      # acquisition date
-    month = 0                 # acquisition month
-    day = 0                   # acquisition day
-    year = 0                  # acquisition year
-    NorthBoundingCoordinate = 0    # northern bounding coord
-    SouthBoundingCoordinate = 0    # southern bounding coord
-    WestBoundingCoordinate = 0     # western bounding coord
-    EastBoundingCoordinate = 0     # eastern bounding coord
+    band_dict = {}               # dictionary of bands in the current XML file
+    xml_file = ""                # name of XML file
+    dX = 0                       # pixel size in X direction
+    dY = 0                       # pixel size in Y direction
+    NRow = 0                     # number of lines in the scene
+    NCol = 0                     # number of samples in the scene
+    NorthBoundingCoordinate = 0  # northern bounding coord
+    SouthBoundingCoordinate = 0  # southern bounding coord
+    WestBoundingCoordinate = 0   # western bounding coord
+    EastBoundingCoordinate = 0   # eastern bounding coord
     
     # datasets created by gdal.Open
     dataset1 = None
@@ -99,13 +91,6 @@ class XML_Scene:
             msg = 'Input XML file does not exist: ' + xml_file
             logIt (msg, log_handler)
             return None
-
-        # extract the metadata for this scene from the XML file
-# /* Gail - Read from XML */
-#        self.mdata = self.dataset.GetMetadata()
-#        self.month = int(self.mdata['AcquisitionDate'][5:7])
-#        self.day = int(self.mdata['AcquisitionDate'][8:10])
-#        self.year = int(self.mdata['AcquisitionDate'][0:4])
 
         # parse the XML file looking for the surface reflectance bands 1-7
         # and the QA bands.  then pass those files to GDAL for resampling.
@@ -302,16 +287,6 @@ class XML_Scene:
         self.NorthBoundingCoordinate = gt[3]
         self.SouthBoundingCoordinate = self.NorthBoundingCoordinate +  \
             (self.NRow * self.dY)
-
-        # update the other variables
-# /* Gail - Read from XML */
-#        self.WRS_Path = int(self.mdata['WRS_Path'])
-#        self.WRS_Row = int(self.mdata['WRS_Row'])
-#        self.Satellite = self.mdata['Satellite']
-#        self.SolarAzimuth = float(self.mdata['SolarAzimuth'])
-#        self.SolarZenith = float(self.mdata['SolarZenith'])
-#        self.AcquisitionDate =  \
-#            time.strptime(self.mdata['AcquisitionDate'][0:10], "%Y-%m-%d")
 
 
     def __del__ (self):
