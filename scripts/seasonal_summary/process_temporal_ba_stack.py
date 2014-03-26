@@ -14,13 +14,14 @@ import shutil
 import multiprocessing, Queue
 from argparse import ArgumentParser
 
-from HDF_scene import *
-from TIF_scene import *
+from XML_scene import *
+from ENVI_scene import *
 from spectral_indices import *
-from spectral_index_from_tif import *
+from spectral_index_from_espa import *
 from log_it import *
 from parallel_worker import *
 
+NUM_SR_BANDS = 13
 
 #############################################################################
 # Created on April 29, 2013 by Gail Schmidt, USGS/EROS
@@ -28,6 +29,9 @@ from parallel_worker import *
 # temporal stack for burned area processing.
 #
 # History:
+# Updated on March 11, 2014 by Gail Schmidt, USGS/EROS
+# Modified the scripts to process ESPA input raw binary data products vs.
+#   the original HDF file format.
 #
 # Usage: process_temporal_stack.py --help prints the help message
 ############################################################################
@@ -49,7 +53,6 @@ class temporalBAStack():
     log_handler = None        # file handler for the log file
     num_processors = 1        # default is no parallel processing
     csv_data = None           # CSV data for the stack
-    hdf_dir_name = None       # directory of the HDF files in the stack
     nrow = 0                  # number of rows in stack for seasonal summaries
     ncol = 0                  # number of cols in stack for seasonal summaries
     geotrans = None           # geographic trans for seasonal summaries
@@ -156,128 +159,50 @@ class temporalBAStack():
                     shutil.move (input_mtl_file, output_mtl_file)
 
 
-    def generate_stack (self, stack_file, list_file):
-        """Creates the CSV stack file for lndsr files in the input directory.
-        Description: generate_stack will determine lndsr files residing in the
-            input_dir, then write a simple list_file and a more involved
-            stack_file outlining the files to be processed and some of their
-            data attributes.
+    def generate_list (self, list_file):
+        """Creates the list_file for the input files to be processed
+        Description: generate_list will determine XML files residing in the
+            input_dir, then write a simple list_file containing the files to
+            be processed.
         
         History:
-          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-              Geographic Science Center
-          Updated on 4/26/2013 by Gail Schmidt, USGS/EROS LSRD Project
-              Modified to write a list file as well as the stack file.  Also
-              added headers for the python functions and support for a log file.
-        
+          Created on 3/12/2014 by Gail Schmidt, USGS/EROS LSRD Project
+
         Args:
-          stack_file - name of stack file to create; list of the lndsr products
-              to be processed in addition to the date, path/row, sensor,
-              bounding coords, pixel size, and UTM zone
-          list_file - name of list file to create; simple list of lndsr
+          list_file - name of list file to create; simple list of XML
               products to be processed from the current directory
         
         Returns:
-            ERROR - error generating the stack and list files
+            ERROR - error generating the list files
             SUCCESS - successful processing
         """
 
-        # define CSV delimiter
-        delim = ','
-        
         # check to make sure the output location exists, create the directory
         # if needed
-        stack_dirname = os.path.dirname(stack_file)
-        if stack_dirname != "" and not os.path.exists (stack_dirname):
-            msg = 'Creating directory for output file: ' + stack_dirname
-            logIt (msg, self.log_handler)
-            os.makedirs (stack_dirname)
-    
         list_dirname = os.path.dirname(list_file)
         if list_dirname != "" and not os.path.exists (list_dirname):
             msg = 'Creating directory for output file: ' + list_dirname
             os.makedirs (list_dirname)
     
         # open the output files
-        fstack_out = open(stack_file, 'w')
-        if not fstack_out:
-            msg = 'Could not open stack_file: ' + fstack_out
-            logIt (msg, self.log_handler)
-            return ERROR
-            
         flist_out = open(list_file, 'w')
         if not flist_out:
             msg = 'Could not open list_file: ' + flist_out
             logIt (msg, self.log_handler)
             return ERROR
             
-        # write the header for the stack file
-        fstack_out.write('file, year, season, month, day, julian, path, ' \
-            'row, sensor, west, east, north, south, ncol, nrow, dx, dy, ' \
-            'utm_zone\n')
-        
-        # loop through lndsr*.hdf files in input_directory and gather info
+        # loop through *.xml files in input_directory and gather info
         for f_in in sort(os.listdir(self.input_dir)):
-            if f_in.endswith(".hdf") and (f_in.find("lndsr") == 0):
+            if f_in.endswith(".xml") and not f_in.endswith(".aux.xml"):
                 input_file = self.input_dir + f_in
 
-                # get the attributes from the HDF file
-                hdfAttr = HDF_Scene(input_file)
-
-                # determine which season the scene was acquired
-                if hdfAttr.month == 12 or hdfAttr.month == 1 or \
-                    hdfAttr.month == 2:
-                    season = 'winter'
-                elif hdfAttr.month >= 3 and hdfAttr.month <= 5:
-                    season = 'spring'
-                elif hdfAttr.month >= 6 and hdfAttr.month <= 8:
-                    season = 'summer'
-                else:
-                    season = 'fall'
-                
-                # determine the julian date of the acquisition date
-                t = time.mktime( (hdfAttr.year, hdfAttr.month, hdfAttr.day, \
-                    0, 0, 0, 0, 0, 0) )
-                julian = int(time.strftime("%j", time.gmtime(t)))
-                
-                # get the projection information, put in quotes so commas in
-                # projection string don't confuse .csv readers
-                tProjection = hdfAttr.subdataset1.GetProjection()
-                t_osr = osr.SpatialReference()
-                t_osr.ImportFromWkt(tProjection)
-                tUTM = t_osr.GetUTMZone()
-            
-                # write the stack information for the current lndsr file
-                fstack_out.write( input_file + delim + \
-                    str(hdfAttr.year) + delim + \
-                    season + delim + \
-                    str(hdfAttr.month) + delim + \
-                    str(hdfAttr.day) + delim + \
-                    str(julian) + delim + \
-                    str(hdfAttr.WRS_Path) + delim + \
-                    str(hdfAttr.WRS_Row) + delim + \
-                    hdfAttr.Satellite + delim + \
-                    str(hdfAttr.WestBoundingCoordinate) + delim + \
-                    str(hdfAttr.EastBoundingCoordinate) + delim + \
-                    str(hdfAttr.NorthBoundingCoordinate) + delim + \
-                    str(hdfAttr.SouthBoundingCoordinate) + delim + \
-                    str(hdfAttr.NRow) + delim + \
-                    str(hdfAttr.NCol) + delim + \
-                    str(hdfAttr.dX) + delim + \
-                    str(hdfAttr.dY) + delim + \
-                    str(tUTM) + '\n')
-                    #tProjection + '\n')
-    
-                # write the lndsr file to the output list file
+                # write the XML file to the output list file
                 flist_out.write(input_file + '\n')
     
-                # clear the HDF attributes for the next file
-                hdfAttr = None
-            # end if lndsr*.hdf files
+            # end if *.xml files
         # end for all files in this directory
     
-        # close the output list and stack files
-        fstack_out.close()
+        # close the output list file
         flist_out.close()
         return SUCCESS
 
@@ -332,156 +257,12 @@ class temporalBAStack():
         return return_dict
 
 
-    def hdf2tif(self, input_file, output_file):
-        """Converts the HDF file to GeoTiff.
-        Description: hdf2tif will convert the HDF file to GeoTiff.  It sets
-            the noData value to -9999.
-        
-        History:
-          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-              Geographic Science Center
-          Updated on 4/30/2013 by Gail Schmidt, USGS/EROS LSRD Project
-              Took out the conversion of projection coords (x,y) to
-                  line, sample (i,j) space and vice versa.  This speeds up the
-                  processing time a bit.
-              Removed some of the redundant tagging of QA as noData.
-              Removed the redundant histogram and build pyramids code which is
-                  also done by polishImage
-              Modified to utilize a log file if passed along.
-        
-        Args:
-          input_file - name of the input HDF reflectance file to be converted
-          output_file - name of the output GeoTIFF file which contains bands
-              1-7 and a QA band
-        
-        Returns:
-            ERROR - error converting the HDF file to GeoTIFF
-            SUCCESS - successful processing
-        """
-
-        # test to make sure the input file exists
-        if not os.path.exists(input_file):
-            msg = 'Input file does not exist: ' + input_file
-            logIt (msg, self.log_handler)
-            return ERROR
-    
-        # make sure the output directory exists, otherwise create it
-        output_dirname = os.path.dirname (output_file)
-        if output_dirname != "" and not os.path.exists (output_dirname):
-            msg = 'Creating directory for output file: ' + output_dirname
-            logIt (msg, self.log_handler)
-            os.makedirs (output_dirname)
-        
-        # open the input file
-        hdfAttr = HDF_Scene(input_file, self.log_handler)
-        if hdfAttr is None:
-            # error message already written in the constructor
-            return ERROR
-    
-        # create an output file with 8 bands which are all int16s and get band
-        # pointers to each band. the last band is the QA band.
-        num_out_bands = 8
-        driver = gdal.GetDriverByName("GTiff")
-        output_ds = driver.Create (output_file, hdfAttr.NCol, hdfAttr.NRow, \
-            num_out_bands, gdal.GDT_Int16)
-        output_ds.SetGeoTransform (hdfAttr.subdataset1.GetGeoTransform())
-        output_ds.SetProjection (hdfAttr.subdataset1.GetProjection())
-        output_band1 = output_ds.GetRasterBand(1)
-        output_band2 = output_ds.GetRasterBand(2)
-        output_band3 = output_ds.GetRasterBand(3)
-        output_band4 = output_ds.GetRasterBand(4)
-        output_band5 = output_ds.GetRasterBand(5)
-        output_band6 = output_ds.GetRasterBand(6)
-        output_band7 = output_ds.GetRasterBand(7)
-        output_band_QA = output_ds.GetRasterBand(8)
-    
-        # initialize noData value for all bands to -9999, including the QA band
-        output_band1.SetNoDataValue(-9999)
-        output_band2.SetNoDataValue(-9999)
-        output_band3.SetNoDataValue(-9999)
-        output_band4.SetNoDataValue(-9999)
-        output_band5.SetNoDataValue(-9999)
-        output_band6.SetNoDataValue(-9999)
-        output_band7.SetNoDataValue(-9999)
-        output_band_QA.SetNoDataValue(-9999)
-    
-        # loop through all the lines in the image, read the line of data from
-        # the HDF file, and write back out to GeoTIFF;  the QA band is a
-        # combination of all the QA values (negative values flag non-clear
-        # pixels and -9999 is the fill pixel).
-        for y in range(0, hdfAttr.NRow):
-            # read a row of data
-            vals = hdfAttr.getLineOfBandValues(y)    
-            output_band1.WriteArray (array([vals['band1']]), 0, y)
-            output_band2.WriteArray (array([vals['band2']]), 0, y)
-            output_band3.WriteArray (array([vals['band3']]), 0, y)
-            output_band4.WriteArray (array([vals['band4']]), 0, y)
-            output_band5.WriteArray (array([vals['band5']]), 0, y)
-            output_band6.WriteArray (array([vals['band6']]), 0, y)
-            output_band7.WriteArray (array([vals['band7']]), 0, y)
-            output_band_QA.WriteArray (array([vals['QA']]), 0, y)
-          
-        # build histograms and pyramid overviews if the user specified
-        if self.make_histos:
-            # create histograms
-            histogram = output_band1.GetDefaultHistogram()
-            if not histogram is None:
-                output_band1.SetDefaultHistogram(histogram[0], histogram[1],  \
-                    histogram[3])
-            histogram = output_band1.GetDefaultHistogram()
-            if not histogram is None:
-                output_band2.SetDefaultHistogram(histogram[0], histogram[1],  \
-                    histogram[3])
-            histogram = output_band2.GetDefaultHistogram()
-            if not histogram is None:
-                output_band3.SetDefaultHistogram(histogram[0], histogram[1],  \
-                    histogram[3])
-            histogram = output_band3.GetDefaultHistogram()
-            if not histogram is None:
-                output_band4.SetDefaultHistogram(histogram[0], histogram[1],  \
-                    histogram[3])
-            histogram = output_band4.GetDefaultHistogram()
-            if not histogram is None:
-                output_band5.SetDefaultHistogram(histogram[0], histogram[1],  \
-                    histogram[3])
-            histogram = output_band5.GetDefaultHistogram()
-            if not histogram is None:
-                output_band6.SetDefaultHistogram(histogram[0], histogram[1],  \
-                    histogram[3])
-            histogram = output_band6.GetDefaultHistogram()
-            if not histogram is None:
-                output_band7.SetDefaultHistogram(histogram[0], histogram[1],  \
-                    histogram[3])
-            histogram = output_band_QA.GetDefaultHistogram()
-            if not histogram is None:
-                output_band_QA.SetDefaultHistogram(histogram[0], histogram[1], \
-                    histogram[3])  
-        
-            # build pyramids
-            gdal.SetConfigOption('HFA_USE_RRD', 'YES')
-            output_ds.BuildOverviews(overviewlist=[3,9,27,81,243,729])  
-        
-        # cleanup
-        vals = None
-        output_band1 = None
-        output_band2 = None
-        output_band3 = None
-        output_band4 = None
-        output_band5 = None
-        output_band6 = None
-        output_band7 = None
-        output_band_QA = None
-        output_ds = None
-    
-        return SUCCESS
-
-
-    def stackHDFToTiff(self, bounding_extents_file, stack_file):
-        """Converts the HDF files in the temporal stack to GeoTiff resampling
-           to the specified geographic extents.
-        Description: stackHdfToTiff will convert the HDF files to GeoTIFF and
-            then resample the GeoTIFF files to the bounding extents.  It also
-            computes the spectral indices.
+    def resampleStack(self, bounding_extents_file, stack_file):
+        """Resamples the ENVI surface reflectance bands in the temporal stack
+           using the specified geographic extents.
+        Description: resampleStack will resample the surface reflectance
+            bands (ENVI bands) in the XML files to the bounding extents.  It
+            also computes the spectral indices.
         
         History:
           Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
@@ -489,16 +270,18 @@ class temporalBAStack():
           Updated on 4/29/2013 by Gail Schmidt, USGS/EROS LSRD Project
               Modified to utilize a log file if passed along.
               Make the histograms and overviews optional.
+          Updated on 3/17/2014 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to use the ESPA raw binary internal file format.
         
         Args:
           bounding_extents_file - name of file which contains the bounding
               extents
-          stack_file - name of stack file to create; list of the lndsr products
-              to be processed in addition to the date, path/row, sensor,
-              bounding coords, pixel size, and UTM zone
+          stack_file - name of stack file; list of the XML products to be
+              processed in addition to the date, path/row, sensor, bounding
+              coords, pixel size, and UTM zone
         
         Returns:
-            ERROR - error converting all the HDF files to GeoTiff or resampling
+            ERROR - error resampling all the surface reflectance bands
             SUCCESS - successful processing
         """
 
@@ -525,26 +308,26 @@ class temporalBAStack():
 
         # make sure each of the output directories exist
         if not os.path.exists (self.refl_dir):
-            msg = 'Creating directory for GeoTIFF reflectance files'
+            msg = 'Creating directory for resampled reflectance files'
             logIt (msg, self.log_handler)
             os.makedirs (self.refl_dir)
         if not os.path.exists (self.ndvi_dir):
-            msg = 'Creating directory for GeoTIFF NDVI files'
+            msg = 'Creating directory for resampled NDVI files'
             logIt (msg, self.log_handler)
             os.makedirs (self.ndvi_dir)
         if not os.path.exists (self.ndmi_dir):
-            msg = 'Creating directory for GeoTIFF NDMI files'
+            msg = 'Creating directory for resampled NDMI files'
             logIt (msg, self.log_handler)
             os.makedirs (self.ndmi_dir)
         if not os.path.exists (self.nbr_dir):
-            msg = 'Creating directory for GeoTIFF NBR files'
+            msg = 'Creating directory for resampled NBR files'
             os.makedirs (self.nbr_dir)
         if not os.path.exists (self.nbr2_dir):
-            msg = 'Creating directory for GeoTIFF NBR2 files'
+            msg = 'Creating directory for resampled NBR2 files'
             logIt (msg, self.log_handler)
             os.makedirs (self.nbr2_dir)
         if not os.path.exists (self.mask_dir):
-            msg = 'Creating directory for GeoTIFF mask files'
+            msg = 'Creating directory for resampled mask files'
             logIt (msg, self.log_handler)
             os.makedirs (self.mask_dir)
 
@@ -552,153 +335,133 @@ class temporalBAStack():
         work_queue = multiprocessing.Queue()
         num_scenes = 0
         for scene in enumerate (stack):
-            hdf_file = scene[1][header_row.index('file')]
-            work_queue.put(hdf_file)
+            xml_file = scene[1][header_row.index('file')]
+            work_queue.put(xml_file)
             num_scenes += 1
+
+        # make sure we have scenes to be processed
+        if num_scenes == 0:
+            msg = 'Error resampling bands stack file.  No bands were '  \
+                'specified in ' + stack_file
+            logIt (msg, self.log_handler)
+            return ERROR
 
         # create a queue to pass to workers to store the processing status
         result_queue = multiprocessing.Queue()
  
-        # spawn workers to process each scene in the stack - convert from HDF
-        # to GeoTIFF, create histograms and pyramids, and calculate the
-        # spectral indices
-        msg = 'Spawning %d scenes for HDF to GeoTiff via %d '  \
-            'processors ....' % (num_scenes, self.num_processors)
-        logIt (msg, self.log_handler)
-        for i in range(self.num_processors):
-            worker = parallelSceneWorker(work_queue, result_queue, self)
-            worker.start()
+        # spawn workers to process each scene in the stack - resample each
+        # band, create histograms and pyramids, and calculate the spectral
+        # indices
+#        msg = 'Spawning %d scenes for resampling via %d '  \
+#            'processors ....' % (num_scenes, self.num_processors)
+#        logIt (msg, self.log_handler)
+#        for i in range(self.num_processors):
+#            worker = parallelSceneWorker(work_queue, result_queue, self)
+#            worker.start()
  
         # collect the results off the queue
-        for i in range(num_scenes):
-            status = result_queue.get()
-            if status != SUCCESS:
-                msg = 'Error converting the HDF file (%d in stack) to ' \
-                    'GeoTIFF.' % i
-                logIt (msg, self.log_handler)
-                return ERROR
+#        for i in range(num_scenes):
+#            status = result_queue.get()
+#            if status != SUCCESS:
+#                msg = 'Error resampling bands in XML file (file %d in the ' \
+#                    'stack).' % i
+#                logIt (msg, self.log_handler)
+#                return ERROR
 
         return SUCCESS
 
 
-    def sceneHDFToTiff(self, hdf_file):
-        """Converts the HDF file to GeoTiff resampling to the specified
-           geographic extent and computes spectral indices.
-        Description: sceneHdfToTiff will convert the HDF file to GeoTIFF and
-            then resample the GeoTIFF file to the bounding extents.  It will
-            also compute the spectral indices for the scene.
+    def sceneResample(self, xml_file):
+        """Resamples the surface reflectance bands in the XML file to the
+           specified geographic extent, creates a single QA band, and computes
+           spectral indices.
+        Description: sceneResample will resample the suface reflectance bands
+            in the XML file to the bounding extents.  It then creates a single
+            QA band from the surface reflectance QA bands.  Finally it computes
+            the spectral indices for the scene.
         
         History:
           Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
               Geographic Science Center
           Updated on 5/7/2013 by Gail Schmidt, USGS/EROS LSRD Project
               Modified to allow for multiprocessing at the scene level.
+          Updated on 3/17/2014 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to use the ESPA internal raw binary format
         
         Args:
-          hdf_file - name of hdf file to process
+          xml_file - name of XML file to process
         
         Returns:
-            ERROR - error converting the HDF file to GeoTiff or resampling or
-                determining spectral indices
+            ERROR - error parsing the XML file, resampling each band, or
+                determining the spectral indices
             SUCCESS - successful processing
         """
    
-        # generate the HDF, GeoTIFF, and temporary GeoTIFF filename.  use
-        # tempfile to get a unique filename and then close it right away.
-        # use the filename itself to process the string like we did with
-        # just temp.tif.  we have to have unique filenames for running in
-        # parallel.
+        # parse the XML file looking for the surface reflectance bands 1-7
+        # and the QA bands.  open each band and store the GDAL band connection.
         startTime0 = time.time()
-        msg = '############################################################'
-        logIt (msg, self.log_handler)
-        tif_file = hdf_file.replace('.hdf', '.tif')
-        tif_file = self.refl_dir + os.path.basename (tif_file)
-        temp_file = tempfile.NamedTemporaryFile(mode='w', prefix='temp',  \
-            suffix='.tif', dir=self.refl_dir, delete=True)
-        temp_file.close()
-
-        # convert .hdf to .tif
-        startTime = time.time()
-        msg = '   Converting HDF (%s) to GeoTIFF (%s)' % (hdf_file, \
-            temp_file.name)
-        logIt (msg, self.log_handler)
-        status = self.hdf2tif (hdf_file, temp_file.name)
-        if status != SUCCESS:
-            msg = 'Error converting the HDF file to GeoTIFF. Processing ' \
-                'will terminate.'
+        xmlAttr = XML_Scene (xml_file)
+        if xmlAttr is None:
+            msg = 'Error reading the XML and setting up the bands: ' + xml_file
             logIt (msg, self.log_handler)
             return ERROR
-        endTime = time.time()
-        msg = '    Processing time = %f seconds' % (endTime-startTime)
-        logIt (msg, self.log_handler)
 
-        # resample the .tif file to our maximum bounding coords
-        startTime = time.time()
-        msg = '   Resizing temp (%s) to max bounds (%s)' % (temp_file.name, \
-            tif_file)
-        logIt (msg, self.log_handler)
-        cmd = 'gdal_merge.py -o %s -co "INTERLEAVE=BAND" -co "TILED=YES" ' \
-            '-init -9999 -n -9999 -a_nodata -9999 -ul_lr %d %d %d %d %s' % \
-        (tif_file, self.spatial_extent['West'], self.spatial_extent['North'],
-         self.spatial_extent['East'], self.spatial_extent['South'], \
-         temp_file.name)
-        msg = '    ' + cmd
-        logIt (msg, self.log_handler)
-        os.system(cmd)
+        # create a single QA band from the surface reflectance QA bands
+        xmlAttr.createQaBand (self.log_handler)
 
-        endTime = time.time()
-        msg = '    Processing time = %f seconds' % (endTime-startTime)
-        logIt (msg, self.log_handler)
-
-        # remove the temp file since it is no longer needed
-        os.remove (temp_file.name)
-
-        # open the tif, calculate histograms for each band in the .tif
-        # file, and build pyramids -- if the user specifies this should
-        # be done
-        if self.make_histos:
-            startTime = time.time()
-            msg = '    Polishing image ...'
+        # resample the .img and single QA bands to our maximum bounding coords
+        # and place in the reflectance directory; QA file goes in the mask
+        # directory
+        resamp_band_dict = {}
+        for i in ['band1', 'band2', 'band3', 'band4', 'band5', 'band6',  \
+            'band7', 'band_qa']:
+            if i == 'band_qa':
+                resamp_band_dict[i] = self.mask_dir + \
+                    os.path.basename (xmlAttr.band_dict[i])
+            else:
+                resamp_band_dict[i] = self.refl_dir + \
+                    os.path.basename (xmlAttr.band_dict[i])
+            msg = '   Resizing file (%s) to max bounds (%s)' %  \
+                (xmlAttr.band_dict[i], resamp_band_dict[i])
             logIt (msg, self.log_handler)
-            status = polishImage (tif_file, self.log_handler)
-            if status != SUCCESS:
-                msg = 'Error polishing the GeoTIFF file. Processing ' \
-                    'will terminate.'
-                logIt (msg, self.log_handler)
-                return ERROR
-            
-            endTime = time.time()
-            msg = '    Processing time = %f seconds' % (endTime-startTime)
+            cmd = 'gdal_merge.py -o %s -init -9999 -n -9999 -a_nodata -9999 ' \
+                '-ul_lr %d %d %d %d -of ENVI %s' % (resamp_band_dict[i],  \
+                self.spatial_extent['West'], self.spatial_extent['North'],  \
+                self.spatial_extent['East'], self.spatial_extent['South'],  \
+                xmlAttr.band_dict[i])
+            msg = '    ' + cmd
             logIt (msg, self.log_handler)
+            os.system(cmd)
 
-        # calculate ndvi, ndmi, nbr, nbr2 from the converted tif file and
-        # create the mask file (basically copy over the QA file)
-        startTime = time.time()
+        # calculate ndvi, ndmi, nbr, nbr2 from the resampled files
         msg = '   Calculating spectral indices...'
         logIt (msg, self.log_handler)
-        specIndx = spectralIndex (tif_file, self.log_handler)
-        if status != SUCCESS:
-            # error message already written by class constructor
+        specIndx = spectralIndex (resamp_band_dict, self.log_handler)
+        if specIndx == None:
+            msg = 'Error generating the spectral indices for ' + xml_file
+            logIt (msg, self.log_handler)
             return ERROR
 
-        ndvi_file = self.ndvi_dir + os.path.basename(tif_file)
-        ndmi_file = self.ndmi_dir + os.path.basename(tif_file)
-        nbr_file = self.nbr_dir + os.path.basename(tif_file)
-        nbr2_file = self.nbr2_dir + os.path.basename(tif_file)
-        mask_file = self.mask_dir + os.path.basename(tif_file)
         idx_dict = {}
-        idx_dict['ndvi'] = ndvi_file
-        idx_dict['ndmi'] = ndmi_file
-        idx_dict['nbr']  = nbr_file
-        idx_dict['nbr2'] = nbr2_file
-        idx_dict['mask'] = mask_file
-        specIndx.createSpectralIndices (idx_dict, self.make_histos,
+        idx_dict['ndvi'] = self.ndvi_dir +  \
+            os.path.basename (xml_file.replace ('.xml', '_ndvi.img'))
+        idx_dict['ndmi'] = self.ndmi_dir +  \
+            os.path.basename (xml_file.replace ('.xml', '_ndmi.img'))
+        idx_dict['nbr'] = self.nbr_dir +  \
+            os.path.basename (xml_file.replace ('.xml', '_nbr.img'))
+        idx_dict['nbr2'] = self.nbr2_dir +  \
+            os.path.basename (xml_file.replace ('.xml', '_nbr2.img'))
+        status = specIndx.createSpectralIndices (idx_dict, self.make_histos,
             self.log_handler)
+        if status != SUCCESS:
+            msg = 'Error creating the spectral indices for ' + xml_file
+            logIt (msg, self.log_handler)
+            return ERROR
+
+        # clean up the classes and dictionaries
         del (idx_dict)
-        
-        endTime = time.time()
-        msg = '    Processing time = %f seconds' % (endTime-startTime)
-        logIt (msg, self.log_handler)
+        xmlAttr = None
+        specIndx = None
 
         endTime0 = time.time()
         msg = '***Total scene processing time = %f seconds' %  \
@@ -714,7 +477,7 @@ class temporalBAStack():
         output from each application will be logged to that file.
         
         Args:
-          stack_file - name of stack file to create; list of the lndsr products
+          stack_file - name of stack file to create; list of the XML products
               to be processed in addition to the date, path/row, sensor,
               bounding coords, pixel size, and UTM zone
         
@@ -762,26 +525,26 @@ class temporalBAStack():
         msg = '\nProcessing stack for %d - %d' % (start_year, end_year)
         logIt (msg, self.log_handler)
 
-        # determine the mask file for the first scene listed in the stack
-        self.hdf_dir_name = os.path.dirname(self.csv_data['file_'][0])
+        # determine band1 file for the first scene listed in the stack
         first_file = self.csv_data['file_'][0]
-        base_file = os.path.basename(first_file.replace('.hdf', '.tif'))
-        first_file = '%s/mask/%s' % (self.hdf_dir_name, base_file)
+        base_file = os.path.basename(  \
+            first_file.replace('.xml', '_sr_band1.img'))
+        first_file = '%s%s' % (self.refl_dir, base_file)
 
-        # open the first file in the stack (GeoTIFF) to get ncols and nrows
+        # open the mask for the first file in the stack to get ncols and nrows
         # and other associated info for the stack of scenes
-        tifBand1 = TIF_Scene_1_band(first_file, 1, self.log_handler)
-        if tifBand1 is None:
-            msg = 'Error reading the GeoTIFF file: ' + first_file
-            logIt (msg, self.log_handler)
-            return ERROR
+        enviMask = ENVI_Scene (first_file, self.log_handler)
+        if enviMask is None:
+             msg = 'Error reading the ENVI file: ' + first_file
+             logIt (msg, self.log_handler)
+             return ERROR
 
-        self.ncol = tifBand1.NCol
-        self.nrow = tifBand1.NRow
-        self.geotrans = tifBand1.dataset.GetGeoTransform()
-        self.prj = tifBand1.dataset.GetProjectionRef()
-        self.nodata = tifBand1.NoData
-        tifBand1 = None
+        self.ncol = enviMask.NCol
+        self.nrow = enviMask.NRow
+        self.geotrans = enviMask.dataset.GetGeoTransform()
+        self.prj = enviMask.dataset.GetProjectionRef()
+        self.nodata = enviMask.NoData
+        enviMask = None
 
         # load up the work queue for processing yearly summaries in parallel
         work_queue = multiprocessing.Queue()
@@ -830,7 +593,9 @@ class temporalBAStack():
           Updated on 9/20/2013 by Gail Schmidt, USGS/EROS LSRD Project
               Modified to process a summary product with fill if there aren't
               any valid inputs for the current season/year.
-        
+          Updated on 3/24/2014 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to utilize the ESPA internal raw binary format
+
         Args:
           year - year to process the seasonal summaries
         
@@ -852,7 +617,7 @@ class temporalBAStack():
         # loop through seasons
         last_year = year - 1
         for season in ['winter', 'spring', 'summer', 'fall']:
-            # determine which files apply to the current season in the
+            # determine which scenes apply to the current season in the
             # current year
             if season == 'winter':
                 season_files =  \
@@ -874,16 +639,13 @@ class temporalBAStack():
                     ((self.csv_data['month'] >= 9) &   \
                      (self.csv_data['month'] <= 11))
  
-            # how many files do we have for the current year and season?
+            # how many scenes do we have for the current year and season?
             # if there aren't any files to process then write out a
             # product with fill
             n_files = sum (season_files)
             msg = '  season = %s,  file count = %d' % (season, n_files)
             logIt (msg, self.log_handler)
  
-            # generate the directory name for the mask stack
-            dir_name = '%s/mask/' % self.hdf_dir_name
-            
             # pull the files for this year and season
             files = self.csv_data['file_'][season_files]
             
@@ -894,8 +656,8 @@ class temporalBAStack():
             # and stack them up in a 3D array
             for i in range(0, n_files):
                 temp = files[i]
-                base_file = os.path.basename(temp.replace('.hdf', '.tif'))
-                mask_file = '%s%s' % (dir_name, base_file)
+                base_file = os.path.basename(temp.replace('.xml', '_mask.img'))
+                mask_file = '%s%s' % (self.mask_dir, base_file)
                 mask_dataset = gdal.Open (mask_file, gdalconst.GA_ReadOnly)
                 if mask_dataset is None:
                     msg = 'Could not open mask file: ' + mask_file
@@ -924,18 +686,18 @@ class temporalBAStack():
             else:
                 good_looks = zeros((self.nrow, self.ncol), dtype=uint8)
             
-            # save the good looks output to a GeoTIFF file
-            good_looks_file = dir_name + str(year) + '_' + season +  \
-                '_good_count.tif'
+            # save the good looks output to an ENVI file
+            good_looks_file = self.mask_dir + str(year) + '_' + season +  \
+                '_good_count.img'
             
-            # write the good looks count to an output GeoTIFF file as a
+            # write the good looks count to an output ENVI file as a
             # byte product.  the noData value for this set will be 0 vs.
             # the traditional nodata value of -9999, since we are working
             # with a byte product.
-            driver = gdal.GetDriverByName("GTiff")
-            driver.Create(good_looks_file, self.ncol, self.nrow, 1,  \
+            driver = gdal.GetDriverByName('ENVI')
+            driver.Create (good_looks_file, self.ncol, self.nrow, 1,  \
                 gdalconst.GDT_Byte)
-            good_looks_dataset = gdal.Open(good_looks_file,  \
+            good_looks_dataset = gdal.Open (good_looks_file,  \
                 gdalconst.GA_Update)
             if good_looks_dataset is None:
                 msg = 'Could not create output file: ' + good_looks_file
@@ -966,19 +728,29 @@ class temporalBAStack():
                 logIt (msg, self.log_handler)
                 
                 # generate the directory name for the index stack
-                if (ind == 'ndvi') or (ind == 'ndmi') or (ind == 'nbr') or \
-                    (ind == 'nbr2'):
-                    dir_name = '%s/%s/' % (self.hdf_dir_name, ind)
-                else:   # tif file
-                    dir_name = '%s/refl/' % self.hdf_dir_name
+                if (ind == 'ndvi'):
+                    dir_name = self.ndvi_dir
+                    ext = '_%s.img' % ind
+                elif (ind == 'ndmi'):
+                    dir_name = self.ndmi_dir
+                    ext = '_%s.img' % ind
+                elif (ind == 'nbr'):
+                    dir_name = self.nbr_dir
+                    ext = '_%s.img' % ind
+                elif (ind == 'nbr2'):
+                    dir_name = self.nbr2_dir
+                    ext = '_%s.img' % ind
+                else:   # refl file
+                    dir_name = self.refl_dir
+                    ext = '_sr_%s.img' % ind
     
-                # set up the season summaries GeoTIFF file
+                # set up the season summaries file
                 temp_file = dir_name + str(year) + '_' + season + '_' +  \
-                    ind + '.tif'
-                driver = gdal.GetDriverByName("GTiff")
-                driver.Create(temp_file, self.ncol, self.nrow, 1,  \
+                    ind + '.img'
+                driver = gdal.GetDriverByName('ENVI')
+                driver.Create (temp_file, self.ncol, self.nrow, 1,  \
                     gdalconst.GDT_Int16)
-                temp_out_dataset = gdal.Open(temp_file, gdalconst.GA_Update)
+                temp_out_dataset = gdal.Open (temp_file, gdalconst.GA_Update)
                 if temp_out_dataset is None:
                     msg = 'Could not create output file: ' + temp_file
                     logIt (msg, self.log_handler)
@@ -997,9 +769,7 @@ class temporalBAStack():
                 input_ds = {}
                 temp_band = {}
                 for i in range(0, n_files):
-                    temp = files[i]
-                    base_file = os.path.basename(files[i]).replace( \
-                        '.hdf', '.tif')
+                    base_file = os.path.basename(files[i]).replace('.xml', ext)
                     temp_file = '%s%s' % (dir_name, base_file)
                     my_ds = gdal.Open (temp_file, gdalconst.GA_ReadOnly)
                     if my_ds is None:
@@ -1008,20 +778,8 @@ class temporalBAStack():
                         return ERROR
                     input_ds[i] = my_ds
                     
-                    # open the appropriate band in the input image; if
-                    # processing an index product, then read band 1
-                    if ind == 'band3':
-                        my_temp_band = my_ds.GetRasterBand(3)
-                    elif ind == 'band4':
-                        my_temp_band = my_ds.GetRasterBand(4)
-                    elif ind == 'band5':
-                        my_temp_band = my_ds.GetRasterBand(5)
-                    elif ind == 'band7':
-                        my_temp_band = my_ds.GetRasterBand(7)
-                    else:  # index product
-                        my_temp_band = my_ds.GetRasterBand(1)
-
-                    # make sure the band is valid
+                    # open the appropriate band in the input image
+                    my_temp_band = my_ds.GetRasterBand(1)
                     if my_temp_band is None:
                         msg = 'Could not open raster band for ' + ind
                         logIt (msg, self.log_handler)
@@ -1063,7 +821,7 @@ class temporalBAStack():
                         mean_data = zeros((self.ncol), dtype=uint16) +  \
                             self.nodata
     
-                    # write the season summaries to a GeoTIFF file
+                    # write the season summaries to a file
                     mean_data_2d = reshape (mean_data, (1, len(mean_data)))
                     temp_out.WriteArray(mean_data_2d, 0, y)
                 # end for y
@@ -1094,7 +852,7 @@ class temporalBAStack():
         the output from each application will be logged to that file.
         
         Args:
-          stack_file - name of stack file to create; list of the lndsr products
+          stack_file - name of stack file to create; list of the XML products
               to be processed in addition to the date, path/row, sensor,
               bounding coords, pixel size, and UTM zone
         
@@ -1135,26 +893,26 @@ class temporalBAStack():
         msg = '\nProcessing stack for %d - %d' % (start_year, end_year)
         logIt (msg, self.log_handler)
 
-        # determine the mask file for the first scene listed in the stack
-        self.hdf_dir_name = os.path.dirname(self.csv_data['file_'][0])
+        # determine band1 file for the first scene listed in the stack
         first_file = self.csv_data['file_'][0]
-        base_file = os.path.basename(first_file.replace('.hdf', '.tif'))
-        first_file = '%s/mask/%s' % (self.hdf_dir_name, base_file)
+        base_file = os.path.basename(  \
+            first_file.replace('.xml', '_sr_band1.img'))
+        first_file = '%s%s' % (self.refl_dir, base_file)
 
-        # open the first file in the stack (GeoTIFF) to get ncols and nrows
+        # open the mask for the first file in the stack to get ncols and nrows
         # and other associated info for the stack of scenes
-        tifBand1 = TIF_Scene_1_band(first_file, 1, self.log_handler)
-        if tifBand1 is None:
-            msg = 'Error reading the GeoTIFF file: ' + first_file
-            logIt (msg, self.log_handler)
-            return ERROR
+        enviMask = ENVI_Scene (first_file, self.log_handler)
+        if enviMask is None:
+             msg = 'Error reading the ENVI file: ' + first_file
+             logIt (msg, self.log_handler)
+             return ERROR
 
-        self.ncol = tifBand1.NCol
-        self.nrow = tifBand1.NRow
-        self.geotrans = tifBand1.dataset.GetGeoTransform()
-        self.prj = tifBand1.dataset.GetProjectionRef()
-        self.nodata = tifBand1.NoData
-        tifBand1 = None
+        self.ncol = enviMask.NCol
+        self.nrow = enviMask.NRow
+        self.geotrans = enviMask.dataset.GetGeoTransform()
+        self.prj = enviMask.dataset.GetProjectionRef()
+        self.nodata = enviMask.NoData
+        enviMask = None
 
         # load up the work queue for processing annual maximums in parallel
         work_queue = multiprocessing.Queue()
@@ -1197,6 +955,8 @@ class temporalBAStack():
         application will be logged to that file.
         
         History:
+          Updated on 3/24/2014 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to utilize the ESPA internal raw binary format
         
         Args:
           year - year to process the maximums
@@ -1220,9 +980,6 @@ class temporalBAStack():
         if n_files == 0:
             return SUCCESS
  
-        # generate the directory name for the mask stack
-        dir_name = '%s/mask/' % self.hdf_dir_name
-            
         # pull the files for the current year
         files = self.csv_data['file_'][year_files]
             
@@ -1233,8 +990,8 @@ class temporalBAStack():
         # and stack them up in a 3D array
         for i in range(0, n_files):
             temp = files[i]
-            base_file = os.path.basename(temp.replace('.hdf', '.tif'))
-            mask_file = '%s%s' % (dir_name, base_file)
+            base_file = os.path.basename(temp.replace('.xml', '_mask.img'))
+            mask_file = '%s%s' % (self.mask_dir, base_file)
             mask_dataset = gdal.Open (mask_file, gdalconst.GA_ReadOnly)
             if mask_dataset is None:
                 msg = 'Could not open mask file: ' + mask_file
@@ -1261,14 +1018,22 @@ class temporalBAStack():
             logIt (msg, self.log_handler)
                 
             # generate the directory name for the index stack
-            dir_name = '%s/%s/' % (self.hdf_dir_name, ind)
+            ext = '_%s.img' % ind
+            if (ind == 'ndvi'):
+                dir_name = self.ndvi_dir
+            elif (ind == 'ndmi'):
+                dir_name = self.ndmi_dir
+            elif (ind == 'nbr'):
+                dir_name = self.nbr_dir
+            elif (ind == 'nbr2'):
+                dir_name = self.nbr2_dir
     
-            # set up the annual maximum GeoTIFF file
-            temp_file = dir_name + str(year) + '_maximum_' + ind + '.tif'
-            driver = gdal.GetDriverByName("GTiff")
-            driver.Create(temp_file, self.ncol, self.nrow, 1,  \
+            # set up the annual maximum ENVI file
+            temp_file = dir_name + str(year) + '_maximum_' + ind + '.img'
+            driver = gdal.GetDriverByName('ENVI')
+            driver.Create (temp_file, self.ncol, self.nrow, 1,  \
                 gdalconst.GDT_Int16)
-            temp_out_dataset = gdal.Open(temp_file, gdalconst.GA_Update)
+            temp_out_dataset = gdal.Open (temp_file, gdalconst.GA_Update)
             if temp_out_dataset is None:
                 msg = 'Could not create output file: ' + temp_file
                 logIt (msg, self.log_handler)
@@ -1288,7 +1053,7 @@ class temporalBAStack():
             indx_band = {}
             for i in range(0, n_files):
                 temp = files[i]
-                base_file = os.path.basename(files[i]).replace('.hdf', '.tif')
+                base_file = os.path.basename(files[i]).replace('.xml', ext)
                 temp_file = '%s%s' % (dir_name, base_file)
                 my_ds = gdal.Open (temp_file, gdalconst.GA_ReadOnly)
                 if my_ds is None:
@@ -1299,8 +1064,6 @@ class temporalBAStack():
                 
                 # open band 1 of the index product
                 my_indx_band = my_ds.GetRasterBand(1)
-
-                # make sure the band is valid
                 if my_indx_band is None:
                     msg = 'Could not open raster band for ' + ind
                     logIt (msg, self.log_handler)
@@ -1330,7 +1093,7 @@ class temporalBAStack():
                     max_data = zeros((self.ncol), dtype=uint16) +  \
                         self.nodata
     
-                # write the annual maximums to a GeoTIFF file
+                # write the annual maximums to an output file
                 max_data_2d = reshape (max_data, (1, len(max_data)))
                 temp_out.WriteArray(max_data_2d, 0, y)
             # end for y
@@ -1365,17 +1128,18 @@ class temporalBAStack():
               Modified to use argparser vs. optionparser, since optionparser
               is deprecated.
           Updated on 12/16/2013 by Gail Schmidt, USGS/EROS LSRD Project
-              Cleaned up the temporary lndsr*.tif files in the subdirectories.
-              These are the files that were reprojected to the common
-              geographic extents.
+              Cleaned up the temporary reflectance and mask files in the
+              subdirectories.  These are the files that were reprojected to
+              the common geographic extents.
         
         Args:
-          input_dir - name of the directory in which to find the lndsr products
-              to be processed
-          exclude_l1g - if True, then the L1G files are excluded from the
-              processing stack and only the L1T files are processed.  These
-              L1G files are also moved to a directory called exclude_l1g in
-              the input directory.
+          input_dir - name of the directory in which to find the surface
+              reflectance products to be processed; input_list.txt and
+              input_stack.csv are both created in this directory.
+          exclude_l1g - if True, then the L1G-based files are excluded from the
+              processing stack and only the L1T-based files are processed.
+              These L1G files are also moved to a directory called exclude_l1g
+              in the input directory.
           logfile - name of the logfile for logging information; if None then
               the output will be written to stdout
           make_histos - if the user wants to generate histograms and overview
@@ -1413,8 +1177,8 @@ class temporalBAStack():
                 dest='input_dir',
                 help='path to the input directory where the temporal stack '  \
                     'of data resides and where the data will be processed '  \
-                    '(i.e. need read and write permissions to this directory)',
-                metavar='DIR')
+                    '(i.e. need read and write permissions to this '  \
+                    'directory)', metavar='DIR')
             parser.add_argument ('-l', '--logfile', type=str, dest='logfile',
                 help='name of optional log file', metavar='FILE')
             parser.add_argument ('--make_histos', dest='make_histos',
@@ -1514,16 +1278,30 @@ class temporalBAStack():
         if exclude_l1g:
             self.exclude_l1g_files()
 
-        # generate the stack and list files for processing to identify the
-        # list of reflectance files to be processed
-        msg = 'Calling stack_generate'
-        logIt (msg, self.log_handler)
-        stack_file = "hdf_stack.csv"
-        list_file = "hdf_list.txt"
-        status = self.generate_stack (stack_file, list_file)
+        # generate the list of XML files that will be processed from the
+        # current directory
+        list_file = "input_list.txt"
+        status = self.generate_list (list_file)
         if status != SUCCESS:
-            msg = 'Error generating the list of files to be processed. ' \
+            msg = 'Error creating the list of files to be processed. ' \
                 'Processing will terminate.'
+            logIt (msg, self.log_handler)
+            os.chdir (mydir)
+            return ERROR
+
+        # run the executable to generate the stack of metadata for the input
+        # files.  exit if any errors occur.
+        logIt (msg, self.log_handler)
+        stack_file = "input_stack.csv"
+        cmdstr = '%sgenerate_stack --list_file=%s --stack_file=%s ' \
+            '--verbose' % (bin_dir, list_file, stack_file)
+        cmdlist = cmdstr.split(' ')
+        try:
+            output = subprocess.check_output (cmdlist, stderr=None)
+            logIt (output, self.log_handler)
+        except subprocess.CalledProcessError, e:
+            msg = 'Error running generate_stack. Processing will ' \
+                'terminate.\n ' + e.output
             logIt (msg, self.log_handler)
             os.chdir (mydir)
             return ERROR
@@ -1544,12 +1322,12 @@ class temporalBAStack():
             os.chdir (mydir)
             return ERROR
 
-        # convert the HDF files to GeoTIFF and then resample the files to
-        # the maximum bounding extent of the stack
-        status = self.stackHDFToTiff (bounding_box_file, stack_file)
+        # resample the files to the maximum bounding extent of the stack
+        # and calculate the spectral indices
+        status = self.resampleStack (bounding_box_file, stack_file)
         if status != SUCCESS:
-            msg = 'Error converting the list of files from HDF to GeoTIFF. ' \
-                'Processing will terminate.'
+            msg = 'Error resampling the list of files to the max bounding ' \
+                'extents. Processing will terminate.'
             logIt (msg, self.log_handler)
             os.chdir (mydir)
             return ERROR
@@ -1574,17 +1352,19 @@ class temporalBAStack():
 
         # clean up the temporary files that were created as part of this
         # processing
-        cleanup_dirs = [self.refl_dir, self.ndvi_dir, self.ndmi_dir,
-            self.nbr_dir, self.nbr2_dir, self.mask_dir]
-        for mydir in cleanup_dirs:
-            for file in os.listdir(mydir):
-                if file.startswith("lndsr.") & file.endswith(".tif"):
-                    os.remove(os.path.join(mydir,file))
+#        cleanup_dirs = [self.refl_dir, self.ndvi_dir, self.ndmi_dir,
+#            self.nbr_dir, self.nbr2_dir, self.mask_dir]
+#        for mydir in cleanup_dirs:
+#            for file in os.listdir (mydir):
+#                for scene in enumerate (stack):
+#                    xml_file = scene[1][header_row.index('file')]
+#                    if file.startswith(xml_file.replace ('.xml', '')):
+#                        os.remove(os.path.join(mydir,file))
 
         # dump out the processing time, convert seconds to hours
         endTime0 = time.time()
         msg = '***Total stack processing time = %f hours' % \
-            ((endTime0 - startTime0) / 1440.0)
+            ((endTime0 - startTime0) / 3600.0)
         logIt (msg, self.log_handler)
 
         msg = 'End time:' + \
