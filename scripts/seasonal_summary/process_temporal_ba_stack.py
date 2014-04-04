@@ -42,7 +42,7 @@ class temporalBAStack():
     """
 
     # Data attributes
-    input_dir = "None"        # base directory where lndsr products reside
+    input_dir = "None"        # base directory where sr products reside
     refl_dir = "None"         # reflective data directory
     ndvi_dir = "None"         # NDVI data directory
     ndmi_dir = "None"         # NDMI data directory
@@ -106,11 +106,13 @@ class temporalBAStack():
            the L1G scenes, leaving the L1T scenes.
         Description: exclude_l1g_files will loop through the HDF files in the
             input_dir, read the DATA_TYPE from the associated _MTL.txt file,
-            and move the lndsr and _MTL.txt file for that scene to a
-            subdirectory called 'exclude_l1g'.
+            and move the sr and _MTL.txt file for that scene to a subdirectory
+            called 'exclude_l1g'.
 
         History:
           Created on 12/11/2013 by Gail Schmidt, USGS/EROS LSRD Project
+          Modified on 4/4/2014 by Gail Schmidt, USGS/EROS LSRD Project
+            Updated to use the ESPA internal raw binary file format
         
         Args: None
 
@@ -122,15 +124,14 @@ class temporalBAStack():
         # loop through the HDF files in the input directory
         l1g_dir = self.input_dir + 'exclude_l1g/'
         for f_in in sort(os.listdir(self.input_dir)):
-            if f_in.endswith(".hdf") and (f_in.find("lndsr") == 0):
+            if f_in.endswith(".xml") and not f_in.endswith(".aux.xml"):
                 input_file = self.input_dir + f_in
                 scene_file = f_in
 
                 # get the scene name from the current file
-                # (Ex. lndsr.LT50170391984072XXX07.hdf)
+                # (Ex. LT50170391984072XXX07.xml)
                 base_file = os.path.basename(scene_file)
-                scene_name = base_file.replace('lndsr.', '')
-                scene_name = scene_name.replace('.hdf', '')
+                scene_name = base_file.replace('.xml', '')
 
                 # determine the _MTL.txt filename
                 mtl_name = scene_name + '_MTL.txt'
@@ -149,15 +150,12 @@ class temporalBAStack():
                         logIt (msg, self.log_handler)
                         os.makedirs(l1g_dir, 0755)
 
-                    # move the lndsr and metadata file
-                    output_file = l1g_dir + scene_file
-                    output_mtl_file = l1g_dir + mtl_name
-                    msg = 'Moving %s to %s' % (input_file, l1g_dir)
+                    # move the scene files to the exclude subdirectory
+                    all_files = self.input_dir + scene_name + '*'
+                    msg = 'Moving %s to %s' % (all_files, l1g_dir)
                     logIt (msg, self.log_handler)
-                    msg = 'Moving %s to %s' % (input_mtl_file, l1g_dir)
-                    logIt (msg, self.log_handler)
-                    shutil.move (input_file, output_file)
-                    shutil.move (input_mtl_file, output_mtl_file)
+                    for data in glob.glob(self.input_dir + scene_name + '*'):
+                        shutil.move (data, l1g_dir)
 
 
     def generate_list (self, list_file):
@@ -1362,16 +1360,16 @@ class temporalBAStack():
 
         # clean up the temporary files that were created as part of this
         # processing
-        cleanup_dirs = [self.refl_dir, self.ndvi_dir, self.ndmi_dir,
-            self.nbr_dir, self.nbr2_dir, self.mask_dir]
-        for scene in enumerate (stack):
-            for mydir in cleanup_dirs:
-                full_xml_file = scene[1][header_row.index('file')]
-                xml_file = os.path.basename (full_xml_file.replace ('.xml', ''))
-                rm_files = glob.glob (mydir + xml_file + '*')
-                for file in rm_files:
+#        cleanup_dirs = [self.refl_dir, self.ndvi_dir, self.ndmi_dir,
+#            self.nbr_dir, self.nbr2_dir, self.mask_dir]
+#        for scene in enumerate (stack):
+#            for mydir in cleanup_dirs:
+#                full_xml_file = scene[1][header_row.index('file')]
+#                xml_file = os.path.basename (full_xml_file.replace ('.xml', ''))
+#                rm_files = glob.glob (mydir + xml_file + '*')
+#                for file in rm_files:
 #                    print 'Remove: ' + file
-                    os.remove (os.path.join (file))
+#                    os.remove (os.path.join (file))
 
         # close the stack file
         stack = None
