@@ -24,14 +24,9 @@ NOTES:
 #include "PredictBurnedArea.h"
 
 /* Prototypes */
-bool CreateOutput(char *file_name, char *input_header, char *output_header);
-Output_t *OpenOutput(char *file_name, int nband,
-    char sds_names[NBAND_MAX_OUT][MAX_STR_LEN], Img_coord_int_t *size);
-bool PutMetadata(Output_t *ds_output, int nband,
-    char sds_names[NBAND_MAX_OUT][MAX_STR_LEN], Input_meta_t *meta);
+bool CreateOutputHeader (char *base_name, char *output_file);
+Output_t *OpenOutput(char *file_name, Img_coord_int_t *size);
 bool CloseOutput(Output_t *ds_output);
 bool FreeOutput(Output_t *ds_output);
-void GenerateShortName(char *sat, char *inst, char *product_id,
-    char *short_name);
 
 #endif
