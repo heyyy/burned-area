@@ -1358,8 +1358,8 @@ class temporalBAStack():
         for elem in range (0, len(header_row)):
             header_row[elem] = header_row[elem].strip()
 
-        # clean up the temporary files that were created as part of this
-        # processing
+        # clean up the temporary maximum extent files that were created as
+        # part of this processing
 #        cleanup_dirs = [self.refl_dir, self.ndvi_dir, self.ndmi_dir,
 #            self.nbr_dir, self.nbr2_dir, self.mask_dir]
 #        for scene in enumerate (stack):
