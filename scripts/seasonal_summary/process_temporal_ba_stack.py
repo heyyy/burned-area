@@ -1147,6 +1147,8 @@ class temporalBAStack():
           make_histos - if the user wants to generate histograms and overview
               pyramids of the output GeoTIFF products, then set this cmd-line
               option
+          num_processors - how many processors should be used for parallel
+              processing sections of the application
           usebin - this specifies if the BA exes reside in the $BIN directory;
               if None then the BA exes are expected to be in the PATH
         
