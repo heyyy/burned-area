@@ -71,11 +71,10 @@ class parallelSceneRegressionWorker(multiprocessing.Process):
             # process the scene
             msg = 'Processing %s ...' % xml_file
             logIt (msg, self.stackObject.log_handler)
-            status = SUCCESS
             status = self.stackObject.sceneBoostedRegression (xml_file)
             if status != SUCCESS:
-                msg = 'Error running boosted regression on the XML file (%s). ' \
-                    'Processing will terminate.' % xml_file
+                msg = 'Error running boosted regression on the XML file ' \
+                    '(%s). Processing will terminate.' % xml_file
                 logIt (msg, self.stackObject.log_handler)
  
             # store the result
@@ -124,43 +123,53 @@ class BurnedArea():
             SUCCESS - successful processing
         """
    
+        # split the xml file into directory and base name
+        dir_name = os.path.dirname(xml_file)
+        base_name = os.path.basename(xml_file)
+
         # create a unique config file since these will potentially be
-        # processed in parallel
+        # processed in parallel.  if the config directory doesn't already
+        # exist then create it.
+        config_dir = dir_name + '/config'
+        if not os.path.exists(config_dir):
+            msg = 'config directory does not exist: %s. Creating ...' %  \
+                config_dir
+            logIt (msg, self.log_handler)
+            os.makedirs(l1g_dir, 0755)
+
         temp_file = tempfile.NamedTemporaryFile(mode='w', prefix='temp',
-            suffix=self.config_file, delete=True)
+            suffix=self.config_file, dir=config_dir, delete=True)
         temp_file.close()
         config_file = temp_file.name
-        print "DEBUG: Creating config file: " + config_file
 
         # determine the base surface reflectance filename, already been
         # resampled to the maximum extents to match the seasonal summaries
         # and annual maximums
-        base_file = 'refl/' + xml_file.replace('.xml', '')
-        mask_file = 'mask/' + xml_file.replace('.xml', '_mask.img')
+        base_file = dir_name + '/refl/' + base_name.replace('.xml', '')
+        mask_file = dir_name + '/mask/' + base_name.replace('.xml', '_mask.img')
 
         # generate the configuration file for boosted regression
         status = BoostedRegressionConfig().runGenerateConfig(
-            config_file=config_file, seasonal_sum_dir=input_dir,
+            config_file=config_file, seasonal_sum_dir=dir_name,
             input_base_file=base_file, input_mask_file=mask_file,
-            output_dir=output_dir, model_file=model_file)
+            output_dir=self.output_dir, model_file=self.model_file)
         if status != SUCCESS:
             msg = 'Error creating the configuration file for ' + xml_file
             logIt (msg, self.log_handler)
-            os.chdir (mydir)
             return ERROR
 
         # run the boosted regression, passing the configuration file
-        print "DEBUG: Processing config file: " + config_file
         status = BoostedRegression().runBoostedRegression(  \
-            config_file=config_file, logfile=logfile)
+            config_file=config_file, logfile=self.logfile)
         if status != SUCCESS:
             msg = 'Error running boosted regression for ' + xml_file
             logIt (msg, self.log_handler)
-            os.chdir (mydir)
             return ERROR
 
         # clean up the temporary configuration file
-#        os.remove(config_file)
+        os.remove(config_file)
+
+        return SUCCESS
 
 
     def runBurnedArea(self, sr_list_file=None, input_dir=None,  \
@@ -285,6 +294,7 @@ class BurnedArea():
 
         # open the log file if it exists; use line buffering for the output
         self.log_handler = None
+        self.logfile = logfile
         if logfile is not None:
             self.log_handler = open (logfile, 'w', buffering=1)
 
@@ -335,6 +345,9 @@ class BurnedArea():
             os.chdir (mydir)
             return ERROR
 
+        # save the output directory for the configuration file usage
+        self.output_dir = output_dir
+
         # loop through the scenes and determine the path/row along with the
         # starting and ending year in the stack
         start_year = 9999
@@ -345,7 +358,7 @@ class BurnedArea():
             # get the scene name from the current file
             # (Ex. LT50170391984072XXX07.xml)
             base_file = os.path.basename(curr_file)
-            scene_name = scene_name.replace('.xml', '')
+            scene_name = base_file.replace('.xml', '')
 
             # get the path/row from the first file
             if i == 0:
@@ -390,14 +403,14 @@ class BurnedArea():
         logIt (msg, self.log_handler)
 
         # run the seasonal summaries and annual maximums for this stack
-        msg = '\nProcessing seasonal summaries and annual maximums ...'
-        status = temporalBAStack().processStack(input_dir=input_dir,  \
-            exclude_l1g=True, logfile=logfile, num_processors=num_processors)
-        if status != SUCCESS:
-            msg = 'Error running seasonal summaries and annual maximums'
-            logIt (msg, self.log_handler)
-            os.chdir (mydir)
-            return ERROR
+#        msg = '\nProcessing seasonal summaries and annual maximums ...'
+#        status = temporalBAStack().processStack(input_dir=input_dir,  \
+#            exclude_l1g=True, logfile=logfile, num_processors=num_processors)
+#        if status != SUCCESS:
+#            msg = 'Error running seasonal summaries and annual maximums'
+#            logIt (msg, self.log_handler)
+#            os.chdir (mydir)
+#            return ERROR
 
         # open and read the stack file generated by the seasonal summaries
         # which excludes the L1G products if any were found
@@ -418,10 +431,10 @@ class BurnedArea():
         # TODO - GAIL update the model hash table
         # determine the model file for this path/row
         model_base_file = get_model_name(path, row)
-        model_file = '%s/%s' % (model_dir, model_base_file)
-        if not os.path.exists(model_file):
+        self.model_file = '%s/%s' % (model_dir, model_base_file)
+        if not os.path.exists(self.model_file):
             msg = 'Model file for path/row %d, %d does not exist: %s' %  \
-                (path, row, model_file)
+                (path, row, self.model_file)
             logIt (msg, self.log_handler)
             return ERROR
 
@@ -440,13 +453,14 @@ class BurnedArea():
             # filter out the start_year scenes since we need the previous
             # year to run the boosted regression algorithm
             base_file = os.path.basename(xml_file)
-            scene_name = scene_name.replace('.xml', '')
+            scene_name = base_file.replace('.xml', '')
             year = int(scene_name[9:13])
             if year == start_year:
                 # skip to the next scene
                 continue
 
             # add this file to the queue to be processed
+            print 'Pushing on the queue ... ' + xml_file
             work_queue.put(xml_file)
 
         # create a queue to pass to workers to store the processing status
@@ -458,7 +472,8 @@ class BurnedArea():
             'processors ....' % (num_scenes, num_processors)
         logIt (msg, self.log_handler)
         for i in range(num_processors):
-            worker = parallelSceneRegressionWorker(work_queue, result_queue, self)
+            worker = parallelSceneRegressionWorker(work_queue, result_queue,
+                self)
             worker.start()
  
         # collect the boosted regression results off the queue

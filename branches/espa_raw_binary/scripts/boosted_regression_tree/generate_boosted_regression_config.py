@@ -132,9 +132,6 @@ class BoostedRegressionConfig():
         log_handler = None
         if logfile is not None:
             log_handler = open (logfile, 'w', buffering=1)
-        msg = 'Burned area temporal stack processing of directory: ' +  \
-            input_dir
-        logIt (msg, self.log_handler)
 
         # make sure the seasonal summary directory exists
         if not os.path.exists(seasonal_sum_dir):
@@ -153,9 +150,9 @@ class BoostedRegressionConfig():
             return ERROR
 
         # make sure the mask file exists
-        if not os.path.exists(mask_file):
+        if not os.path.exists(input_mask_file):
             msg = 'Error: input mask file does not exist or is not ' \
-                'accessible: %s' % mask_file
+                'accessible: %s' % input_mask_file
             logIt (msg, log_handler)
             return ERROR
 
