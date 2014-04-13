@@ -23,7 +23,7 @@ NOTES:
 
 #include <stdlib.h>
 #include <stdio.h>
-#include "raw_binary_io.h"
+#include "common.h"
 #include "PredictBurnedArea.h"
 
 /* Prototypes */

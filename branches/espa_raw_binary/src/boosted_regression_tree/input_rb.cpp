@@ -19,6 +19,16 @@ NOTES:
 
 #include "input_rb.h"
 
+/* The following libraries are external C libraries from ESPA */
+extern "C" {
+FILE *open_raw_binary (char *infile, char *access_type);
+void close_raw_binary (FILE *fptr);
+int read_raw_binary (FILE *rb_fptr, int nlines, int nsamps, int size,
+    void *img_array);
+int write_raw_binary (FILE *rb_fptr, int nlines, int nsamps, int size,
+    void *img_array);   
+}
+
 /******************************************************************************
 MODULE:  OpenRbInput
 
@@ -64,16 +74,16 @@ Input_Rb_t *OpenRbInput
 
     /* Populate the data structure */
     ds_input->file_name = DupString(file_name);
-    if (ds_input->base_name == NULL)
+    if (ds_input->file_name == NULL)
         RETURN_ERROR ("Error duplicating input raw binary file name",
             "OpenRbInput", NULL);
 
     /* Open the input raw binary file */
-    ds_input->fp_img = open_raw_binary (file_name, "rb");
+    ds_input->fp_img = open_raw_binary (file_name, (char *) "rb");
     if (ds_input->fp_img == NULL)
     {
-        sprintf (errstr, "Error opening input raw binary file: %s", file_name);
-        RETURN_ERROR (errstr, "OpenRbInput", NULL);
+        sprintf (errmsg, "Error opening input raw binary file: %s", file_name);
+        RETURN_ERROR (errmsg, "OpenRbInput", NULL);
     }
 
     /* Read the header file to obtain the nlines and nsamps */
@@ -88,8 +98,8 @@ Input_Rb_t *OpenRbInput
     strcpy (cptr, ".hdr");
 
     if (!ReadHdr (input_hdr, &nlines, &nsamps)) {
-        sprintf (errstr, "reading input header file: %s", tmpstr);
-        RETURN_ERROR (errstr, "OpenRbInput", NULL);
+        sprintf (errmsg, "reading input header file: %s", tmpstr);
+        RETURN_ERROR (errmsg, "OpenRbInput", NULL);
     }
     ds_input->size.l = nlines;
     ds_input->size.s = nsamps;
@@ -181,8 +191,6 @@ bool FreeRbInput
     Input_Rb_t *ds_input   /* I: Pointer to the raw binary file data struct */
 )
 {
-    char errmsg[MAX_STR_LEN];   /* error message */
-
     if (ds_input != NULL)
     {
         if (ds_input->open)

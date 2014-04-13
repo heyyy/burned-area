@@ -320,3 +320,48 @@ bool PredictBurnedArea::loadParametersFromFile(int ac, char* av[]) {
     return true;
 }
 
+
+/******************************************************************************
+MODULE: ReadHdr
+
+PURPOSE: Reads the header file for the number of lines and samples
+ 
+RETURN VALUE:
+Type = bool
+Value          Description
+-----          -----------
+false          Error reading the header
+true           Successful processing of the header
+
+HISTORY:
+Date          Programmer       Reason
+----------    ---------------  -------------------------------------
+12/7/2012     Jodi Riegle      Original development
+
+NOTES:
+*****************************************************************************/
+bool ReadHdr (string filename, int* lines, int* samples) {
+    string instring;
+    string variable_name;
+    string variable_value;
+    size_t i;
+    std::ifstream header_file(filename.c_str());
+    *samples = 0;
+    *lines = 0;
+
+    while (!header_file.eof()) {
+        getline(header_file,instring);
+        i = instring.find_first_of("=");
+        if (i != std::string::npos && i >= 0) {
+            variable_name = instring.substr(0,i);
+            variable_value = instring.substr(i+2,instring.length() - i);
+            if (variable_name == "samples ") {
+                *samples = boost::lexical_cast<int>(variable_value);
+            } else if (variable_name == "lines   ") {
+                *lines = boost::lexical_cast<int>(variable_value);
+            }
+        }
+    }
+
+    return true;
+}
