@@ -231,7 +231,7 @@ bool PredictBurnedArea::predictModel
         /* Add the deltas of the annual maximums for the indices */
         if (qaMat.at<char>(y) == INPUT_FILL_VALUE) { // fill
             for (indx = 0; indx < PBA_NINDXS; indx++)
-                sample.at<float>(sample_indx++) = INPUT_FILL_VAL;
+                sample.at<float>(sample_indx++) = INPUT_FILL_VALUE;
         }
         else { // not fill
             for (indx = 0; indx < PBA_NINDXS; indx++) {
@@ -255,18 +255,17 @@ bool PredictBurnedArea::predictModel
            then set it to PBA_CLOUD_WATER. If the pixel is fill then set it to
            PBA_FILL. */
         if (qaMat.at<char>(y) == INPUT_FILL_VALUE)  /* fill pixel */
-            output->buf[0][y] = PBA_FILL;
-        } else if (qaMat.at<char>(y) < 0)   /* cloudy or water pixel */
-            output->buf[0][y] = PBA_CLOUD_WATER;
-        } else {  /* do the probability mapping for burned (class of 1) */
+            output->buf[y] = PBA_FILL;
+        else if (qaMat.at<char>(y) < 0)   /* cloudy or water pixel */
+            output->buf[y] = PBA_CLOUD_WATER;
+        else {  /* do the probability mapping for burned (class of 1) */
             float response = gbtrees.predict_prob (sample, 1);
-            output->buf[0][y] = (int16) (response * 100.0 + 0.5);
-            output->buf[0][y] = PBA_FILL;
+            output->buf[y] = (int16) (response * 100.0 + 0.5);
         }
     }
 
     /* Write the line of probability mappings to the output file */
-    PutOutputLine (output, 0, iline);
+    PutOutputLine (output, iline);
     sample.release();
 
     return true;

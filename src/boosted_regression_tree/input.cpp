@@ -28,6 +28,16 @@ NOTES:
 #include "input.h"
 using namespace std;
 
+/* The following libraries are external C libraries from ESPA */
+extern "C" {
+FILE *open_raw_binary (char *infile, char *access_type);
+void close_raw_binary (FILE *fptr);
+int read_raw_binary (FILE *rb_fptr, int nlines, int nsamps, int size,
+    void *img_array);
+int write_raw_binary (FILE *rb_fptr, int nlines, int nsamps, int size,
+    void *img_array);
+}
+
 /* Band names for the reflectance bands that will be read from the surface
    reflectance product */
 const char *refl_band_names[NUM_REFL_BAND] = {"sr_band1.img", "sr_band2.img",
@@ -73,8 +83,9 @@ Input_t *OpenInput
 {
   char errstr[MAX_STR_LEN];           /* error string */
   char tmpstr[MAX_STR_LEN];           /* temporary string */
+  char tmp_base_name[MAX_STR_LEN];    /* temporary copy of the base_name */
+  char *cptr = NULL;                  /* character pointer */
   int ib;                             /* looping variable for bands */
-  int16 *buf = NULL;                  /* buffer for the reflectance values */
   int nlines;                         /* number of lines in the image */
   int nsamps;                         /* number of samples in the image */
 
@@ -99,15 +110,15 @@ Input_t *OpenInput
 
   /* Open files for access */
   for (ib = 0; ib < ds_input->nband; ib++) {
-    sprintf (tmpstr, "%s_%s", ds_input->base_name, refl_band_names[i]);
-    ds_input->fp_img[ib] = open_raw_binary (tmpstr, "rb");
+    sprintf (tmpstr, "%s_%s", ds_input->base_name, refl_band_names[ib]);
+    ds_input->fp_img[ib] = open_raw_binary (tmpstr, (char *)"rb");
     if (ds_input->fp_img[ib] == NULL) {
       sprintf (errstr, "opening input reflectance file: %s", tmpstr);
       RETURN_ERROR (errstr, "OpenInput", NULL);
     }
   }
 
-  ds_input->fp_qa = open_raw_binary (ds_input->mask_name, "rb");
+  ds_input->fp_qa = open_raw_binary (ds_input->mask_name, (char *)"rb");
   if (ds_input->fp_qa == NULL) {
     sprintf (errstr, "opening input mask file: %s", ds_input->mask_name);
     RETURN_ERROR (errstr, "OpenInput", NULL);
@@ -127,22 +138,23 @@ Input_t *OpenInput
   /* Allocate the input reflectance image buffer */
   ds_input->img_buf = (int16 *) calloc (ds_input->size.s, sizeof (int16));
   if (ds_input->img_buf == NULL) {
-      sprintf (errmsg, "allocating input reflectance image buffer");
-      RETURN_ERROR (errmsg, "OpenInput", NULL);
+      sprintf (errstr, "allocating input reflectance image buffer");
+      RETURN_ERROR (errstr, "OpenInput", NULL);
   }
 
   /* Allocate the input QA/mask image buffer */
   ds_input->qa_buf = (int8 *) calloc (ds_input->size.s, sizeof (int8));
   if (ds_input->qa_buf == NULL) {
-      sprintf (errmsg, "allocating input QA/mask image buffer");
-      RETURN_ERROR (errmsg, "OpenInput", NULL);
+      sprintf (errstr, "allocating input QA/mask image buffer");
+      RETURN_ERROR (errstr, "OpenInput", NULL);
   }
 
   /* Get the acquisition date (year) from the base filename
      (ex. LT50350321989265XXX03) */
-  cptr = strrchr (base_name, '/');
+  strcpy (tmp_base_name, base_name);
+  cptr = strrchr (tmp_base_name, '/');
   if (cptr == NULL)
-    cptr = base_name[0];
+    cptr = &tmp_base_name[0];
   else
     cptr++;
   cptr += 9;   /* year is 9 characters in */
@@ -232,8 +244,6 @@ bool FreeInput
   Input_t *ds_input   /* I: input data structure */
 )
 {
-  int ib, ir;
-
   if (ds_input != NULL) {
     if (ds_input->open)
       RETURN_ERROR("file still open", "FreeInput", false);
@@ -458,49 +468,3 @@ bool PredictBurnedArea::calcBands
     return true;
 }
 
-
-/******************************************************************************
-MODULE: ReadHdr
-
-PURPOSE: Reads the header file for the number of lines and samples
- 
-RETURN VALUE:
-Type = bool
-Value          Description
------          -----------
-false          Error reading the header
-true           Successful processing of the header
-
-HISTORY:
-Date          Programmer       Reason
-----------    ---------------  -------------------------------------
-12/7/2012     Jodi Riegle      Original development
-
-NOTES:
-*****************************************************************************/
-bool ReadHdr (string filename, int* lines, int* samples) {
-    string instring;
-
-    string variable_name;
-    string variable_value;
-    size_t i;
-    std::ifstream header_file(filename.c_str());
-    *samples = 0;
-    *lines = 0;
-
-    while (!header_file.eof()) {
-        getline(header_file,instring);
-        i = instring.find_first_of("=");
-        if (i >= 0) {
-            variable_name = instring.substr(0,i);
-            variable_value = instring.substr(i+2,instring.length() - i);
-            if (variable_name == "samples ") {
-                *samples = boost::lexical_cast<int>(variable_value);
-            } else if (variable_name == "lines   ") {
-                *lines = boost::lexical_cast<int>(variable_value);
-            }
-        }
-    }
-
-    return true;
-}

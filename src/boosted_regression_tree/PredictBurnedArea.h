@@ -38,7 +38,6 @@ using namespace std;
 #define BA_VERSION "1.0.0"
 
 /* Type definitions */
-typedef enum {FAILURE=0, SUCCESS=1} Status_t;
 typedef enum {WINTER=0, SPRING, SUMMER, FALL, PBA_NSEASONS} Season_t;
 typedef enum {B3=0, B4, B5, B7, BND_NDVI, BND_NDMI, BND_NBR, BND_NBR2,
     PBA_NBANDS} BandIndex_t;
@@ -57,18 +56,29 @@ typedef enum {PREDMAT_B1=0, PREDMAT_B2, PREDMAT_B3, PREDMAT_B4, PREDMAT_B5,
    used for filling the sample matrix for the actual predictions. */
 #define EXPECTED_CSV_INPUTS 50
 
+/* Typedefs for the integer types used by this application */
+typedef signed short int16;
+typedef char int8;
+
+/* Integer image coordinates data structure */
+typedef struct {
+  int l;                /* line number */
+  int s;                /* sample number */
+} Img_coord_int_t;
+
+/* Structure for the 'input' surface reflectance and mask */
 typedef struct {
   int acq_year;         /* Acquisition time - year (scene center) */
   int fill;             /* Fill value for image data */
 } Input_meta_t;
 
-/* Structure for the 'input' surface reflectance and mask */
 typedef struct {
   char *base_name;         /* Input surface reflectance image base file name */
   char *mask_name;         /* Input image mask (QA) file name */
   bool open;               /* Open file flag; open = true */
   int nband;               /* Number of input image (reflectance) bands */
   Img_coord_int_t size;    /* Input file size */
+  Input_meta_t meta;       /* Metadata for the input scene */
   FILE *fp_img[NBAND_REFL_MAX]; /* File pointers for image data */
   int16 *img_buf;          /* Input data buffer (one line of image data) */
   FILE *fp_qa;             /* File pointer for QA data */
@@ -102,7 +112,7 @@ public:
     ~PredictBurnedArea();
 
     bool GetInputData(Input_t *ds_input, int iband);
-    bool GetInputQALine(Input_t *ds_input, int iband);
+    bool GetInputQALine(Input_t *ds_input);
     bool PutOutputLine(Output_t *ds_output, int iline);
     bool calcBands(Input_t *ds_input);
     void loadModel();

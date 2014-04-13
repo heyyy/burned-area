@@ -29,7 +29,7 @@ OBJ = $(SRC:.cpp=.o)
 # Define the object libraries
 LIB   = -L$(ESPALIB) -l_espa_raw_binary -l_espa_common \
         -L$(XML2LIB) -lxml2 \
-        -L$(JBIGLIB) -ljbig -llzma \
+        -L$(JBIGLIB) -ljbig \
         -L$(BOOST_LIB) -lboost_program_options \
         -L$(OPENCVLIB) -lopencv_ml -lopencv_highgui -lopencv_core \
         -lz -lrt -lpthread -lm

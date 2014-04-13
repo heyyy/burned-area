@@ -24,6 +24,16 @@ NOTES:
 #include "output.h"
 #include "predict.h"
 
+/* The following libraries are external C libraries from ESPA */
+extern "C" {
+FILE *open_raw_binary (char *infile, char *access_type);
+void close_raw_binary (FILE *fptr);
+int read_raw_binary (FILE *rb_fptr, int nlines, int nsamps, int size,
+    void *img_array);
+int write_raw_binary (FILE *rb_fptr, int nlines, int nsamps, int size,
+    void *img_array);   
+}
+
 
 /******************************************************************************
 MODULE: CreateOutputHeader
@@ -113,8 +123,6 @@ Output_t *OpenOutput
 )
 {
   Output_t *ds_output = NULL;   /* output structure to be populated */
-  char *error_string = NULL;    /* error string */
-  int16 *buf = NULL;            /* image buffer */
 
   /* Create the Output data structure */
   ds_output = (Output_t *) malloc (sizeof (Output_t));
@@ -131,7 +139,7 @@ Output_t *OpenOutput
   ds_output->size.s = size->s;
 
   /* Open file for write access */
-  ds_output->fp_img = open_raw_binary (file_name, "wb");
+  ds_output->fp_img = open_raw_binary (file_name, (char *) "wb");
   if (ds_output->fp_img == NULL)
     RETURN_ERROR("unable to open output image file", "OpenOutput", NULL);
   ds_output->open = true;

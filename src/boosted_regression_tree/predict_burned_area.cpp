@@ -48,7 +48,6 @@ NOTES:
 
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/lexical_cast.hpp>
-//#define DEBUG
 
 using namespace boost::posix_time;
 char season_str[PBA_NSEASONS][MAX_STR_LEN] = {"winter", "spring", "summer",
@@ -94,21 +93,13 @@ int main(int argc, char* argv[]) {
     int ib;                            /* band and line counters */
     int acq_year;                      /* acquisition year of input scene */
     char errstr[MAX_STR_LEN];          /* error string */
-    char gdal_cmd[MAX_STR_LEN];        /* command string for GDAL merge call */
-    char rm_cmd[MAX_STR_LEN];          /* command string for removing temp
-                                          files */
     char *output_file_name = NULL;     /* output filename */
     char lySummaryFile[PBA_NSEASONS][PBA_NBANDS][MAX_STR_LEN];/* last year */
     char maxIndxFile[PBA_NINDXS][MAX_STR_LEN];                /* max indices */
-    char timestr[MAX_STR_LEN];         /* random string to create random
-                                          filenames for resizing */
     Input_t *input = NULL;             /* input data and metadata */
     Output_t *output = NULL;           /* output structure and metadata */
     Input_Rb_t *lySummaryPtr[PBA_NSEASONS][PBA_NBANDS];  /* last year ptr */
     Input_Rb_t *maxIndxPtr[PBA_NINDXS];                  /* max indices ptr */
-    Space_def_t space_def;             /* spatial definition information */
-    int out_sds_types[NBAND_MAX_OUT] = {DFNT_INT16}; /* array of image SDS
-                                          types */
 
     /* Read the config file */
     if (!pba.loadParametersFromFile (argc, argv)) {
@@ -155,7 +146,7 @@ int main(int argc, char* argv[]) {
     if (pba.train_model) {
         if (!pba.trainModel ()) {
             sprintf (errstr, "error training the model");
-            ERROR(errstr, "main");
+            EXIT_ERROR(errstr, "main");
         }
     }
     else if (pba.load_model) {
@@ -170,7 +161,7 @@ int main(int argc, char* argv[]) {
     input = OpenInput (baseFile, maskFile, pba.INPUT_FILL_VALUE);
     if (input == NULL) {
         sprintf (errstr, "opening the input image or mask files");
-        ERROR(errstr, "main");
+        EXIT_ERROR(errstr, "main");
     }
 
     /* Print some input metadata info */
@@ -192,13 +183,13 @@ int main(int argc, char* argv[]) {
     output_file_name = strdup(pba.OUTPUT_IMG_FILE.c_str());
     if (!CreateOutputHeader (baseFile, output_file_name)) {
         sprintf(errstr, "creating output header file for %s", output_file_name);
-        ERROR(errstr, "main");
+        EXIT_ERROR(errstr, "main");
     }
 
     output = OpenOutput (output_file_name, &input->size);
     if (output == NULL) {
         sprintf (errstr, "opening output file: %s", output_file_name);
-        ERROR(errstr, "main");
+        EXIT_ERROR(errstr, "main");
     }
 
     /* Create the filenames for the seasonal summmaries and annual maximums.
@@ -226,7 +217,7 @@ int main(int argc, char* argv[]) {
             if (lySummaryPtr[season][bnd] == NULL) {
                 sprintf (errstr, "opening file: %s",
                     lySummaryFile[season][bnd]);
-                ERROR (errstr, "main");
+                EXIT_ERROR (errstr, "main");
             }
         }
     }
@@ -234,14 +225,14 @@ int main(int argc, char* argv[]) {
     printf (".... Annual maximum products\n");
     for (indx = 0; indx < PBA_NINDXS; indx++) {
         /* Set up the filenames - annual max is for last year */
-        sprintf (maxIndxFile[indx], "%s/%s/%d_maximum_%s.tif",
+        sprintf (maxIndxFile[indx], "%s/%s/%d_maximum_%s.img",
             seasonalSummaryDir, indx_str[indx], acq_year-1, indx_str[indx]);
 
         /* Open the annual maximum files */
         maxIndxPtr[indx] = OpenRbInput (maxIndxFile[indx]);
         if (maxIndxPtr[indx] == NULL) {
             sprintf (errstr, "opening file: %s", maxIndxFile[indx]);
-            ERROR (errstr, "main");
+            EXIT_ERROR (errstr, "main");
         }
     }
 
@@ -269,11 +260,11 @@ int main(int argc, char* argv[]) {
         }
 
         /* Read each reflective band for the current line */
-        for (int ib = 0; ib < input->nband; ib++) {
-            if (!pba.GetInputData (input, ib, iline)) {
+        for (ib = 0; ib < input->nband; ib++) {
+            if (!pba.GetInputData (input, ib)) {
                 sprintf (errstr, "reading input image data for line %d, "
-                    "band %d", 0, 1);
-                ERROR(errstr, "main");
+                    "band %d", iline, ib);
+                EXIT_ERROR(errstr, "main");
             }
         }
 
@@ -281,16 +272,13 @@ int main(int argc, char* argv[]) {
         if (!pba.calcBands (input)) {
             sprintf (errstr, "reading input image data for line %d, band %d",
                 0, 1);
-            ERROR(errstr, "main");
+            EXIT_ERROR(errstr, "main");
         }
 
-        /* Read the QA bands for the current line */
-        for (int ib = 0; ib < input->nqa_band; ib++) {
-            if (!pba.GetInputQALine (input, ib, iline)) {
-                sprintf (errstr, "reading input QA data for line %d, "
-                    "band %d", 0, 1);
-                ERROR(errstr, "main");
-            }
+        /* Read the QA band for the current line */
+        if (!pba.GetInputQALine (input)) {
+            sprintf (errstr, "reading input QA data for line %d", iline);
+            EXIT_ERROR(errstr, "main");
         }
 
         /* Read the seasonal summaries for the previous year */
@@ -301,7 +289,7 @@ int main(int argc, char* argv[]) {
                     sprintf (errstr, "reading previous year seasonal summary "
                         "data for line %d, band %s, season %s", iline,
                         band_indx_str[bnd], season_str[season]);
-                    ERROR(errstr, "main");
+                    EXIT_ERROR(errstr, "main");
                 }
             }
         }
@@ -312,7 +300,7 @@ int main(int argc, char* argv[]) {
                 (Index_t) indx)) {
                 sprintf (errstr, "reading annual maximum data for line %d, "
                     "index %s", iline, indx_str[indx]);
-                ERROR(errstr, "main");
+                EXIT_ERROR(errstr, "main");
             }
         }
 
@@ -320,7 +308,7 @@ int main(int argc, char* argv[]) {
         if (!pba.predictModel (iline, output)) {
             sprintf (errstr, "running the probability mappings for line %d",
                 iline);
-            ERROR(errstr, "main");
+            EXIT_ERROR(errstr, "main");
         }
     }
 
@@ -329,30 +317,30 @@ int main(int argc, char* argv[]) {
 
     /* Close the input file and free the structure */
     if (!CloseInput (input))
-        ERROR("closing input surface reflectance file", "main");
+        EXIT_ERROR("closing input surface reflectance file", "main");
     if (!FreeInput (input))
-        ERROR("freeing input surface reflectance file memory", "main");
+        EXIT_ERROR("freeing input surface reflectance file memory", "main");
 
     /* Close the output file and free the structure */
     if (!CloseOutput (output))
-        ERROR("closing output burned area file", "main");
+        EXIT_ERROR("closing output burned area file", "main");
     if (!FreeOutput (output))
-        ERROR("freeing output burned area file memory", "main");
+        EXIT_ERROR("freeing output burned area file memory", "main");
 
     /* Close the seasonal summaries and annual maximum files */
     for (season = 0; season < PBA_NSEASONS; season++) {
         for (bnd = 0; bnd < PBA_NBANDS; bnd++) {
             if (!CloseRbInput (lySummaryPtr[season][bnd]))
-                ERROR("closing input seasonal summary file", "main");
+                EXIT_ERROR("closing input seasonal summary file", "main");
             if (!FreeRbInput (lySummaryPtr[season][bnd]))
-                ERROR("freeing input seasonal summary file", "main");
+                EXIT_ERROR("freeing input seasonal summary file", "main");
         }
     }
     for (indx = 0; indx < PBA_NINDXS; indx++) {
         if (!CloseRbInput (maxIndxPtr[indx]))
-            ERROR("closing input annual maximum file", "main");
+            EXIT_ERROR("closing input annual maximum file", "main");
         if (!FreeRbInput (maxIndxPtr[indx]))
-            ERROR("freeing input annual maximum file", "main");
+            EXIT_ERROR("freeing input annual maximum file", "main");
     }
 
     /* Release the data arrays */
