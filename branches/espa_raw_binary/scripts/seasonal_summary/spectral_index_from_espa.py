@@ -200,8 +200,7 @@ class spectralIndex:
         self.dataset_mask = None
 
 
-    def createSpectralIndices (self, index_dict, make_histos=False,  \
-        log_handler=None):
+    def createSpectralIndices (self, index_dict, log_handler=None):
         """Generates the specified spectral indices.
         Description: createSpectralIndices creates the desired spectral index
             products.  If mask is specified, then a combined mask file is
@@ -221,8 +220,6 @@ class spectralIndex:
         Args:
           index_dict - dictionary of index types (ndvi, nbr, nbr2, ndmi, mask)
               and the associated filename for the index file
-          make_histos - should histograms and overview pyramids be generated
-              for each of the output files?
           log_handler - open log file for logging or None for stdout
         
         Returns:
@@ -340,23 +337,6 @@ class spectralIndex:
         # cleanup the bands
         b3 = b4 = b5 = b7 = None
 
-        # create histograms and pyramids
-        if make_histos:
-            # loop through the indices specified and process histograms
-            for index in index_dict.keys():
-                # make histogram
-                my_output_band = output_band[index]
-                histogram = my_output_band.GetDefaultHistogram()
-                if not histogram is None:
-                    my_output_band.SetDefaultHistogram(histogram[0], \
-                        histogram[1], histogram[3])
-    
-                # build pyramids
-                gdal.SetConfigOption('HFA_USE_RRD', 'YES')
-                my_output_ds = output_ds[index]
-                my_output_ds.BuildOverviews(  \
-                    overviewlist=[3,9,27,81,243,729])
-    
         # cleanup
         del (output_band)
         del (output_ds)
