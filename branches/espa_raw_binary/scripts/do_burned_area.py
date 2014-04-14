@@ -40,7 +40,7 @@ def logIt (msg, log_handler):
 
 #############################################################################
 # Created on April 10, 2014 by Gail Schmidt, USGS/EROS
-# Created Python class to handle the multiprocessing of a stack of scnenes.
+# Created Python class to handle the multiprocessing of a stack of scenes.
 #
 # History:
 #
@@ -482,35 +482,34 @@ class BurnedArea():
         for i in range(num_boosted_scenes):
             status = result_queue.get()
             if status != SUCCESS:
-                msg = 'Error in boosted regression for XML file (file %d in ' \
-                    'the stack): %s.' % (i, sr_list[i])
+                msg = 'Error in boosted regression for XML file %s.' %  \
+                    sr_list[i]
                 logIt (msg, self.log_handler)
                 return ERROR
 
-#        # run the burn threshold algorithm to identify burn scars
-#        stack_file = input_dir + '/input_stack.csv'
-#        status = BurnAreaThreshold().runBurnThreshold(stack_file=stack_file,
-#            input_dir=output_dir, output_dir=output_dir,
-#            start_year=start_year+1, end_year=end_year)
-#        if status != SUCCESS:
-#            msg = 'Error running burn thresholds'
-#            logIt (msg, self.log_handler)
-#            os.chdir (mydir)
-#            return ERROR
-#
-#        # run the algorithm to generate annual summaries for the burn
-#        # probabilities and burn scars
-#        bounding_extents_file = input_dir + '/bounding_box_coordinates.csv'
-#        status = AnnualBurnSummary().runAnnualBurnSummaries(
-#            stack_file=stack_file, bounding_extents_file=bounding_extents_file,
-#            bp_dir=output_dir, bc_dir=output_dir, output_dir=output_dir,
-#            start_year=start_year+1, end_year=end_year)
-#        if status != SUCCESS:
-#            msg = 'Error running annual burn summaries'
-#            logIt (msg, self.log_handler)
-#            os.chdir (mydir)
-#            return ERROR
-#
+        # run the burn threshold algorithm to identify burn scars
+        stack_file = input_dir + '/input_stack.csv'
+        status = BurnAreaThreshold().runBurnThreshold(stack_file=stack_file,
+            input_dir=output_dir, output_dir=output_dir,
+            start_year=start_year+1, end_year=end_year,
+            num_processors=num_processors)
+        if status != SUCCESS:
+            msg = 'Error running burn thresholds'
+            logIt (msg, self.log_handler)
+            os.chdir (mydir)
+            return ERROR
+
+        # run the algorithm to generate annual summaries for the burn
+        # probabilities and burn scars
+        status = AnnualBurnSummary().runAnnualBurnSummaries(
+            stack_file=stack_file, bp_dir=output_dir, bc_dir=output_dir,
+            output_dir=output_dir, start_year=start_year+1, end_year=end_year)
+        if status != SUCCESS:
+            msg = 'Error running annual burn summaries'
+            logIt (msg, self.log_handler)
+            os.chdir (mydir)
+            return ERROR
+
 #        # zip the burn area annual summaries
 #        zip_file = 'burn_scar_%03d_%03d.zip' % (path, row)
 #        msg = '\nZipping the annual summaries to ' + zip_file
