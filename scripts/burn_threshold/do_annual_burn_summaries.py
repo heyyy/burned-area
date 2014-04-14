@@ -386,7 +386,7 @@ class AnnualBurnSummary():
             output_bands[3].SetNoDataValue(nodata)
 
             # loop through the lines in the images
-            for y in range (0, nrow)
+            for y in range (0, nrow):
                 # create the arrays to hold input and output data (one line)
                 input_data = numpy.empty((stack3.shape[0], 2, 1, ncol),  \
                     dtype=numpy.int16)
