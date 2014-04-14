@@ -24,6 +24,7 @@ import sys
 import os
 import time
 import getopt
+import multiprocessing, Queue
 
 import numpy
 import scipy.ndimage
