@@ -176,7 +176,8 @@ Date          Programmer       Reason
                                to using the LEDAPS SR QA values
 12/8/2013     Gail Schmidt     Added support for adjacent cloud shadow as one
                                of the QA values
-4/7/2014      Gail Schmidt     Using a single QA/mask band now
+4/7/2014      Gail Schmidt     Using a single QA/mask band now which is int16
+                               vs. the old uint8 masks
 
 NOTES:
   1. It's assumed the model has already been trained and/or loaded.
@@ -229,7 +230,7 @@ bool PredictBurnedArea::predictModel
             sample.at<float>(sample_indx++) = maxIndxMat.at<float>(y,indx);
 
         /* Add the deltas of the annual maximums for the indices */
-        if (qaMat.at<char>(y) == INPUT_FILL_VALUE) { // fill
+        if (qaMat.at<short>(y) == INPUT_FILL_VALUE) { // fill
             for (indx = 0; indx < PBA_NINDXS; indx++)
                 sample.at<float>(sample_indx++) = INPUT_FILL_VALUE;
         }
@@ -254,9 +255,9 @@ bool PredictBurnedArea::predictModel
            prediction for this pixel. If the pixel is cloud, shadow, or water,
            then set it to PBA_CLOUD_WATER. If the pixel is fill then set it to
            PBA_FILL. */
-        if (qaMat.at<char>(y) == INPUT_FILL_VALUE)  /* fill pixel */
+        if (qaMat.at<short>(y) == INPUT_FILL_VALUE)  /* fill pixel */
             output->buf[y] = PBA_FILL;
-        else if (qaMat.at<char>(y) < 0)   /* cloudy or water pixel */
+        else if (qaMat.at<short>(y) < 0)   /* cloudy or water pixel */
             output->buf[y] = PBA_CLOUD_WATER;
         else {  /* do the probability mapping for burned (class of 1) */
             float response = gbtrees.predict_prob (sample, 1);
