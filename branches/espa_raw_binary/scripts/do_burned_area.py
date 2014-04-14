@@ -447,6 +447,7 @@ class BurnedArea():
         # regression
         self.config_file = 'temp_%03d_%03d.config' % (path, row)
         work_queue = multiprocessing.Queue()
+        num_boosted_scenes = 0
         for i in range(num_scenes):
             xml_file = sr_list[i].rstrip('\n')
 
@@ -462,6 +463,7 @@ class BurnedArea():
             # add this file to the queue to be processed
             print 'Pushing on the queue ... ' + xml_file
             work_queue.put(xml_file)
+            num_boosted_scenes += 1
 
         # create a queue to pass to workers to store the processing status
         result_queue = multiprocessing.Queue()
@@ -469,7 +471,7 @@ class BurnedArea():
         # spawn workers to process each scene in the stack - run the boosted
         # regression model on each scene in the stack
         msg = 'Spawning %d scenes for boosted regression via %d '  \
-            'processors ....' % (num_scenes, num_processors)
+            'processors ....' % (num_boosted_scenes, num_processors)
         logIt (msg, self.log_handler)
         for i in range(num_processors):
             worker = parallelSceneRegressionWorker(work_queue, result_queue,
@@ -477,7 +479,7 @@ class BurnedArea():
             worker.start()
  
         # collect the boosted regression results off the queue
-        for i in range(num_scenes):
+        for i in range(num_boosted_scenes):
             status = result_queue.get()
             if status != SUCCESS:
                 msg = 'Error in boosted regression for XML file (file %d in ' \
