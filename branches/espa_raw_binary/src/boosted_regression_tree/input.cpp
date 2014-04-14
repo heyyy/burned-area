@@ -21,6 +21,9 @@ Date          Programmer       Reason
 4/9/2014      Gail Schmidt     Use a local image buffer for reading the data
                                vs. allocating space and freeing for each line
                                read.
+4/14/2014     Gail Schmidt     The single QA mask created by seasonal summ and
+                               annual mask is a 16-bit signed int vs. the
+                               previous unsigned char individual masks.
 
 NOTES:
 *****************************************************************************/
@@ -143,7 +146,7 @@ Input_t *OpenInput
   }
 
   /* Allocate the input QA/mask image buffer */
-  ds_input->qa_buf = (int8 *) calloc (ds_input->size.s, sizeof (int8));
+  ds_input->qa_buf = (int16 *) calloc (ds_input->size.s, sizeof (int16));
   if (ds_input->qa_buf == NULL) {
       sprintf (errstr, "allocating input QA/mask image buffer");
       RETURN_ERROR (errstr, "OpenInput", NULL);
@@ -367,13 +370,13 @@ bool PredictBurnedArea::GetInputQALine
     RETURN_ERROR("file not open", "GetInputQALine", false);
 
   /* Read the data */
-  if (read_raw_binary (ds_input->fp_qa, 1, ds_input->size.s, sizeof (int8),
+  if (read_raw_binary (ds_input->fp_qa, 1, ds_input->size.s, sizeof (int16),
       ds_input->qa_buf) != SUCCESS)
     RETURN_ERROR("reading QA input", "GetInputQALine", false)
 
   /* Grabbing QA band and putting value into qaMat */
   for (samp = 0; samp < ds_input->size.s; samp++)
-      qaMat.at<char>(samp,0) = ds_input->qa_buf[samp];
+      qaMat.at<short>(samp) = ds_input->qa_buf[samp];
 
   return true;
 }
@@ -413,7 +416,7 @@ bool PredictBurnedArea::calcBands
 {
     for (int i = 0; i < ds_input->size.s; i++) {
         /* NDVI - using bands 4 and 3 */
-        if ((qaMat.at<char>(i) == INPUT_FILL_VALUE) ||
+        if ((qaMat.at<short>(i) == INPUT_FILL_VALUE) ||
             (predMat.at<float>(i,PREDMAT_B4) + predMat.at<float>(i,PREDMAT_B3)
             == 0)) { //avoid division by 0 and fill data
             predMat.at<float>(i,PREDMAT_NDVI) = 0;
@@ -426,7 +429,7 @@ bool PredictBurnedArea::calcBands
         }
 
         /* NDMI - using bands 4 and 5 */
-        if ((qaMat.at<char>(i) == INPUT_FILL_VALUE) ||
+        if ((qaMat.at<short>(i) == INPUT_FILL_VALUE) ||
             (predMat.at<float>(i,PREDMAT_B4) + predMat.at<float>(i,PREDMAT_B5)
             == 0)) { //avoid division by 0 and fill data
             predMat.at<float>(i,PREDMAT_NDMI) = 0; //avoid division by 0
@@ -439,7 +442,7 @@ bool PredictBurnedArea::calcBands
         }
 
         /* NBR - using bands 4 and 7 */
-        if ((qaMat.at<char>(i) == INPUT_FILL_VALUE) ||
+        if ((qaMat.at<short>(i) == INPUT_FILL_VALUE) ||
             (predMat.at<float>(i,PREDMAT_B4) + predMat.at<float>(i,PREDMAT_B7)
             == 0)) { //avoid division by 0 and fill data
             predMat.at<float>(i,PREDMAT_NBR) = 0; //avoid division by 0
@@ -452,7 +455,7 @@ bool PredictBurnedArea::calcBands
         }
 
         /* NBR2 - using bands 5 and 7 */
-        if ((qaMat.at<char>(i) == INPUT_FILL_VALUE) ||
+        if ((qaMat.at<short>(i) == INPUT_FILL_VALUE) ||
             (predMat.at<float>(i,PREDMAT_B5) + predMat.at<float>(i,PREDMAT_B7)
             == 0)) { //avoid division by 0 and fill data
             predMat.at<float>(i,PREDMAT_NBR2) = 0; //avoid division by 0

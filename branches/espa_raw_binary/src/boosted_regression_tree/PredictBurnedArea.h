@@ -82,7 +82,7 @@ typedef struct {
   FILE *fp_img[NBAND_REFL_MAX]; /* File pointers for image data */
   int16 *img_buf;          /* Input data buffer (one line of image data) */
   FILE *fp_qa;             /* File pointer for QA data */
-  int8 *qa_buf;            /* Input mask/qa buffer (one line of data) */
+  int16 *qa_buf;           /* Input mask/qa buffer (one line of data) */
 } Input_t;
 
 /* Structure for the 'output' burn area data */

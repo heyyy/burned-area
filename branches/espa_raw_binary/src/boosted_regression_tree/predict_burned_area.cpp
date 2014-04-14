@@ -33,7 +33,8 @@ Date        Programmer       Reason
                              that they match the seasonal summaries and annual
                              maximums boundaries.
                              Modified to use the single mask file created
-                             during seasonal summary processing.
+                             during seasonal summary processing.  This single
+                             mask is int16 vs. uint8.
 
 NOTES:
 ******************************************************************************/
@@ -246,7 +247,7 @@ int main(int argc, char* argv[]) {
        reflective bands (1-5, and 7), 6=NDVI, 7=NDMI, 8=NBR, 9=NBR2.  qaMat
        represents the QA band. */
     pba.predMat.create (input->size.s, 10, CV_32FC1);
-    pba.qaMat.create (input->size.s, 1, CV_8U);
+    pba.qaMat.create (input->size.s, 1, CV_16S);
 
     cout << second_clock::local_time() << " ======= Predict Started ======== "
          << endl;
