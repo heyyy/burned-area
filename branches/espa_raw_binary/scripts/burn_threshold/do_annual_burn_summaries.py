@@ -254,35 +254,56 @@ class AnnualBurnSummary():
         # information from the first file and use it for all of the files.
         # use the XML filename in the CSV file to obtain the burn probability
         # filename
-        file_name = stack2['file_'][0]
-        fname = os.path.basename(file_name).replace  \
+        xml_file = stack2['file_'][0]
+        fname = os.path.basename(xml_file).replace  \
             ('.xml','_burn_probability.img')
-        bp_name = bp_dir + fname
-        if not os.path.exists(bp_name):
-            msg = 'burn probability file does not exist: ' + bp_name
+        bp_file = bp_dir + '/' + fname
+        if not os.path.exists(bp_file):
+            msg = 'burn probability file does not exist: ' + bp_file
             logIt (msg, log_handler)
             os.chdir (mydir)
             return ERROR
 
-        bp_dataset = gdal.Open(bp_name)
+        bp_dataset = gdal.Open(bp_file)
         if bp_dataset is None:
-            msg = 'Failed to open bp file: ' + bp_name
+            msg = 'Failed to open bp file: ' + bp_file
             logIt (msg, log_handler)
             os.chdir (mydir)
             return ERROR
         
         bp_band = bp_dataset.GetRasterBand(1)
         if bp_band is None:
-            msg = 'Failed to open bp band 1 from ' + bp_name
+            msg = 'Failed to open bp band 1 from ' + bp_file
             logIt (msg, log_handler)
             os.chdir (mydir)
             return ERROR
         
         geotrans = bp_dataset.GetGeoTransform()
-#        prj = bp_dataset.GetProjectionRef()
+        if geotrans is None:
+            msg = 'Failed to obtain the GeoTransform info from ' + bp_file
+            logIt (msg, log_handler)
+            return ERROR
+
+        prj = bp_dataset.GetProjectionRef()
+        if prj is None:
+            msg = 'Failed to obtain the ProjectionRef info from ' + bp_file
+            logIt (msg, log_handler)
+            return ERROR
+
         nrow = bp_dataset.RasterYSize
         ncol = bp_dataset.RasterXSize
+        if (nrow is None) or (ncol is None):
+            msg = 'Failed to obtain the RasterXSize and RasterYSize from ' +  \
+                bp_file
+            logIt (msg, log_handler)
+            return ERROR
+
         nodata = bp_band.GetNoDataValue()
+        if nodata is None:
+            nodata = -9999
+            msg = 'Failed to obtain the NoDataValue from %s.  Using %d.' % \
+                (bp_file, nodata)
+            logIt (msg, log_handler)
 
         # create the ENVI driver for output data
         driver = gdal.GetDriverByName('ENVI')
@@ -316,25 +337,25 @@ class AnnualBurnSummary():
             # open the input datasets - 1st band is burn probability,
             # 2nd band is burn classification
             for i in range(0, stack3.shape[0]):
-                file_name = stack3['file_'][i]
+                xml_file = stack3['file_'][i]
                 
                 # construct the burn probability and classification filenames
                 # from the XML filenames in the CSV
-                fname = os.path.basename(file_name).replace  \
+                fname = os.path.basename(xml_file).replace  \
                     ('.xml','_burn_probability.img')
-                bp_name = bp_dir + '/' + fname
-                if not os.path.exists(bp_name):
-                    msg = 'burn probability file does not exist: ' + bp_name
+                bp_file = bp_dir + '/' + fname
+                if not os.path.exists(bp_file):
+                    msg = 'burn probability file does not exist: ' + bp_file
                     logIt (msg, log_handler)
                     os.chdir (mydir)
                     return ERROR
 
-                msg = 'Reading %s ...' % bp_name
+                msg = '    Reading %s ...' % bp_file
                 logIt (msg, log_handler)
-                input_datasets[i,0] = gdal.Open(bp_name)
+                input_datasets[i,0] = gdal.Open(bp_file)
                 input_bands[i,0] = input_datasets[i,0].GetRasterBand(1)
 
-                fname = os.path.basename(file_name).replace  \
+                fname = os.path.basename(xml_file).replace  \
                     ('.xml','_burn_class.img')
                 bc_name = bc_dir + '/' + fname
                 if not os.path.exists(bc_name):
@@ -343,7 +364,7 @@ class AnnualBurnSummary():
                     os.chdir (mydir)
                     return ERROR
 
-                msg = 'Reading %s ...' % bc_name
+                msg = '    Reading %s ...' % bc_name
                 logIt (msg, log_handler)
                 input_datasets[i,1] = gdal.Open(bc_name)
                 input_bands[i,1] = input_datasets[i,1].GetRasterBand(1)

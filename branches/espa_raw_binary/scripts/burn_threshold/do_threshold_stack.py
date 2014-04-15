@@ -290,9 +290,7 @@ class BurnAreaThreshold():
         # as the seed for the region
         bp_region_coords = skimage.measure.regionprops(  \
             label_image=bp_seed_regions, properties=['Area','Coordinates'])
-        print 'DEBUG: There are', len(bp_region_coords),   \
-            'coordinates identified.'
-        
+
         # loop through regions and flood fill to expand them where they are of
         # an appropriate size
         for i in range(0, len(bp_region_coords)):
@@ -375,6 +373,10 @@ class BurnAreaThreshold():
         Returns:
             ERROR - error running the thresholding on this file
             SUCCESS - successful processing
+
+        Notes: If the nodata value is not obtainable from the header data,
+            then it will be set to -9999 which has been the common value
+            used for the overall burned area applications.
         """
 
         # determine the output classification name
@@ -383,8 +385,6 @@ class BurnAreaThreshold():
         bc_file_name = self.output_dir + '/' + fname
         
         # process the current burn probability file
-        msg = 'Reading file ... ' + bp_file
-        logIt (msg, self.log_handler)
         bp_dataset = gdal.Open(bp_file)
         if bp_dataset is None:
             msg = 'Failed to open bp file: ' + bp_file
@@ -402,10 +402,31 @@ class BurnAreaThreshold():
         # same scene extents and projection information, just obtain that
         # information from the first file and use it for all of the files
         geotrans = bp_dataset.GetGeoTransform()
-#        prj = bp_dataset.GetProjectionRef()
+        if geotrans is None:
+            msg = 'Failed to obtain the GeoTransform info from ' + bp_file
+            logIt (msg, self.log_handler)
+            return ERROR
+
+        prj = bp_dataset.GetProjectionRef()
+        if prj is None:
+            msg = 'Failed to obtain the ProjectionRef info from ' + bp_file
+            logIt (msg, self.log_handler)
+            return ERROR
+
         nrow = bp_dataset.RasterYSize
         ncol = bp_dataset.RasterXSize
+        if (nrow is None) or (ncol is None):
+            msg = 'Failed to obtain the RasterXSize and RasterYSize from ' +  \
+                bp_file
+            logIt (msg, self.log_handler)
+            return ERROR
+
         nodata = bp_band.GetNoDataValue()
+        if nodata is None:
+            nodata = -9999
+            msg = 'Failed to obtain the NoDataValue from %s.  Using %d.' % \
+                (bp_file, nodata)
+            logIt (msg, self.log_handler)
             
         # array to hold burn scars
         bp_scars = numpy.zeros((nrow, ncol))
@@ -672,12 +693,9 @@ class BurnAreaThreshold():
         work_queue = multiprocessing.Queue()
         num_scenes = stack2.shape[0]
         for i in range(num_scenes):
-            msg = '############################################################'
-            logIt (msg, log_handler)
-            xml_file = stack2['file_'][i]
-            
             # use the XML filename in the CSV file to obtain the burn
             # probability filename to be thresholded
+            xml_file = stack2['file_'][i]
             bp_file_name = xml_file.replace('.xml','_burn_probability.img')
             if not os.path.exists(bp_file_name):
                 msg = 'burn probability file does not exist: ' +  bp_file_name
