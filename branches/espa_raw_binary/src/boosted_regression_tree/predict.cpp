@@ -257,7 +257,7 @@ bool PredictBurnedArea::predictModel
            PBA_FILL. */
         if (qaMat.at<short>(y) == INPUT_FILL_VALUE)  /* fill pixel */
             output->buf[y] = PBA_FILL;
-        else if (qaMat.at<short>(y) < 0)   /* cloudy or water pixel */
+        else if (qaMat.at<short>(y) < 0)   /* cloudy, snow, or water pixel */
             output->buf[y] = PBA_CLOUD_WATER;
         else {  /* do the probability mapping for burned (class of 1) */
             float response = gbtrees.predict_prob (sample, 1);
