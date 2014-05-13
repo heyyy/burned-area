@@ -27,6 +27,8 @@ from osgeo import osr
 from osgeo import gdal_array
 from osgeo import gdalconst
 
+import metadata_api
+
 ERROR = 1
 SUCCESS = 0
 
@@ -48,6 +50,37 @@ def logIt (msg, log_handler):
         log_handler.write (msg + '\n')
 
 
+def convert_imageXY_to_mapXY (image_x, image_y, transform):
+    '''
+    Description:
+      Translate image coordinates into mapp coordinates
+    '''
+    """Translate the image coordinates into map coordinates.
+    Description: routine to convert the image coordinates into map coordinates
+        using the geotransform information obtained via GDAL.
+    
+    History:
+      Created in 2014 by Ron Dilley, USGS/EROS LSRD Project
+        Pulled from warp.py in the ESPA project to use for this script
+
+    Args:
+      image_x - x-coordinate from the image to be converted to map coordinates,
+          floating point
+      image_y - y-coordinate from the image to be converted to map coordinates,
+          floating point
+      transform - geotransform array from GDAL GetGeoTransform()
+
+    Returns:
+        map coordinate pair (map_x, map_y)
+    """
+
+    map_x = transform[0] + image_x * transform[1] + image_y * transform[2]
+    map_y = transform[3] + image_x * transform[4] + image_y * transform[5]
+
+    return (map_x, map_y)
+
+
+
 #############################################################################
 # Created on December 2, 2013 by Gail Schmidt, USGS/EROS
 # Turned into a class to run the overall annual burn summaries.
@@ -60,9 +93,259 @@ class AnnualBurnSummary():
     """Class for processing the annual burn summaries.
     Usage: do_annual_burn_summaries.py --help prints the help message
     """
+    burned_area_version = "version 1.0.0"
 
     def __init__(self):
         pass
+
+
+    def createXML(self, scene_xml_file=None, output_xml_file=None,
+        start_year=None, end_year=None, imgfile=None, log_handler=None):
+        """Creates an XML file for the products produced by
+           runAnnualBurnSummaries.
+        Description: routine to create the XML file for the burned area summary
+            bands.  The sample scene-based XML file will be used as the basis
+            for the projection information for the output XML file.  The image
+            size, extents, etc. will need to be updated, as will the band
+            information.
+        
+        History:
+          Created on May 12, 2014 by Gail Schmidt, USGS/EROS LSRD Project
+
+        Args:
+          scene_xml_file - scene-based XML file to be used as the base XML
+              information for the projection metadata.
+          output_xml_file - name of the XML file to be written
+          start_year - starting year of the scenes to process
+          end_year - ending year of the scenes to process
+          imgfile - name of burned area image file with associated ENVI header
+              which can be used to obtain the extents and geographic
+              information for these products
+          log_handler - handler for the logging information
+   
+        Returns:
+            ERROR - error creating the XML file
+            SUCCESS - successful creation of the XML file
+        """
+
+        # parse the scene-based XML file, just as a basis for the output XML
+        # file.  the global attributes will be similar, but the extents and
+        # size of the image will be different.  the bands will be based on the
+        # bands that are output from this routine.
+        xml = metadata_api.parse (xml_file, silence=True)
+        meta_bands = xml.get_bands()
+        meta_global = xml.get_global_metadata()
+        out_meta_bands = bandsType()
+
+        # update the global information
+        meta_global.set_data_provider("USGS/EROS")
+        meta_global.set_satellite("LANDSAT")
+        meta_global.set_instrument("combination")
+        meta_global.set_acquisition_date(None)
+
+        # open the image file to obtain the geospatial and spatial reference
+        # information
+        ds = gdal.Open (imgfile)
+        if ds is None:
+            msg = "GDAL failed to open %s" % imgfile
+            logIt (msg, log_handler)
+            return ERROR
+
+        ds_band = ds.GetRasterBand (1)
+        if ds_band is None:
+            msg = "GDAL failed to get the first band in %s" % imgfile
+            logIt (msg, log_handler)
+            return ERROR
+        nlines = float(ds_band.YSize)
+        nsamps = float(ds_band.XSize)
+        del (ds_band)
+
+        ds_transform = ds.GetGeoTransform()
+        if ds_transform is None:
+            msg = "GDAL failed to get the geographic transform information " \
+                "from %s" % imgfile
+            logIt (msg, log_handler)
+            return ERROR
+
+        ds_srs = osr.SpatialReference()
+        if ds_srs is None:
+            msg = "GDAL failed to get the spatial reference information " \
+                "from %s" % imgfile
+            logIt (msg, log_handler)
+            return ERROR
+        ds_srs.ImportFromWkt (ds.GetProjection())
+        del (ds)
+
+        # get the UL and LR center of pixel map coordinates
+        (map_ul_x, map_ul_y) = convert_imageXY_to_mapXY (0.5, 0.5,
+            ds_transform)
+        (map_lr_x, map_lr_y) = convert_imageXY_to_mapXY (
+            nsamps - 0.5, nlines - 0.5, ds_transform)
+
+        # update the UL and LR projection corners along with the origin of the
+        # corners, for the center of the pixel (global projection information)
+        for mycorner in meta_global.projection_information.corner_point:
+            if mycorner.location == 'UL':
+                mycorner.set_x (map_ul_x)
+                mycorner.set_y (map_ul_y)
+            if mycorner.location == 'LR':
+                mycorner.set_x (map_lr_x)
+                mycorner.set_y (map_lr_y)
+        meta_global.projection_information.set_grid_origin("CENTER")
+
+        # update the UL and LR latitude and longitude coordinates, using the
+        # center of the pixel
+        srs_lat_lon = ds_srs.CloneGeogCS()
+        coord_tf = osr.CoordinateTransformation (ds_srs, srs_lat_lon)
+        for mycorner in meta_global.projection_information.corner_point:
+            if mycorner.location == 'UL':
+                (lon, lat, height) = \
+                    coord_tf.TransformPoint (map_ul_x, map_ul_y)
+                mycorner.set_longitude (lon)
+                mycorner.set_latitude (lat)
+            if mycorner.location == 'LR':
+                (lon, lat, height) = \
+                    coord_tf.TransformPoint (map_lr_x, map_lr_y)
+                mycorner.set_longitude (lon)
+                mycorner.set_latitude (lat)
+
+        # determine the bounding coordinates
+##GAIL - fix this to loop around the image
+        # UL
+        (map_x, map_y) = convert_imageXY_to_mapXY (0.0, 0.0, ds_transform)
+        (ul_lon, ul_lat, height) = coord_tf.TransformPoint (map_x, map_y)
+        # UR
+        (map_x, map_y) = convert_imageXY_to_mapXY (nsamp, 0.0, ds_transform)
+        (ur_lon, ur_lat, height) = coord_tf.TransformPoint (map_x, map_y)
+        # LR
+        (map_x, map_y) = convert_imageXY_to_mapXY (nsamps, nlines, ds_transform)
+        (lr_lon, lr_lat, height) = coord_tf.TransformPoint (map_x, map_y)
+        # LL
+        (map_x, map_y) = convert_imageXY_to_mapXY (0.0, nlines, ds_transform)
+        (ll_lon, ll_lat, height) = coord_tf.TransformPoint (map_x, map_y)
+
+        # find the min and max values accordingly
+        west_lon = min (ul_lon, ur_lon, lr_lon, ll_lon)
+        east_lon = max (ul_lon, ur_lon, lr_lon, ll_lon)
+        north_lat = max (ul_lat, ur_lat, lr_lat, ll_lat)
+        south_lat = min (ul_lat, ur_lat, lr_lat, ll_lat)
+
+        # update the XML
+        bounding_coords = meta_global.get_bounding_coordinates()
+        bounding_coords.set_west (west_lon)
+        bounding_coords.set_east (east_lon)
+        bounding_coords.set_north (north_lat)
+        bounding_coords.set_south (south_lat)
+
+        del (ds_transform)
+        del (ds_srs)
+
+        # clear some of the global information that doesn't apply for these
+        # products
+        meta_global.set_scene_center_time(None)
+        meta_global.set_lpgs_metadata_file_name(None)
+        meta_global.set_orientation_angle(None)
+        meta_global.set_level1_production_date(None)
+
+        # clear the solar angles
+        solar = meta_global.get_solar_angles()
+        solar.set_zenith(None)
+        solar.set_azimuth(None)
+        solar.set_units(None)
+        meta_global.set_solar_angles(solar)
+
+        # update the band information; there are 4 output products per year
+        # for the burned area dataset
+        #    1. first date a burn scar was observed (burn_scar)
+        #    2. number of times burn scar was observed (burn_count)
+        #    3. number of good looks (good_looks_count)
+        #    4. maximum probability for burn scar (max_burn_prob)
+        nproducts = 4
+        nyears = end_year - start_year + 1
+        for count in range (1, nproducts+1)
+            for year in range (start_year, end_year+1)
+                myband = band()
+                myband.set_product("burned_area")
+                myband.set_short_name("LNDBA")
+                myband.set_data_type("INT16")
+                myband.set_pixel_size(meta_bands[0].get_pixel_size())
+                myband.set_fill_value(meta_bands[0].get_fill_value())
+                myband.set_nlines(nlines)
+                myband.set_nsamps(nsamps)
+                myband.set_app_version(self.burned_area_version)
+                myband.set_production_date (  \
+                    strftime("%Y-%m-%d %H:%M:%S", gmtime()))
+
+                # handle the band-specific differences
+                if count == 1:
+                    name = "burn_scar_" + year
+                    myband.set_name(name)
+                    long_name = "first DOY a burn scar was observed"
+                    myband.set_long_name(long_name)
+                    file_name = "burn_scar_" + year + ".img"
+                    myband.set_file_name(file_name)
+                    myband.set_category("image")
+                    myband.set_data_units("day of year")
+                    valid_range[0] = 0
+                    valid_range[1] = 366
+                    myband.set_valid_range(valid_range)
+                    qa_description = "0: no burn observed" 
+                    myband.set_qa_description(qa_description)
+
+                elif count == 2:
+                    name = "burn_count_" + year
+                    myband.set_name(name)
+                    long_name = "number of times a burn was observed"
+                    myband.set_long_name(long_name)
+                    file_name = "burn_count_" + year + ".img"
+                    myband.set_file_name(file_name)
+                    myband.set_category("image")
+                    myband.set_data_units("count")
+                    valid_range[0] = 0
+                    valid_range[1] = 366
+                    myband.set_valid_range(valid_range)
+                    qa_description = "0: no burn observed" 
+                    myband.set_qa_description(qa_description)
+
+                elif count == 3:
+                    name = "good_looks_count_" + year
+                    myband.set_name(name)
+                    long_name = "number of good looks (pixels with good QA)"
+                    myband.set_long_name(long_name)
+                    file_name = "good_looks_count_" + year + ".img"
+                    myband.set_file_name(file_name)
+                    myband.set_category("qa")
+                    myband.set_data_units("count")
+                    valid_range[0] = 0
+                    valid_range[1] = 366
+                    myband.set_valid_range(valid_range)
+                    qa_description = "-0: no valid pixels (water, cloud, " \
+                        "snow, etc.)"
+                    myband.set_qa_description(qa_description)
+
+                elif count == 4:
+                    name = "max_burn_prob_" + year
+                    myband.set_name(name)
+                    long_name = "maximum probability for burn scar"
+                    myband.set_long_name(long_name)
+                    file_name = "max_burn_prob_" + year + ".img"
+                    myband.set_file_name(file_name)
+                    myband.set_category("image")
+                    myband.set_data_units("probability")
+                    valid_range[0] = 0
+                    valid_range[1] = 100
+                    myband.set_valid_range(valid_range)
+                    qa_description = "-9998: bad QA (water, cloud, snow, etc.)"
+                    myband.set_qa_description(qa_description)
+
+            # add this band to the metadata
+            out_meta_bands.add_band(myband)
+            del (myband)
+
+            # end for year
+        # end for nproducts
+
+        return SUCCESS
 
 
     def runAnnualBurnSummaries(self, stack_file=None, bp_dir=None, bc_dir=None,
@@ -457,7 +740,14 @@ class AnnualBurnSummary():
         # create the output XML file which contains information for each of
         # the bands: burn scar date, burn count, good looks count, and the
         # maximum burn probability
-## GAIL here ##
+        xml_file = stack2['file_'][0]
+        output_xml_file = "burned_area_%d_%d.xml" % (start_year, end_year)
+        status = createXML (xml_file, output_xml_file, start_year, end_year,
+            fname, log_handler)
+        if status != SUCCESS:
+            msg = 'Failed to write the output XML file: ' + output_xml_file
+            logIt (msg, log_handler)
+            return ERROR
 
         # successful completion.  return to the original directory.
         msg = 'Completion of annual burn summaries.'
