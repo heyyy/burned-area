@@ -398,9 +398,7 @@ class BurnAreaThreshold():
             logIt (msg, self.log_handler)
             return ERROR
         
-        # given that all burn probabilities in this temporal stack have the
-        # same scene extents and projection information, just obtain that
-        # information from the first file and use it for all of the files
+        # get the projection and scene information
         geotrans = bp_dataset.GetGeoTransform()
         if geotrans is None:
             msg = 'Failed to obtain the GeoTransform info from ' + bp_file
