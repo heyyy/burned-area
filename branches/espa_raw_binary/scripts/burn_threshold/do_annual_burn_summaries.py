@@ -15,6 +15,7 @@
 import sys
 import os
 import time
+import datetime as datetime_
 import getopt
 import csv
 
@@ -100,7 +101,8 @@ class AnnualBurnSummary():
 
 
     def createXML(self, scene_xml_file=None, output_xml_file=None,
-        start_year=None, end_year=None, imgfile=None, log_handler=None):
+        start_year=None, end_year=None, fill_value=None, imgfile=None,
+        log_handler=None):
         """Creates an XML file for the products produced by
            runAnnualBurnSummaries.
         Description: routine to create the XML file for the burned area summary
@@ -118,6 +120,7 @@ class AnnualBurnSummary():
           output_xml_file - name of the XML file to be written
           start_year - starting year of the scenes to process
           end_year - ending year of the scenes to process
+          fill_value - fill or nodata value for this dataset
           imgfile - name of burned area image file with associated ENVI header
               which can be used to obtain the extents and geographic
               information for these products
@@ -132,16 +135,16 @@ class AnnualBurnSummary():
         # file.  the global attributes will be similar, but the extents and
         # size of the image will be different.  the bands will be based on the
         # bands that are output from this routine.
-        xml = metadata_api.parse (xml_file, silence=True)
+        xml = metadata_api.parse (scene_xml_file, silence=True)
         meta_bands = xml.get_bands()
         meta_global = xml.get_global_metadata()
-        out_meta_bands = bandsType()
 
         # update the global information
         meta_global.set_data_provider("USGS/EROS")
         meta_global.set_satellite("LANDSAT")
         meta_global.set_instrument("combination")
-        meta_global.set_acquisition_date(None)
+#        del (meta_global.acquisition_date)
+#        meta_global.set_acquisition_date(None)
 
         # open the image file to obtain the geospatial and spatial reference
         # information
@@ -158,6 +161,8 @@ class AnnualBurnSummary():
             return ERROR
         nlines = float(ds_band.YSize)
         nsamps = float(ds_band.XSize)
+        nlines_int = ds_band.YSize 
+        nsamps_int = ds_band.XSize 
         del (ds_band)
 
         ds_transform = ds.GetGeoTransform()
@@ -197,7 +202,7 @@ class AnnualBurnSummary():
         # center of the pixel
         srs_lat_lon = ds_srs.CloneGeogCS()
         coord_tf = osr.CoordinateTransformation (ds_srs, srs_lat_lon)
-        for mycorner in meta_global.projection_information.corner_point:
+        for mycorner in meta_global.corner:
             if mycorner.location == 'UL':
                 (lon, lat, height) = \
                     coord_tf.TransformPoint (map_ul_x, map_ul_y)
@@ -209,26 +214,59 @@ class AnnualBurnSummary():
                 mycorner.set_longitude (lon)
                 mycorner.set_latitude (lat)
 
-        # determine the bounding coordinates
-##GAIL - fix this to loop around the image
+        # determine the bounding coordinates; initialize using the UL and LR
+        # then work around the scene edges
         # UL
         (map_x, map_y) = convert_imageXY_to_mapXY (0.0, 0.0, ds_transform)
         (ul_lon, ul_lat, height) = coord_tf.TransformPoint (map_x, map_y)
-        # UR
-        (map_x, map_y) = convert_imageXY_to_mapXY (nsamp, 0.0, ds_transform)
-        (ur_lon, ur_lat, height) = coord_tf.TransformPoint (map_x, map_y)
         # LR
         (map_x, map_y) = convert_imageXY_to_mapXY (nsamps, nlines, ds_transform)
         (lr_lon, lr_lat, height) = coord_tf.TransformPoint (map_x, map_y)
-        # LL
-        (map_x, map_y) = convert_imageXY_to_mapXY (0.0, nlines, ds_transform)
-        (ll_lon, ll_lat, height) = coord_tf.TransformPoint (map_x, map_y)
 
-        # find the min and max values accordingly
-        west_lon = min (ul_lon, ur_lon, lr_lon, ll_lon)
-        east_lon = max (ul_lon, ur_lon, lr_lon, ll_lon)
-        north_lat = max (ul_lat, ur_lat, lr_lat, ll_lat)
-        south_lat = min (ul_lat, ur_lat, lr_lat, ll_lat)
+        # find the min and max values accordingly, for initialization
+        west_lon = min (ul_lon, lr_lon)
+        east_lon = max (ul_lon, lr_lon)
+        north_lat = max (ul_lat, lr_lat)
+        south_lat = min (ul_lat, lr_lat)
+
+        # traverse the boundaries of the image to determine the bounding
+        # coords; traverse one extra line and sample to get the the outer
+        # extents of the image vs. just the UL of the outer edge.
+        # top and bottom edges
+        for samp in range (0, nsamps_int+1):
+            # top edge
+            (map_x, map_y) = convert_imageXY_to_mapXY (samp, 0.0, ds_transform)
+            (top_lon, top_lat, height) = coord_tf.TransformPoint (map_x, map_y)
+
+            # lower edge
+            (map_x, map_y) = convert_imageXY_to_mapXY (samp, nlines,
+                ds_transform)
+            (low_lon, low_lat, height) = coord_tf.TransformPoint (map_x, map_y)
+
+            # update the min and max values
+            west_lon = min (top_lon, low_lon, west_lon)
+            east_lon = max (top_lon, low_lon, east_lon)
+            north_lat = max (top_lat, low_lat, north_lat)
+            south_lat = min (top_lat, low_lat, south_lat)
+
+        # left and right edges
+        for line in range (0, nlines_int+1):
+            # left edge
+            (map_x, map_y) = convert_imageXY_to_mapXY (0.0, line, ds_transform)
+            (left_lon, left_lat, height) = coord_tf.TransformPoint (map_x,
+                map_y)
+
+            # right edge
+            (map_x, map_y) = convert_imageXY_to_mapXY (nsamps, line,
+                ds_transform)
+            (right_lon, right_lat, height) = coord_tf.TransformPoint (map_x,
+                map_y)
+
+            # update the min and max values
+            west_lon = min (left_lon, right_lon, west_lon)
+            east_lon = max (left_lon, right_lon, east_lon)
+            north_lat = max (left_lat, right_lat, north_lat)
+            south_lat = min (left_lat, right_lat, south_lat)
 
         # update the XML
         bounding_coords = meta_global.get_bounding_coordinates()
@@ -242,108 +280,153 @@ class AnnualBurnSummary():
 
         # clear some of the global information that doesn't apply for these
         # products
+        del (meta_global.scene_center_time)
         meta_global.set_scene_center_time(None)
-        meta_global.set_lpgs_metadata_file_name(None)
+        del (meta_global.lpgs_metadata_file)
+        meta_global.set_lpgs_metadata_file(None)
+        del (meta_global.orientation_angle)
         meta_global.set_orientation_angle(None)
+        del (meta_global.level1_production_date)
         meta_global.set_level1_production_date(None)
 
         # clear the solar angles
-        solar = meta_global.get_solar_angles()
-        solar.set_zenith(None)
-        solar.set_azimuth(None)
-        solar.set_units(None)
-        meta_global.set_solar_angles(solar)
+        del (meta_global.solar_angles)
+        meta_global.set_solar_angles(None)
 
-        # update the band information; there are 4 output products per year
-        # for the burned area dataset
+        # save the first band and then wipe the bands out so that new bands
+        # can be added for the burned area bands
+        myband_save = meta_bands.band[0]
+        del (meta_bands.band)
+        meta_bands.band = []
+
+        # create the band information; there are 4 output products per year
+        # for the burned area dataset; add enough bands to cover the products
+        # and years
         #    1. first date a burn scar was observed (burn_scar)
         #    2. number of times burn scar was observed (burn_count)
         #    3. number of good looks (good_looks_count)
         #    4. maximum probability for burn scar (max_burn_prob)
         nproducts = 4
         nyears = end_year - start_year + 1
-        for count in range (1, nproducts+1)
-            for year in range (start_year, end_year+1)
-                myband = band()
+        nbands = nproducts * nyears
+        for i in range (0, nbands):
+            # add the new band
+            myband = metadata_api.band()
+            meta_bands.band.append(myband)
+
+        # how many bands are there in the new XML file
+        num_scene_bands =  len (meta_bands.band)
+        print "New XML file has %d bands" % num_scene_bands
+
+        # loop through the products and years to create the band metadata
+        band_count = 0
+        for product in range (1, nproducts+1):
+            for year in range (start_year, end_year+1):
+                myband = meta_bands.band[band_count]
                 myband.set_product("burned_area")
                 myband.set_short_name("LNDBA")
                 myband.set_data_type("INT16")
-                myband.set_pixel_size(meta_bands[0].get_pixel_size())
-                myband.set_fill_value(meta_bands[0].get_fill_value())
+                myband.set_pixel_size(myband_save.get_pixel_size())
+                myband.set_fill_value(fill_value)
                 myband.set_nlines(nlines)
                 myband.set_nsamps(nsamps)
                 myband.set_app_version(self.burned_area_version)
+                production_date = time.strftime("%Y-%m-%dT%H:%M:%S",
+                    time.gmtime())
                 myband.set_production_date (  \
-                    strftime("%Y-%m-%d %H:%M:%S", gmtime()))
+                    datetime_.datetime.strptime(production_date,
+                    '%Y-%m-%dT%H:%M:%S'))
+
+                # clear some of the band-specific fields that don't apply for
+                # this product
+                del (myband.source)
+                myband.set_source(None)
+                del (myband.saturate_value)
+                myband.set_saturate_value(None)
+                del (myband.scale_factor)
+                myband.set_scale_factor(None)
+                del (myband.add_offset)
+                myband.set_add_offset(None)
+                del (myband.toa_reflectance)
+                myband.set_toa_reflectance(None)
+                del (myband.bitmap_description)
+                myband.set_bitmap_description(None)
+                del (myband.class_values)
+                myband.set_class_values(None)
+                del (myband.qa_description)
+                myband.set_qa_description(None)
+                del (myband.calibrated_nt)
+                myband.set_calibrated_nt(None)
 
                 # handle the band-specific differences
-                if count == 1:
-                    name = "burn_scar_" + year
-                    myband.set_name(name)
+                valid_range = metadata_api.valid_range()
+                if product == 1:
+                    name = "burn_scar_%d" % year
                     long_name = "first DOY a burn scar was observed"
-                    myband.set_long_name(long_name)
-                    file_name = "burn_scar_" + year + ".img"
-                    myband.set_file_name(file_name)
-                    myband.set_category("image")
-                    myband.set_data_units("day of year")
-                    valid_range[0] = 0
-                    valid_range[1] = 366
-                    myband.set_valid_range(valid_range)
+                    file_name = "burn_scar_%d.img" % year
+                    category = "image"
+                    data_units = "day of year"
+                    valid_range.min = 0
+                    valid_range.max = 366
                     qa_description = "0: no burn observed" 
-                    myband.set_qa_description(qa_description)
 
-                elif count == 2:
-                    name = "burn_count_" + year
-                    myband.set_name(name)
+                elif product == 2:
+                    name = "burn_count_%d" % year
                     long_name = "number of times a burn was observed"
-                    myband.set_long_name(long_name)
-                    file_name = "burn_count_" + year + ".img"
-                    myband.set_file_name(file_name)
-                    myband.set_category("image")
-                    myband.set_data_units("count")
-                    valid_range[0] = 0
-                    valid_range[1] = 366
-                    myband.set_valid_range(valid_range)
+                    file_name = "burn_count_%d.img" % year
+                    category = "image"
+                    data_units = "count"
+                    valid_range.min = 0
+                    valid_range.max = 366
                     qa_description = "0: no burn observed" 
-                    myband.set_qa_description(qa_description)
 
-                elif count == 3:
-                    name = "good_looks_count_" + year
-                    myband.set_name(name)
+                elif product == 3:
+                    name = "good_looks_count_%d" % year
                     long_name = "number of good looks (pixels with good QA)"
-                    myband.set_long_name(long_name)
-                    file_name = "good_looks_count_" + year + ".img"
-                    myband.set_file_name(file_name)
-                    myband.set_category("qa")
-                    myband.set_data_units("count")
-                    valid_range[0] = 0
-                    valid_range[1] = 366
-                    myband.set_valid_range(valid_range)
-                    qa_description = "-0: no valid pixels (water, cloud, " \
+                    file_name = "good_looks_count_%d.img" % year
+                    category = "qa"
+                    data_units = "count"
+                    valid_range.min = 0
+                    valid_range.max = 366
+                    qa_description = "0: no valid pixels (water, cloud, " \
                         "snow, etc.)"
-                    myband.set_qa_description(qa_description)
 
-                elif count == 4:
-                    name = "max_burn_prob_" + year
-                    myband.set_name(name)
+                elif product == 4:
+                    name = "max_burn_prob_%d" % year
                     long_name = "maximum probability for burn scar"
-                    myband.set_long_name(long_name)
-                    file_name = "max_burn_prob_" + year + ".img"
-                    myband.set_file_name(file_name)
-                    myband.set_category("image")
-                    myband.set_data_units("probability")
-                    valid_range[0] = 0
-                    valid_range[1] = 100
-                    myband.set_valid_range(valid_range)
+                    file_name = "max_burn_prob_%d.img" % year
+                    category = "image"
+                    data_units = "probability"
+                    valid_range.min = 0
+                    valid_range.max = 100
                     qa_description = "-9998: bad QA (water, cloud, snow, etc.)"
-                    myband.set_qa_description(qa_description)
 
-            # add this band to the metadata
-            out_meta_bands.add_band(myband)
-            del (myband)
+                myband.set_name(name)
+                myband.set_long_name(long_name)
+                myband.set_file_name(file_name)
+                myband.set_category(category)
+                myband.set_data_units(data_units)
+                myband.set_valid_range(valid_range)
+                myband.set_qa_description(qa_description)
+
+                # increment the band counter
+                band_count += 1
 
             # end for year
         # end for nproducts
+
+        # write out a the XML file after validation
+        # call the export with validation
+        fd = open (output_xml_file, 'w')
+        if fd == None:
+            msg = "Unable to open the output XML file (%s) for writing." % \
+                output_xml_file
+            logIt (msg, log_handler)
+            return ERROR
+
+        metadata_api.export (fd, xml)
+        fd.flush()
+        fd.close()
 
         return SUCCESS
 
@@ -742,8 +825,8 @@ class AnnualBurnSummary():
         # maximum burn probability
         xml_file = stack2['file_'][0]
         output_xml_file = "burned_area_%d_%d.xml" % (start_year, end_year)
-        status = createXML (xml_file, output_xml_file, start_year, end_year,
-            fname, log_handler)
+        status = self.createXML (xml_file, output_xml_file, start_year,
+            end_year, nodata, fname, log_handler)
         if status != SUCCESS:
             msg = 'Failed to write the output XML file: ' + output_xml_file
             logIt (msg, log_handler)
