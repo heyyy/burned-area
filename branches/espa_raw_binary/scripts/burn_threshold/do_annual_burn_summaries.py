@@ -143,8 +143,8 @@ class AnnualBurnSummary():
         meta_global.set_data_provider("USGS/EROS")
         meta_global.set_satellite("LANDSAT")
         meta_global.set_instrument("combination")
-#        del (meta_global.acquisition_date)
-#        meta_global.set_acquisition_date(None)
+        del (meta_global.acquisition_date)
+        meta_global.set_acquisition_date(None)
 
         # open the image file to obtain the geospatial and spatial reference
         # information
