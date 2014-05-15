@@ -515,7 +515,7 @@ class BurnedArea():
         msg = '\nZipping the annual summaries to ' + zip_file
         logIt (msg, self.log_handler)
         cmdstr = 'zip %s burn_scar_* burn_count_* good_looks_count_* '  \
-            'max_burn_prob_*' % zip_file
+            'max_burn_prob_* burned_area*.xml' % zip_file
         os.system(cmdstr)
         if not os.path.exists(zip_file):
             msg = 'Error creating the zip file of all the annual burn ' \
