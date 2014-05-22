@@ -186,7 +186,7 @@ class BurnedArea():
             processing of the individual scenes will start at start_year+1.
             Next the burn classifications will be processed for each scene,
             followed by the annual summaries for the maximum burn probability,
-            DOY when the burn scar first appeared, number of times an area
+            DOY when the burn area first appeared, number of times an area
             was burned, etc.  Lastly the annual summary burned area products
             will be zipped up into one file to be delivered.
 
@@ -487,7 +487,7 @@ class BurnedArea():
                 logIt (msg, self.log_handler)
                 return ERROR
 
-        # run the burn threshold algorithm to identify burn scars
+        # run the burn threshold algorithm to identify burned areas
         stack_file = input_dir + '/input_stack.csv'
         status = BurnAreaThreshold().runBurnThreshold(stack_file=stack_file,
             input_dir=output_dir, output_dir=output_dir,
@@ -500,7 +500,7 @@ class BurnedArea():
             return ERROR
 
         # run the algorithm to generate annual summaries for the burn
-        # probabilities and burn scars
+        # probabilities and burned areas
         status = AnnualBurnSummary().runAnnualBurnSummaries(
             stack_file=stack_file, bp_dir=output_dir, bc_dir=output_dir,
             output_dir=output_dir, start_year=start_year+1, end_year=end_year)
@@ -511,11 +511,11 @@ class BurnedArea():
             return ERROR
 
         # zip the burn area annual summaries
-        zip_file = 'burn_scar_%03d_%03d.zip' % (path, row)
+        zip_file = 'burned_area_%03d_%03d.zip' % (path, row)
         msg = '\nZipping the annual summaries to ' + zip_file
         logIt (msg, self.log_handler)
-        cmdstr = 'zip %s burn_scar_* burn_count_* good_looks_count_* '  \
-            'max_burn_prob_* burned_area*.xml' % zip_file
+        cmdstr = 'zip %s burned_area_* burn_count_* good_looks_count_* '  \
+            'max_burn_prob_*' % zip_file
         os.system(cmdstr)
         if not os.path.exists(zip_file):
             msg = 'Error creating the zip file of all the annual burn ' \
