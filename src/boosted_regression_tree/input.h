@@ -23,14 +23,13 @@ NOTES:
 
 #include <stdlib.h>
 #include <stdio.h>
+#include "common.h"
 #include "PredictBurnedArea.h"
 
 /* Prototypes */
-Input_t *OpenInput(char *file_name);
-bool GetInputLine(Input_t *ds_input, int iband, int iline);
-bool GetInputQALine(Input_t *ds_input, int iband, int iline);
-bool CloseInput(Input_t *ds_input);
-bool FreeInput(Input_t *ds_input);
-bool GetInputMeta(Input_t *ds_input);
+Input_t *OpenInput (char *base_name, char *mask_name, int fill_val);
+bool CloseInput (Input_t *ds_input);
+bool FreeInput (Input_t *ds_input);
+bool ReadHdr (string filename, int* lines, int* samples);
 
 #endif

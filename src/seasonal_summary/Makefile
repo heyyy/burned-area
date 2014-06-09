@@ -1,49 +1,49 @@
 #------------------------------------------------------------------------------
-# Makefile for sample HDF code
+# Makefile for seasonal_summary executables
 #------------------------------------------------------------------------------
 
 # Set up compile options
 CC = gcc
 RM = rm -f
-EXTRA = -Wall -g
+EXTRA = -Wall -g -O2
 
 # Define the include files
-INC = bool.h determine_max_extent.h
-INCDIR  = -I. -I$(HDFINC) -I$(HDFEOS_INC) -I$(HDFEOS_GCTPINC) -I$(JPEGINC) \
-          -I$(SZIPINC) -I$(ZLIBINC)
+INC1 = determine_max_extent.h
+INC2 = generate_stack.h
+INCDIR  = -I. -I$(XML2INC) -I$(ESPAINC)
 NCFLAGS = $(EXTRA) $(INCDIR)
 
 # Define the source code and object files
-SRC = get_args.c                   \
-      error_handler.c              \
-      read_extent.c                \
-      determine_max_extent.c
+SRC1 = read_extent.c determine_max_extent.c
+OBJ1 = $(SRC1:.c=.o)
 
-OBJ = $(SRC:.c=.o)
+SRC2 = read_xml.c generate_stack.c
+OBJ2 = $(SRC2:.c=.o)
 
 # Define the object libraries
-LIB   = -L$(HDFLIB) -lmfhdf -ldf -lxdr -L$(JPEGLIB) -ljpeg \
-        -L$(ZLIBLIB) -lz -L$(SZIPLIB) -lsz -lm
-EOSLIB = -L$(HDFEOS_LIB) -lhdfeos -L$(HDFEOS_GCTPLIB) -lGctp
+LIB   = -L$(ESPALIB) -l_espa_raw_binary -l_espa_common -L$(XML2LIB) -lxml2 -lm
 
 # Define the executable
-EXE = determine_max_extent
+EXE = determine_max_extent generate_stack
 
 # Target for the executable
 all: $(EXE)
 
-determine_max_extent: $(OBJ) $(INC)
-	$(CC) $(EXTRA) -o $(EXE) $(OBJ) $(EOSLIB) $(LIB)
+determine_max_extent: $(OBJ1) $(INC1)
+	$(CC) $(EXTRA) -o determine_max_extent $(OBJ1) $(LIB)
+
+generate_stack: $(OBJ2) $(INC2)
+	$(CC) $(EXTRA) -o generate_stack $(OBJ2) $(LIB)
 
 install:
 	install -d $(BIN)
 	install -m 755 $(EXE) $(BIN)
 
 clean:
-	$(RM) $(OBJ) $(EXE)
+	$(RM) *.o $(EXE)
 
-$(OBJ): $(INC)
-
+$(OBJ1): $(INC1)
+$(OBJ2): $(INC2)
 .c.o:
 	$(CC) $(NCFLAGS) -c $<
 

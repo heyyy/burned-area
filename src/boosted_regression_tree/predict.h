@@ -31,8 +31,9 @@ NOTES:
 
 using namespace std;
 
-/* define the pixel values for cloud, cloud shadow, adjacent cloud, and water
-   for the output prediction scenes */
+/* define the pixel values for cloud, cloud shadow, adjacent cloud, snow,
+   and water for the output prediction scenes (basically any "bad" QA pixel
+   from the QA mask, except fill which is marked separately) */
 #define PBA_CLOUD_WATER -9998
 
 /* define the pixel values for fill for the output prediction scenes */

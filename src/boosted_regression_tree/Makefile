@@ -8,34 +8,27 @@ RM = rm -f
 EXTRA = -Wall -g
 
 # Define the include files
-INC = const.h date.h error.h input.h input_gtiff.h myhdf.h myproj.h \
-      myproj_const.h mystring.h output.h predict.h space.h \
+INC = const.h error.h input.h input_rb.h mystring.h output.h predict.h \
       PredictBurnedArea.h
-INCDIR  = -I. -I$(HDFINC) -I$(HDFEOS_INC) -I$(TIFFINC) -I$(GEOTIFF_INC) \
--I$(OPENCVINC) -I$(BOOST_INC) -I$(HDFEOS_GCTPINC)
+INCDIR  = -I. -I$(XML2INC) -I$(ESPAINC) -I$(OPENCVINC) -I$(BOOST_INC)
 NCFLAGS = $(EXTRA) $(INCDIR)
 
 # Define the source code and object files
-SRC = date.cpp \
-      error.cpp \
+SRC = error.cpp \
       FileIO.cpp \
       input.cpp \
-      input_gtiff.cpp \
-      myhdf.cpp \
+      input_rb.cpp \
       mystring.cpp \
       output.cpp \
       predict.cpp \
       PredictBurnedArea.cpp \
-      predict_burned_area.cpp \
-      space.cpp
+      predict_burned_area.cpp
 
 OBJ = $(SRC:.cpp=.o)
 
 # Define the object libraries
-LIB   = -L$(BOOST_LIB) -lboost_program_options \
-        -L$(HDFEOS_LIB) -lhdfeos -L$(HDFLIB) -lmfhdf -ldf -lxdr \
-        -L$(JPEGLIB) -ljpeg -L$(HDFEOS_GCTPLIB) -lGctp \
-        -L$(GEOTIFF_LIB) -lgeotiff -L$(TIFFLIB) -ltiff -ltiffxx \
+LIB   = -L$(ESPALIB) -l_espa_raw_binary -l_espa_common -L$(XML2LIB) -lxml2  \
+        -L$(BOOST_LIB) -lboost_program_options \
         -L$(OPENCVLIB) -lopencv_ml -lopencv_highgui -lopencv_core \
         -lz -lrt -lpthread -lm
 

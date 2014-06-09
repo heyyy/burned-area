@@ -15,12 +15,16 @@
 # History:
 #   Updated on 11/26/2013 by Gail Schmidt, USGS/EROS
 #       Modified to incorporate into the ESPA environment
+#   Updated on 4/14/2014 by Gail Schmidt, USGS/EROS
+#       Modified to utilize the ESPA raw binary file format
+#       Modified to run the scenes in parallel
 #############################################################################
 
 import sys
 import os
 import time
 import getopt
+import multiprocessing, Queue
 
 import numpy
 import scipy.ndimage
@@ -55,14 +59,56 @@ def logIt (msg, log_handler):
 
 
 #############################################################################
+# Created on April 14, 2014 by Gail Schmidt, USGS/EROS
+# Created Python class to handle the multiprocessing of a stack of scenes.
+#
+# History:
+#
+############################################################################
+class parallelSceneThresholdWorker(multiprocessing.Process):
+    """Runs the burn thresholding in parallel for a stack of scenes.
+    """
+ 
+    def __init__ (self, work_queue, result_queue, stackObject):
+        # base class initialization
+        multiprocessing.Process.__init__(self)
+ 
+        # job management stuff
+        self.work_queue = work_queue
+        self.result_queue = result_queue
+        self.stackObject = stackObject
+        self.kill_received = False
+ 
+
+    def run(self):
+        while not self.kill_received:
+            # get a task
+            try:
+                xml_file = self.work_queue.get_nowait()
+            except Queue.Empty:
+                break
+ 
+            # process the scene
+            msg = 'Processing %s ...' % xml_file
+            logIt (msg, self.stackObject.log_handler)
+            status = self.stackObject.sceneBurnThreshold (xml_file)
+            if status != SUCCESS:
+                msg = 'Error running burn thresholding on the XML file ' \
+                    '(%s). Processing will terminate.' % xml_file
+                logIt (msg, self.stackObject.log_handler)
+ 
+            # store the result
+            self.result_queue.put(status)
+
+
+#############################################################################
 # Created on November 29, 2013 by Gail Schmidt, USGS/EROS
 # Turned into a class to run the overall burn thresholds on the burn
 #     probabilities.
 #
 # History:
-#   Updated on 12/4/2013 by Gail Schmidt, USGS/EROS
-#       Modified output classification names to have a .tif extension since
-#       they are GeoTiff files.
+#   Updated on 4/13/2014 by Gail Schmidt, USGS/EROS
+#       Modified to utilize the ESPA internal file format.
 #
 # Usage: do_threshold_stack.py --help prints the help message
 ############################################################################
@@ -75,33 +121,33 @@ class BurnAreaThreshold():
 
 
     def writeResults(self, outputData, outputFilename, geotrans, prj, nodata, \
-        outputRAT=None, makeHistos=False):
+        outputRAT=None):
         """Writes an array of data to an output file.
         Description: simple function to write an array of data to an output
-            Geotiff file
+            image file
         
         History:
           Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
               Geographic Science Center
+          Updated in April, 2013 by Gail Schmidt, USGE/EROS LSRD Project
+              Modified to utilize the ESPA internal file format.
         
         Args:
           outputData - output data structure to be written
-          outputFilename - name of GeoTiff file to write the array of data
+          outputFilename - name of output file to write the array of data
           geotrans - affine transform for mapping pixel coordinates into
               projection space (returned from GDAL GetGeoTransform())
           prj - projection coordinate system (returned from GDAL
               GetProjectionRef())
           nodata - fill or nodata data value for the output image
           outputRAT - name of output raster attribute table (RAT)
-          makeHistos - should histograms and overview pyramids be generated
-              for the output GeoTIFF products?  Default is false.
         
         Returns:
             Nothing
         """
 
-        # create the TIF driver for output data
-        driver = gdal.GetDriverByName("GTiff")
+        # create the ENVI driver for output data
+        driver = gdal.GetDriverByName('ENVI')
         
         # create the output dataset
         bp_dataset = driver.Create(outputFilename, outputData.shape[1],  \
@@ -116,18 +162,8 @@ class BurnAreaThreshold():
         
         if outputRAT <> None:
             bp_band.SetDefaultRAT(outputRAT)
-        
-        # generate the histograms and overviews if specified
-        if makeHistos:
-            histogram = bp_band.GetDefaultHistogram()
-            bp_band.SetDefaultHistogram(histogram[0], histogram[1],  \
-                histogram[3])
-            bp_band.FlushCache()
-    
-            bp_dataset.BuildOverviews(overviewlist=[3,9,27,81,243,729])
-            bp_dataset.FlushCache()
-    
-    
+
+
     def floodFill(self, input_image, row, col, output_image, output_label=1,
         local_threshold=75, nodata=-9999):
         """Implements the flood fill algorithm for the identified burned areas.
@@ -254,9 +290,7 @@ class BurnAreaThreshold():
         # as the seed for the region
         bp_region_coords = skimage.measure.regionprops(  \
             label_image=bp_seed_regions, properties=['Area','Coordinates'])
-        print 'DEBUG: There are', len(bp_region_coords),   \
-            'coordinates identified.'
-        
+
         # loop through regions and flood fill to expand them where they are of
         # an appropriate size
         for i in range(0, len(bp_region_coords)):
@@ -322,9 +356,104 @@ class BurnAreaThreshold():
         return ([bp_regions2, label_rat])
     
     
+    def sceneBurnThreshold(self, bp_file):
+        """Runs the burn thresholding on the current scene.
+        Description: sceneBurnThreshold will run the burn thresholding
+            on the current burn probability file.
+
+        History:
+          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+              Geographic Science Center
+          Updated on 4/10/2014 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to run as a multi-threaded process.
+        
+        Args:
+          bp_file - name of burn probability file to process
+        
+        Returns:
+            ERROR - error running the thresholding on this file
+            SUCCESS - successful processing
+
+        Notes: If the nodata value is not obtainable from the header data,
+            then it will be set to -9999 which has been the common value
+            used for the overall burned area applications.
+        """
+
+        # determine the output classification name
+        fname = os.path.basename(bp_file).replace('burn_probability.img', \
+            'burn_class.img')
+        bc_file_name = self.output_dir + '/' + fname
+        
+        # process the current burn probability file
+        bp_dataset = gdal.Open(bp_file)
+        if bp_dataset is None:
+            msg = 'Failed to open bp file: ' + bp_file
+            logIt (msg, self.log_handler)
+            return ERROR
+        
+        # read the only band in the file, band 1
+        bp_band = bp_dataset.GetRasterBand(1)
+        if bp_band is None:
+            msg = 'Failed to open bp band 1 from ' + bp_file
+            logIt (msg, self.log_handler)
+            return ERROR
+        
+        # get the projection and scene information
+        geotrans = bp_dataset.GetGeoTransform()
+        if geotrans is None:
+            msg = 'Failed to obtain the GeoTransform info from ' + bp_file
+            logIt (msg, self.log_handler)
+            return ERROR
+
+        prj = bp_dataset.GetProjectionRef()
+        if prj is None:
+            msg = 'Failed to obtain the ProjectionRef info from ' + bp_file
+            logIt (msg, self.log_handler)
+            return ERROR
+
+        nrow = bp_dataset.RasterYSize
+        ncol = bp_dataset.RasterXSize
+        if (nrow is None) or (ncol is None):
+            msg = 'Failed to obtain the RasterXSize and RasterYSize from ' +  \
+                bp_file
+            logIt (msg, self.log_handler)
+            return ERROR
+
+        nodata = bp_band.GetNoDataValue()
+        if nodata is None:
+            nodata = -9999
+            msg = 'Failed to obtain the NoDataValue from %s.  Using %d.' % \
+                (bp_file, nodata)
+            logIt (msg, self.log_handler)
+            
+        # array to hold burn scars
+        bp_scars = numpy.zeros((nrow, ncol))
+        bp_rats = []
+        
+        # read the probabilities for the current scene
+        bp_data = bp_band.ReadAsArray()
+        
+        # find the final burn scars from the burn probabilities
+        bp_scar_results = self.findBurnScars(bp_data, self.seed_prob_thresh,
+            self.seed_size_thresh, self.flood_fill_prob_thresh,
+            self.log_handler)
+        bp_scars = bp_scar_results[0]
+        bp_scars[ bp_data < 0 ] = bp_data[ bp_data < 0 ]
+        bp_rats.append(bp_scar_results[1])
+            
+        # output the burn classifications for this scene
+        msg = 'Writing output to %s ... ' % bc_file_name
+        logIt (msg, self.log_handler)
+        self.writeResults(outputData=bp_scar_results[0],
+            outputFilename=bc_file_name, geotrans=geotrans, prj=prj,
+            nodata=nodata, outputRAT=bp_scar_results[1])
+
+        return SUCCESS
+
+
     def runBurnThreshold(self, stack_file=None, input_dir=None,
         output_dir=None, start_year=None, end_year=None, seed_prob_thresh=97.5,
-        seed_size_thresh=5, flood_fill_prob_thresh=75, make_histos=False,
+        seed_size_thresh=5, flood_fill_prob_thresh=75, num_processors=1,
         logfile=None):
         """Runs the burn thresholding algorithm to find the burn scars from the
            input burn probabilities.
@@ -345,7 +474,9 @@ class BurnAreaThreshold():
           Updated on Dec. 2, 2013 by Gail Schmidt, USGS/EROS LSRD Project
               Modified to use argparser vs. optionparser, since optionparser
               is deprecated.
-        
+          Updated on April 13, 2014 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to utilize the ESPA internal file format.
+
         Args:
           stack_file - input CSV file with information about the files to be
               processed.  this is generated as part of the seasonal summaries
@@ -368,8 +499,8 @@ class BurnAreaThreshold():
           flood_fill_prob_thresh - threshold to be used to add burn pixels
               from the burn probability image to the burn classification via
               flood filling; default is 75%
-          make_histos - process histograms and overviews for each of the output
-              GeoTiffs generated by this application; default is False
+          num_processors - how many processors should be used for parallel
+              processing sections of the application
           logfile - name of the logfile for logging information; if None then
               the output will be written to stdout
         
@@ -424,11 +555,11 @@ class BurnAreaThreshold():
                     'with probabilities above this value are added to '  \
                     'the patch; default is 75%%',
                 metavar='THRESHOLD')
-            parser.add_argument ('--make_histos', dest='make_histos',
-                default=False, action='store_true',
-                help='process histograms and overviews for each of '  \
-                    'the GeoTiffs generated by this application; default '  \
-                    'is False')
+            parser.add_argument ('-p', '--num_processors', type=int,
+                dest='num_processors',
+                help='how many processors should be used for parallel '  \
+                    'processing sections of the application '  \
+                    '(default = 1, single threaded)')
             parser.add_argument ('-l', '--logfile', type=str, dest='logfile',
                 help='name of optional log file', metavar='FILE')
 
@@ -465,13 +596,20 @@ class BurnAreaThreshold():
             if options.flood_fill_prob_thresh is not None:
                 flood_fill_prob_thresh = options.flood_fill_prob_thresh
 
-            if options.make_histos is not None:
-                make_histos = options.make_histos
+            # number of processors
+            if options.num_processors is not None:
+                num_processors = options.num_processors
+        else:
+            num_processors = num_processors
 
         # open the log file if it exists; use line buffering for the output
         log_handler = None
         if logfile is not None:
             log_handler = open (logfile, 'w', buffering=1)
+        self.log_handler = log_handler
+        self.seed_prob_thresh = seed_prob_thresh
+        self.seed_size_thresh = seed_size_thresh
+        self.flood_fill_prob_thresh = flood_fill_prob_thresh
 
         # validate options and arguments
         if start_year is not None:
@@ -508,6 +646,7 @@ class BurnAreaThreshold():
                 output_dir
             logIt (msg, log_handler)
             os.makedirs(output_dir, 0755)
+        self.output_dir = output_dir
 
         # save the current working directory for return to upon error or when
         # processing is complete
@@ -547,77 +686,46 @@ class BurnAreaThreshold():
             flood_fill_prob_thresh
         logIt (msg, log_handler)
 
-        for i in range(0, stack2.shape[0]):
-            msg = '############################################################'
-            logIt (msg, log_handler)
-            file_name = stack2['file_'][i]
-            
-            # use the lndsr filename in the CSV file to obtain the burn
-            # probability filename
-            fname = os.path.basename(file_name).replace('lndsr.','')
-            fname = fname.replace('.hdf','_burn_probability.hdf')
-            bp_file_name = input_dir + "/" + fname
+        # load up the work queue for processing scenes in parallel for burn
+        # thresholding
+        work_queue = multiprocessing.Queue()
+        num_scenes = stack2.shape[0]
+        for i in range(num_scenes):
+            # use the XML filename in the CSV file to obtain the burn
+            # probability filename to be thresholded
+            xml_file = stack2['file_'][i]
+            bp_file_name = xml_file.replace('.xml','_burn_probability.img')
             if not os.path.exists(bp_file_name):
                 msg = 'burn probability file does not exist: ' +  bp_file_name
                 logIt (msg, log_handler)
                 os.chdir (mydir)
                 return ERROR
 
-            
-            # determine the output classification name
-            fname = os.path.basename(bp_file_name).replace(  \
-                'burn_probability.hdf', 'burn_class.tif')
-            bc_file_name = output_dir + "/" + fname
-            
-            # process the current burn probability file
-            msg = 'Reading file ... ' + bp_file_name
-            logIt (msg, log_handler)
-            bp_dataset = gdal.Open(bp_file_name)
-            if bp_dataset is None:
-                msg = 'Failed to open bp file: ' + bp_file_name
+            # add this file to the queue to be processed
+            print 'Pushing on the queue ... ' + bp_file_name
+            work_queue.put(bp_file_name)
+
+        # create a queue to pass to workers to store the processing status
+        result_queue = multiprocessing.Queue()
+ 
+        # spawn workers to process each scene in the stack - run the burn
+        # thresholding on each scene in the stack
+        msg = 'Spawning %d scenes for burn thresholding via %d '  \
+            'processors ....' % (num_scenes, num_processors)
+        logIt (msg, log_handler)
+        for i in range(num_processors):
+            worker = parallelSceneThresholdWorker(work_queue, result_queue,
+                self)
+            worker.start()
+ 
+        # collect the burn threshold results off the queue
+        for i in range(num_scenes):
+            status = result_queue.get()
+            if status != SUCCESS:
+                msg = 'Error in burn threshold for %d file in the list '  \
+                    '(associated XML file is %s).' % (i, stack2['file_'][i])
                 logIt (msg, log_handler)
-                os.chdir (mydir)
                 return ERROR
-            
-            # read the only band in the file, band 1
-            bp_band = bp_dataset.GetRasterBand(1)
-            if bp_band is None:
-                msg = 'Failed to open bp band 1 from ' + bp_file_name
-                logIt (msg, log_handler)
-                os.chdir (mydir)
-                return ERROR
-            
-            # given that all burn probabilities in this temporal stack have the
-            # same scene extents and projection information, just obtain that
-            # information from the first file and use it for all of the files
-            if i == 0:
-                geotrans = bp_dataset.GetGeoTransform()
-                prj = bp_dataset.GetProjectionRef()
-                nrow = bp_dataset.RasterYSize
-                ncol = bp_dataset.RasterXSize
-                nodata = bp_band.GetNoDataValue()
-                
-                # array to hold burn scars
-                bp_scars = numpy.zeros((nrow, ncol))
-                bp_rats = []
-            
-            # read the probabilities for the current scene
-            bp_data = bp_band.ReadAsArray()
-            
-            # find the final burn scars from the burn probabilities
-            bp_scar_results = self.findBurnScars(bp_data, seed_prob_thresh,
-                seed_size_thresh, flood_fill_prob_thresh, log_handler)
-            bp_scars = bp_scar_results[0]
-            bp_scars[ bp_data < 0 ] = bp_data[ bp_data < 0 ]
-            bp_rats.append(bp_scar_results[1])
-                
-            # output the burn classifications for this scene
-            msg = 'Writing output to %s ... ' % bc_file_name
-            logIt (msg, log_handler)
-            self.writeResults(outputData=bp_scar_results[0],
-                outputFilename=bc_file_name, geotrans=geotrans, prj=prj,
-                nodata=nodata, outputRAT=bp_scar_results[1],
-                makeHistos=make_histos)
 
         # successful completion.  return to the original directory.
         msg = 'Completion of burn threshold.'

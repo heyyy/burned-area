@@ -44,7 +44,13 @@ Date          Programmer       Reason
 ----------    ---------------  -------------------------------------
 12/7/2012     Jodi Riegle      Original development
 9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
-
+3/26/2014     Gail Schmidt     Modified to read ESPA internal file format.
+                               Also, we now expect the input surface reflectance
+                               product to be resampled to the same geographic
+                               extents as the seasonal summaries and annual
+                               maximums.  We will use the mask file generated
+                               as part of the seasonal summaries for this
+                               scene.
 NOTES:
   1. The following parameters are required for training the model.
      TREE_CNT
@@ -52,16 +58,15 @@ NOTES:
      MAX_DEPTH
      SUBSAMPLE_FRACTION
      CSV_FILE
-     NCSV_INPUTS  (and this must match the expected value noted in
-                   PredictBurnedArea.h)
+     NCSV_INPUTS (and this must match the expected value noted in
+                  PredictBurnedArea.h)
       
   2. The following parameters are required for loading the model.
-     INPUT_HDF_FILE
+     INPUT_BASE_FILE
+     INPUT_MASK_FILE
+     INPUT_FILL_VALUE
      SEASONAL_SUMMARIES_DIR
-     OUTPUT_HDF_FILE
-     INPUT_HEADER_FILE
-     OUTPUT_HEADER_FILE
-     OUTPUT_TIFF_FILE
+     OUTPUT_IMG_FILE
      LOAD_MODEL_XML
 
   3. If saving the model, after training, then the following parameter is
@@ -80,14 +85,19 @@ bool PredictBurnedArea::loadParametersFromFile(int ac, char* av[]) {
 
     po::options_description config("Configuration file parameters");
     config.add_options()
-        ("INPUT_HDF_FILE", po::value<string>(),
-            "input surface reflectance hdf filename")
+        ("INPUT_BASE_FILE", po::value<string>(),
+            "base filename of the input surface reflectance file (resampled "
+            "to the same geographic extents as the seasonal summaries and "
+            "annual maximums")
+        ("INPUT_MASK_FILE", po::value<string>(),
+            "mask file for the input surface reflectance file (resampled "
+            "to the same geographic extents as the seasonal summaries and "
+            "annual maximums")
+        ("INPUT_FILL_VALUE", po::value<int>(),
+            "fill value used for the input surface reflectance files")
         ("SEASONAL_SUMMARIES_DIR", po::value<string>(),
             "seasonal summaries directory")
-        ("OUTPUT_HDF_FILE", po::value<string>(), "output hdf filename")
-        ("INPUT_HEADER_FILE", po::value<string>(), "input header filename")
-        ("OUTPUT_HEADER_FILE", po::value<string>(), "output header filename")
-        ("OUTPUT_TIFF_FILE", po::value<string>(), "output tiff filename")
+        ("OUTPUT_IMG_FILE", po::value<string>(), "output image filename (.img)")
 
         /* training related */
         ("SAVE_MODEL_XML", po::value<string>(),
@@ -172,9 +182,29 @@ bool PredictBurnedArea::loadParametersFromFile(int ac, char* av[]) {
 
     /* Prediction related inputs */
     predict_model = false;
-    if (config_vm.count("INPUT_HDF_FILE")) {
-        INPUT_HDF_FILE = config_vm["INPUT_HDF_FILE"].as<string>();
+    if (config_vm.count("INPUT_BASE_FILE")) {
+        INPUT_BASE_FILE = config_vm["INPUT_BASE_FILE"].as<string>();
         predict_model = true;
+    }
+
+    if (config_vm.count("INPUT_MASK_FILE")) {
+        INPUT_MASK_FILE = config_vm["INPUT_MASK_FILE"].as<string>();
+    }
+    else if (predict_model) {
+        sprintf (errmsg, "INPUT_MASK_FILE is a required config file "
+            "parameter for model prediction. Use predict_burned_area --help "
+            "for more information.");
+        RETURN_ERROR (errmsg, "loadParametersFromFile", false);
+    }
+
+    if (config_vm.count("INPUT_FILL_VALUE")) {
+        INPUT_FILL_VALUE = config_vm["INPUT_FILL_VALUE"].as<int>();
+    }
+    else if (predict_model) {
+        sprintf (errmsg, "INPUT_FILL_VALUE is a required config file "
+            "parameter for model prediction. Use predict_burned_area --help "
+            "for more information.");
+        RETURN_ERROR (errmsg, "loadParametersFromFile", false);
     }
 
     if (config_vm.count("SEASONAL_SUMMARIES_DIR")) {
@@ -188,41 +218,11 @@ bool PredictBurnedArea::loadParametersFromFile(int ac, char* av[]) {
         RETURN_ERROR (errmsg, "loadParametersFromFile", false);
     }
 
-    if (config_vm.count("OUTPUT_HDF_FILE")) {
-        OUTPUT_HDF_FILE = config_vm["OUTPUT_HDF_FILE"].as<string>();
+    if (config_vm.count("OUTPUT_IMG_FILE")) {
+        OUTPUT_IMG_FILE = config_vm["OUTPUT_IMG_FILE"].as<string>();
     }
     else if (predict_model) {
-        sprintf (errmsg, "OUTPUT_HDF_FILE is a required config file parameter "
-            "for model prediction. Use predict_burned_area --help for more "
-            "information.");
-        RETURN_ERROR (errmsg, "loadParametersFromFile", false);
-    }
-
-    if (config_vm.count("INPUT_HEADER_FILE")) {
-        INPUT_HEADER_FILE = config_vm["INPUT_HEADER_FILE"].as<string>();
-    }
-    else if (predict_model) {
-        sprintf (errmsg, "INPUT_HEADER_FILE is a required config file "
-            "parameter for model prediction. Use predict_burned_area --help "
-            "for more information.");
-        RETURN_ERROR (errmsg, "loadParametersFromFile", false);
-    }
-
-    if (config_vm.count("OUTPUT_HEADER_FILE")) {
-        OUTPUT_HEADER_FILE = config_vm["OUTPUT_HEADER_FILE"].as<string>();
-    }
-    else if (predict_model) {
-        sprintf (errmsg, "OUTPUT_HEADER_FILE is a required config file "
-            "parameter for model prediction. Use predict_burned_area --help "
-            "for more information.");
-        RETURN_ERROR (errmsg, "loadParametersFromFile", false);
-    }
-
-    if (config_vm.count("OUTPUT_TIFF_FILE")) {
-        OUTPUT_TIFF_FILE = config_vm["OUTPUT_TIFF_FILE"].as<string>();
-    }
-    else if (predict_model) {
-        sprintf (errmsg, "OUTPUT_TIFF_FILE is a required config file "
+        sprintf (errmsg, "OUTPUT_IMG_FILE is a required config file "
             "parameter for model prediction. Use predict_burned_area --help "
             "for more information.");
         RETURN_ERROR (errmsg, "loadParametersFromFile", false);
@@ -322,10 +322,9 @@ bool PredictBurnedArea::loadParametersFromFile(int ac, char* av[]) {
 
 
 /******************************************************************************
-MODULE: readHDR
+MODULE: ReadHdr
 
-PURPOSE: Reads the header file for extent and projection information, used to
-create the geoTIFF product
+PURPOSE: Reads the header file for the number of lines and samples
  
 RETURN VALUE:
 Type = bool
@@ -338,53 +337,31 @@ HISTORY:
 Date          Programmer       Reason
 ----------    ---------------  -------------------------------------
 12/7/2012     Jodi Riegle      Original development
-9/3/2013      Gail Schmidt     Modified to work in the ESPA environment
 
 NOTES:
 *****************************************************************************/
-bool PredictBurnedArea::readHDR(string filename) {
+bool ReadHdr (string filename, int* lines, int* samples) {
     string instring;
-
     string variable_name;
     string variable_value;
     size_t i;
     std::ifstream header_file(filename.c_str());
-    int samples = 0;
-    int lines = 0;
-    string mapInfo;
-    vector<string> vMapInfo;
+    *samples = 0;
+    *lines = 0;
 
     while (!header_file.eof()) {
         getline(header_file,instring);
         i = instring.find_first_of("=");
-        if (i >= 0) {
+        if (i != std::string::npos && i >= 0) {
             variable_name = instring.substr(0,i);
             variable_value = instring.substr(i+2,instring.length() - i);
             if (variable_name == "samples ") {
-                samples = boost::lexical_cast<int>(variable_value);
+                *samples = boost::lexical_cast<int>(variable_value);
             } else if (variable_name == "lines   ") {
-                lines = boost::lexical_cast<int>(variable_value);
-            } else if (variable_name == "map info ") {
-                mapInfo = variable_value;
+                *lines = boost::lexical_cast<int>(variable_value);
             }
         }
-
-        stringstream mi(mapInfo);
-        string j;
-        while (mi >> j) {
-            vMapInfo.push_back(j.substr(0,j.size()-1));
-        }
     }
-    char chars[] = "-";
-
-    projection = vMapInfo[0].substr(1);
-    ulx = boost::lexical_cast<float>(vMapInfo[3]);
-    uly = boost::lexical_cast<float>(vMapInfo[4]);
-    lrx = ulx + samples * boost::lexical_cast<float>(vMapInfo[5]);
-    lry = uly - lines * boost::lexical_cast<float>(vMapInfo[6]);
-    zone =  vMapInfo[7];
-    datum = vMapInfo[9];
-    datum.erase(remove(datum.begin(), datum.end(), chars[0]), datum.end());
 
     return true;
 }

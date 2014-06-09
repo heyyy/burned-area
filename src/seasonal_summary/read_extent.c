@@ -1,16 +1,17 @@
 #include "determine_max_extent.h"
-#include "hdf.h"
-#include "mfhdf.h"
-#include "HdfEosDef.h"
 
 /******************************************************************************
 MODULE:  read_extent
 
-PURPOSE:  Open the input reflectance and read the bounding extents for that
-file in projection coords.
+PURPOSE:  Open the input reflectance XML file and reads the bounding extents
+for that file in projection coords.
 
 RETURN VALUE:
-Type = None
+Type = int
+Value           Description
+-----           -----------
+ERROR           An error occurred during processing of the XML file
+SUCCESS         Processing was successful
 
 PROJECT:  Land Satellites Data System Science Research and Development (LSRD)
 at the USGS EROS
@@ -19,76 +20,84 @@ HISTORY:
 Date        Programmer       Reason
 ----------  ---------------  -------------------------------------
 04/24/2013  Gail Schmidt     Original Development
+03/10/2014  Gail Schmidt     Update to work with the ESPA internal file format
 
 NOTES:
 ******************************************************************************/
 int read_extent
 (
-    char *infile,    /* I: input reflectance file to open and process */
-    char *grid_name, /* I: name of the grid to read metadata from */
-    double *east,    /* O: eastern projection coordinate of the file */
-    double *west,    /* O: western projection coordinate of the file */
-    double *north,   /* O: northern projection coordinate of the file */
-    double *south    /* O: southern projection coordinate of the file */
+    char *xml_infile,  /* I: input XML file to open and read */
+    double *east,      /* O: eastern projection coordinate of the file */
+    double *west,      /* O: western projection coordinate of the file */
+    double *north,     /* O: northern projection coordinate of the file */
+    double *south      /* O: southern projection coordinate of the file */
 )
 {
     char FUNC_NAME[] = "read_extent";   /* function name */
     char errmsg[STR_SIZE];    /* error message */
-    int32 gd_file_id;         /* HDF-EOS file ID */
-    int32 gd_id;              /* HDF-EOS grid ID */
-    int32 xdim_size;          /* number of elements in the x dimension */
-    int32 ydim_size;          /* number of elements in the y dimension */
-    float64 ul_corner[2];     /* UL corner projection coords (x,y) */
-    float64 lr_corner[2];     /* LR corner projection coords (x,y) */
+    int ib;                   /* loop counter for bands */
+    int refl_indx = -1;       /* band index in XML file for reflectance band */
+    Espa_internal_meta_t xml_metadata;  /* XML metadata structure */
+    Espa_global_meta_t *gmeta = NULL;   /* pointer to global meta */
 
-    /* Open the HDF-EOS file for reading */
-    gd_file_id = GDopen (infile, DFACC_READ);
-    if (gd_file_id == HDF_ERROR) 
-    {
-        sprintf (errmsg, "Error opening the HDF-EOS file: %s", infile);
-        error_handler (false, FUNC_NAME, errmsg);
-        return (ERROR);
-    }
-  
-    /* Attach to the grid */
-    gd_id = GDattach (gd_file_id, grid_name);
-    if (gd_id == HDF_ERROR) 
-    {
-        sprintf (errmsg, "Error attaching to HDF-EOS grid: %s", grid_name);
-        error_handler (false, FUNC_NAME, errmsg);
+    /* Validate the input metadata file */
+    if (validate_xml_file (xml_infile, ESPA_SCHEMA) != SUCCESS)
+    {  /* Error messages already written */
         return (ERROR);
     }
 
-    /* Get the grid information */
-    if (GDgridinfo (gd_id, &xdim_size, &ydim_size, ul_corner, lr_corner) ==
-        HDF_ERROR)
+    /* Initialize the metadata structure */
+    init_metadata_struct (&xml_metadata);
+
+    /* Parse the metadata file into our internal metadata structure; also
+       allocates space as needed for various pointers in the global and band
+       metadata */
+    if (parse_metadata (xml_infile, &xml_metadata) != SUCCESS)
+    {  /* Error messages already written */
+        return (ERROR);
+    }
+    gmeta = &xml_metadata.global;
+
+    /* Use the surface reflectance band as the input band to pull the
+       corner points */
+    for (ib = 0; ib < xml_metadata.nbands; ib++)
     {
-        sprintf (errmsg, "Error getting the HDF-EOS grid information");
-        error_handler (false, FUNC_NAME, errmsg);
+        if (!strcmp (xml_metadata.band[ib].name, "sr_band1") &&
+            !strcmp (xml_metadata.band[ib].product, "sr_refl"))
+        {
+            /* this is the index we'll use for reflectance band info */
+            refl_indx = ib;
+            break;
+        }
+    }
+
+    /* Make sure we found the band */
+    if (refl_indx == -1)
+    {
+        sprintf (errmsg, "Unable to find the surface reflectance band1 in "
+            "the XML file.");
+        error_handler (true, FUNC_NAME, errmsg);
         return (ERROR);
     }
 
     /* Assign the corners for return to calling function */
-    *east = lr_corner[0];
-    *west = ul_corner[0];
-    *south = lr_corner[1];
-    *north = ul_corner[1];
+    *east = gmeta->proj_info.lr_corner[0];
+    *west = gmeta->proj_info.ul_corner[0];
+    *south = gmeta->proj_info.lr_corner[1];
+    *north = gmeta->proj_info.ul_corner[1];
 
-    /* Detach from the grid */
-    if (GDdetach (gd_id) == HDF_ERROR)
+    /* Handle projection corners that were specified as the center of the
+       pixel */
+    if (!strcmp (gmeta->proj_info.grid_origin, "CENTER"))
     {
-        sprintf (errmsg, "Error detaching from the current grid");
-        error_handler (false, FUNC_NAME, errmsg);
-        return (ERROR);
+        *west -= xml_metadata.band[refl_indx].pixel_size[0] * 0.5;
+        *east += xml_metadata.band[refl_indx].pixel_size[0] * 0.5;
+        *north += xml_metadata.band[refl_indx].pixel_size[1] * 0.5;
+        *south -= xml_metadata.band[refl_indx].pixel_size[1] * 0.5;
     }
 
-    /* Close the HDF-EOS file */
-    if (GDclose (gd_file_id) == HDF_ERROR) 
-    {
-        sprintf (errmsg, "Error closing the HDF-EOS file.");
-        error_handler (false, FUNC_NAME, errmsg);
-        return (ERROR);
-    }
+    /* Free the metadata structure */
+    free_metadata (&xml_metadata);
 
     /* Successful completion */
     return (SUCCESS);
