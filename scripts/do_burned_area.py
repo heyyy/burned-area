@@ -378,12 +378,14 @@ class BurnedArea():
             if (start_year < 1984):
                 msg = 'start_year cannot begin before 1984: %d' % start_year
                 logIt (msg, self.log_handler)
+                os.chdir (mydir)
                 return ERROR
 
         if end_year is not None:
             if (end_year < 1984):
                 msg = 'end_year cannot begin before 1984: %d' % end_year
                 logIt (msg, self.log_handler)
+                os.chdir (mydir)
                 return ERROR
 
         if (end_year is not None) & (start_year is not None):
