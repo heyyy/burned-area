@@ -176,6 +176,8 @@ Date          Programmer       Reason
                                to using the LEDAPS SR QA values
 12/8/2013     Gail Schmidt     Added support for adjacent cloud shadow as one
                                of the QA values
+4/7/2014      Gail Schmidt     Using a single QA/mask band now which is int16
+                               vs. the old uint8 masks
 
 NOTES:
   1. It's assumed the model has already been trained and/or loaded.
@@ -228,9 +230,9 @@ bool PredictBurnedArea::predictModel
             sample.at<float>(sample_indx++) = maxIndxMat.at<float>(y,indx);
 
         /* Add the deltas of the annual maximums for the indices */
-        if (fillMat.at<unsigned char>(y) != 0) { // fill
+        if (qaMat.at<short>(y) == INPUT_FILL_VALUE) { // fill
             for (indx = 0; indx < PBA_NINDXS; indx++)
-                sample.at<float>(sample_indx++) = LNDSR_FILL;
+                sample.at<float>(sample_indx++) = INPUT_FILL_VALUE;
         }
         else { // not fill
             for (indx = 0; indx < PBA_NINDXS; indx++) {
@@ -253,24 +255,18 @@ bool PredictBurnedArea::predictModel
            prediction for this pixel. If the pixel is cloud, shadow, or water,
            then set it to PBA_CLOUD_WATER. If the pixel is fill then set it to
            PBA_FILL. */
-        if (cloudMat.at<unsigned char>(y) == 0 &&
-            cloudShadMat.at<unsigned char>(y) == 0 &&
-            landWaterMat.at<unsigned char>(y) == 0 &&
-            adjCloudMat.at<unsigned char>(y) == 0) {
-            if (fillMat.at<unsigned char>(y) == 0) {
-                /* do the probability mapping for burned (class of 1) */
-                float response = gbtrees.predict_prob (sample, 1);
-                output->buf[0][y] = (int16) (response * 100.0 + 0.5);
-            } else {  /* fill pixel */
-                output->buf[0][y] = PBA_FILL;
-            }
-        } else {  /* cloudy or water pixel */
-            output->buf[0][y] = PBA_CLOUD_WATER;
+        if (qaMat.at<short>(y) == INPUT_FILL_VALUE)  /* fill pixel */
+            output->buf[y] = PBA_FILL;
+        else if (qaMat.at<short>(y) < 0)   /* cloudy, snow, or water pixel */
+            output->buf[y] = PBA_CLOUD_WATER;
+        else {  /* do the probability mapping for burned (class of 1) */
+            float response = gbtrees.predict_prob (sample, 1);
+            output->buf[y] = (int16) (response * 100.0 + 0.5);
         }
     }
 
     /* Write the line of probability mappings to the output file */
-    PutOutputLine (output, 0, iline);
+    PutOutputLine (output, iline);
     sample.release();
 
     return true;

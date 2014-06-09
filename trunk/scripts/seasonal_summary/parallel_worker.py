@@ -8,7 +8,7 @@ from log_it import *
 #from process_temporal_ba_stack import temporalBAStack
  
 class parallelSceneWorker(multiprocessing.Process):
-    """Runs the HDF to GeoTiff conversion in parallel for a stack of scenes.
+    """Runs the scene resampling in parallel for a stack of scenes.
     """
  
     def __init__ (self, work_queue, result_queue, stackObject):
@@ -26,18 +26,18 @@ class parallelSceneWorker(multiprocessing.Process):
         while not self.kill_received:
             # get a task
             try:
-                hdf_file = self.work_queue.get_nowait()
+                xml_file = self.work_queue.get_nowait()
             except Queue.Empty:
                 break
  
             # process the scene
-            msg = 'Processing %s ...' % hdf_file
+            msg = 'Processing %s ...' % xml_file
             logIt (msg, self.stackObject.log_handler)
             status = SUCCESS
-            status = self.stackObject.sceneHDFToTiff (hdf_file)
+            status = self.stackObject.sceneResample (xml_file)
             if status != SUCCESS:
-                msg = 'Error converting the HDF file (%s) to GeoTIFF. ' \
-                    'Processing will terminate.' % hdf_file
+                msg = 'Error resampling the surface reflectance bands in ' \
+                    'the XML file (%s). Processing will terminate.' % xml_file
                 logIt (msg, self.stackObject.log_handler)
  
             # store the result

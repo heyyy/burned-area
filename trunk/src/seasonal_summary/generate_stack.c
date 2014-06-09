@@ -1,17 +1,16 @@
 #include <getopt.h>
-#include "determine_max_extent.h"
+#include "generate_stack.h"
 
 /******************************************************************************
-MODULE:  determine_max_extent
+MODULE:  generate_stack
 
-PURPOSE:  Determine the maximum bounding extent for the input stack of
-temporal data products.
+PURPOSE:  Generates the CSV stack file for the input list of XML files.
 
 RETURN VALUE:
 Type = int
 Value           Description
 -----           -----------
-ERROR           An error occurred during processing of the max extent
+ERROR           An error occurred during processing of the files
 SUCCESS         Processing was successful
 
 PROJECT:  Land Satellites Data System Science Research and Development (LSRD)
@@ -20,9 +19,7 @@ at the USGS EROS
 HISTORY:
 Date          Programmer       Reason
 ----------    ---------------  -------------------------------------
-04/24/2013    Gail Schmidt     Original Development
-03/10/2014    Gail Schmidt     Update to work with the ESPA internal file
-                               format
+03/12/2014    Gail Schmidt     Original Development
 
 NOTES:
 ******************************************************************************/
@@ -34,7 +31,7 @@ int main (int argc, char *argv[])
     char **xml_infile = NULL; /* array to hold list of input XML filenames */
     char *list_infile=NULL;    /* file containing the temporal list of
                                   reflectance products to be processed */
-    char *extent_outfile=NULL; /* output file for the maximum extents */
+    char *stack_file=NULL;     /* output CSV file for the XML stack */
 
     int i;                     /* looping variable */
     int retval;                /* return status */
@@ -43,23 +40,16 @@ int main (int argc, char *argv[])
     int nfiles;                /* number of actual files in the input list */
     int count;                 /* count of items read from file */
 
-    double west_coord=-999.0;  /* west bounding coordinate of list */
-    double east_coord=-999.0;  /* east bounding coordinate of list */
-    double north_coord=-999.0; /* north bounding coordinate of list */
-    double south_coord=-999.0; /* south bounding coordinate of list */
-    double temp_west_coord;    /* west bounding coordinate of current file */
-    double temp_east_coord;    /* east bounding coordinate of current file */
-    double temp_north_coord;   /* north bounding coordinate of current file */
-    double temp_south_coord;   /* south bounding coordinate of current file */
+    Ba_scene_meta_t scene_meta; /* structure to contain the desired metadata
+                                   for the current XML file */
+    FILE *list_fptr=NULL;      /* output file pointer for list of files */
+    FILE *stack_fptr=NULL;     /* output file pointer for CSV stack */
 
-    FILE *list_fptr=NULL;      /* input file pointer for list of files */
-    FILE *extent_fptr=NULL;    /* output file pointer for file extents */
-
-    printf ("Determining maximum extents ...\n");
+    printf ("Generating CSV stack file ...\n");
 
     /* Read the command-line arguments, including the name of the input
-       list of files and the output file to write the bounding extents */
-    retval = get_args (argc, argv, &list_infile, &extent_outfile, &verbose);
+       list of files and the output file to write the stack */
+    retval = get_args (argc, argv, &list_infile, &stack_file, &verbose);
     if (retval != SUCCESS)
     {   /* get_args already printed the error message */
         exit (ERROR);
@@ -69,7 +59,7 @@ int main (int argc, char *argv[])
     if (verbose)
     {
         printf ("  Input list file: %s\n", list_infile);
-        printf ("  Output extents file: %s\n", extent_outfile);
+        printf ("  Output stack file: %s\n", stack_file);
     }
 
     /* Open the input list of reflectance files */
@@ -139,8 +129,22 @@ int main (int argc, char *argv[])
     /* Close the input file */
     fclose (list_fptr);
 
-    /* Loop through each of the input files, read the extent, and compare to
-       the current max extent */
+    /* Open the output CSV stack file */
+    stack_fptr = fopen (stack_file, "w");
+    if (stack_fptr == NULL)
+    {
+        sprintf (errmsg, "Unable to open the output CSV stack file: %s",
+            stack_file);
+        error_handler (true, FUNC_NAME, errmsg);
+        exit (ERROR);
+    }
+
+    /* Write the header for the stack file */
+    fprintf (stack_fptr, "file, year, season, month, day, julian, path, row, "
+        "satellite, west, east, north, south, nrow, ncol, dx, dy, utm_zone\n");
+
+    /* Loop through each of the input files, read the metadata, and write to
+       the stack file */
     if (verbose)
         printf ("Input list file contains %d filenames\n", nfiles);
     for (i = 0; i < nfiles; i++)
@@ -149,8 +153,7 @@ int main (int argc, char *argv[])
             printf ("\nProcessing current file %d: %s\n", i, xml_infile[i]);
 
         /* Process the current file */
-        retval = read_extent (xml_infile[i], &temp_east_coord,
-            &temp_west_coord, &temp_north_coord, &temp_south_coord);
+        retval = read_xml (xml_infile[i], &scene_meta);
         if (retval != SUCCESS)
         {  /* trouble processing this file so skip and go to the next one */
             sprintf (errmsg, "Error processing file %s.  Skipping and moving "
@@ -159,72 +162,34 @@ int main (int argc, char *argv[])
             continue;
         }
 
-        /* Determine the maximum bounds, starting with the bounds from the
-           first file */
-        if (i == 0)
-        {
-            east_coord = temp_east_coord;
-            west_coord = temp_west_coord;
-            north_coord = temp_north_coord;
-            south_coord = temp_south_coord;
-        }
-        else
-        {
-            if (temp_west_coord < west_coord)
-                west_coord = temp_west_coord;
-            if (temp_east_coord > east_coord)
-                east_coord = temp_east_coord;
-            if (temp_north_coord > north_coord)
-                north_coord = temp_north_coord;
-            if (temp_south_coord < south_coord)
-                south_coord = temp_south_coord;
-        }
-
-        if (verbose)
-        {
-            printf ("  East: %lf\n", temp_east_coord);
-            printf ("  West: %lf\n", temp_west_coord);
-            printf ("  North: %lf\n", temp_north_coord);
-            printf ("  South: %lf\n", temp_south_coord);
-        }
+        /* Write the stack information */
+        fprintf (stack_fptr, "%s, %d, %s, %d, %d, %d, %d, %d, %s, "
+            "%lf, %lf, %lf, %lf, %d, %d, %f, %f, %d\n",
+            scene_meta.filename, scene_meta.acq_date.year, scene_meta.season,
+            scene_meta.acq_date.month, scene_meta.acq_date.day,
+            scene_meta.acq_date.doy, scene_meta.wrs_path, scene_meta.wrs_row,
+            scene_meta.satellite, scene_meta.bounding_coords[ESPA_WEST],
+            scene_meta.bounding_coords[ESPA_EAST],
+            scene_meta.bounding_coords[ESPA_NORTH],
+            scene_meta.bounding_coords[ESPA_SOUTH],
+            scene_meta.nlines, scene_meta.nsamps,
+            scene_meta.pixel_size[0], scene_meta.pixel_size[1],
+            scene_meta.utm_zone);
     }
 
-    /* Open the output bounding extents file */
-    extent_fptr = fopen (extent_outfile, "w");
-    if (extent_fptr == NULL)
-    {
-        sprintf (errmsg, "Unable to open the output bounding extents file: %s",
-            extent_outfile);
-        error_handler (true, FUNC_NAME, errmsg);
-        exit (ERROR);
-    }
-
-    if (verbose)
-    {
-        printf ("\nMaximum extents of list --\n");
-        printf ("  East: %lf\n", east_coord);
-        printf ("  West: %lf\n", west_coord);
-        printf ("  North: %lf\n", north_coord);
-        printf ("  South: %lf\n", south_coord);
-    }
-
-    /* Write the bounding extents */
-    fprintf (extent_fptr, "West, North, East, South\n");
-    fprintf (extent_fptr, "%f, %f, %f, %f", west_coord, north_coord,
-        east_coord, south_coord);
-
-    /* Close the output file */
-    fclose (extent_fptr);
+    /* Close the output files */
+    fclose (stack_fptr);
 
     /* Free the filename pointers */
     for (i = 0; i < nlines; i++)
         free (xml_infile[i]);
     free (xml_infile);
+
     free (list_infile);
-    free (extent_outfile);
+    free (stack_file);
 
     /* Indicate successful completion of processing */
-    printf ("Maximum extent complete!\n");
+    printf ("Stack file generation complete!\n");
     exit (SUCCESS);
 }
 
@@ -246,25 +211,25 @@ NOTES:
 ******************************************************************************/
 void usage ()
 {
-    printf ("determine_max_extent determines the maximum extent bounds in "
-            "projection coordinates for the temporal stack of data.\n\n");
-    printf ("usage: determine_max_extent "
+    printf ("generate_stack generates the CSV file which contains the "
+            "stack of input files along with their associated metadata "
+            "needed for processing burned area products.\n\n");
+    printf ("usage: generate_stack "
             "--list_file=input_list_file "
-            "--extent_file=output_extent_filename "
+            "--stack_file=output_stack_csv_filename "
             "[--verbose]\n");
 
     printf ("\nwhere the following parameters are required:\n");
     printf ("    -list_file: name of the input text file containing the list "
             "of XML files to be processed, one file per line\n");
-    printf ("    -extent_file: name of the output file containing the "
-            "maximum spatial extents in projection coords\n");
+    printf ("    -stack_file: name of the output CSV file containing the "
+            "list of files and associated metadata\n");
     printf ("\nwhere the following parameters are optional:\n");
     printf ("    -verbose: should intermediate messages be printed? (default "
             "is false)\n");
-    printf ("\ndetermine_max_extent --help will print the usage statement\n");
-    printf ("\nExample: determine_max_extent "
-            "--list_file=input_stack.txt "
-            "--extent_file=bounding_box_coordinates.txt "
+    printf ("\ngenerate_stack --help will print the usage statement\n");
+    printf ("\nExample: generate_stack "
+            "--list_file=input_stack.txt --stack_file=input_stack.csv "
             "--verbose\n");
 }
 
@@ -288,8 +253,8 @@ at the USGS EROS
 
 HISTORY:
 Date          Programmer       Reason
---------      ---------------  -------------------------------------
-04/24/2013    Gail Schmidt     Original Development
+----------    ---------------  -------------------------------------
+03/12/2014    Gail Schmidt     Original Development
 
 NOTES:
   1. Memory is allocated for the input and output files.  All of these should
@@ -301,7 +266,7 @@ short get_args
     int argc,             /* I: number of cmd-line args */
     char *argv[],         /* I: string of cmd-line args */
     char **list_infile,   /* O: address of input list filename */
-    char **extent_outfile, /* O: address of output extents filename */
+    char **stack_outfile, /* O: address of output stack filename */
     bool *verbose         /* O: verbose flag */
 )
 {
@@ -313,8 +278,8 @@ short get_args
     static struct option long_options[] =
     {
         {"verbose", no_argument, &verbose_flag, 1},
-        {"list_file", required_argument, 0, 'i'},
-        {"extent_file", required_argument, 0, 'o'},
+        {"list_file", required_argument, 0, 'l'},
+        {"stack_file", required_argument, 0, 's'},
         {"help", no_argument, 0, 'h'},
         {0, 0, 0, 0}
     };
@@ -343,12 +308,12 @@ short get_args
                 return (ERROR);
                 break;
 
-            case 'i':  /* list infile */
+            case 'l':  /* list infile */
                 *list_infile = strdup (optarg);
                 break;
      
-            case 'o':  /* extent outfile */
-                *extent_outfile = strdup (optarg);
+            case 's':  /* stack outfile */
+                *stack_outfile = strdup (optarg);
                 break;
      
             case '?':
@@ -370,9 +335,9 @@ short get_args
         return (ERROR);
     }
 
-    if (*extent_outfile == NULL)
+    if (*stack_outfile == NULL)
     {
-        sprintf (errmsg, "Extents output file is a required argument");
+        sprintf (errmsg, "Stack CSV output file is a required argument");
         error_handler (true, FUNC_NAME, errmsg);
         usage ();
         return (ERROR);

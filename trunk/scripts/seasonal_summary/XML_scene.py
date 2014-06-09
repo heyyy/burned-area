@@ -7,66 +7,50 @@ from osgeo import gdal_array
 from osgeo import gdalconst
 import os
 import time
+import shutil
 from log_it import *
 
 
 #############################################################################
-# Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-#       Geographic Science Center
-# Created Python script to open and read the input HDF file to obtain
-# particular attributes from the file, including QA data.
+# Created in 2014 by Gail Schmidt, USGS/EROS
+# Created Python script to open and read the input ESPA XML file to obtain
+# particular attributes from the file, including filenames as well as
+# opening the image and QA surface reflectance data.
 #
 # History:
-#   Updated on 4/26/2013 by Gail Schmidt, USGS/EROS
-#       Modified to remove the DDV QA from the overall mask.  There is no
-#       need to mask out pixels simply due to the fact they are dark dense
-#       vegetation.
-#   Updated on 10/30/2013 by Gail Schmidt, USGS/EROS LSRD Project
-#       Modified to use fmask band for QA vs. LEDAPS QA bands.
-#   Updated on 12/8/2013 by Gail Schmidt, USGS/EROS LSRD Project
-#       Backed out the use of the fmask and returned to using the LEDAPS
-#       SR QA bands.
+#   Updated on 3/26/2014 by Gail Schmidt, USGS/EROS
+#       Removed metadata reads from the old HDF files that were not being
+#       used
 ############################################################################
-class HDF_Scene:
-    """Class for handling HDF scene related functions.
+class XML_Scene:
+    """Class for handling ESPA scene related functions.
     """
 
-    filename = ""
-    NorthBoundingCoordinate = 0
-    SouthBoundingCoordinate = 0
-    WestBoundingCoordinate = 0
-    EastBoundingCoordinate = 0
-    dX = 0
-    dY = 0
-    NRow = 0
-    NCol = 0
-    WRS_Path = 0
-    WRS_Row = 0
-    Satellite = ""
-    SolarAzimuth = 0
-    SolarZenith = 0
-    AcquisitionDate = ""
-    month = 0
-    day = 0
-    year = 0
+    band_dict = {}               # dictionary of bands in the current XML file
+    xml_file = ""                # name of XML file
+    dX = 0                       # pixel size in X direction
+    dY = 0                       # pixel size in Y direction
+    NRow = 0                     # number of lines in the scene
+    NCol = 0                     # number of samples in the scene
+    NorthBoundingCoordinate = 0  # northern bounding coord
+    SouthBoundingCoordinate = 0  # southern bounding coord
+    WestBoundingCoordinate = 0   # western bounding coord
+    EastBoundingCoordinate = 0   # eastern bounding coord
     
     # datasets created by gdal.Open
-    dataset = None
-    mdata = None
-    subsdatasets = None
-    subdataset1 = None
-    subdataset2 = None
-    subdataset3 = None
-    subdataset4 = None
-    subdataset5 = None
-    subdataset6 = None
-    subdataset7 = None 
-    subdataset_fill_QA = None
-    subdataset_cloud_QA = None
-    subdataset_shadow_QA = None
-    subdataset_snow_QA = None
-    subdataset_land_water_QA = None
-    subdataset_adjacent_cloud_QA = None
+    dataset1 = None
+    dataset2 = None
+    dataset3 = None
+    dataset4 = None
+    dataset5 = None
+    dataset6 = None
+    dataset7 = None 
+    dataset_fill_QA = None
+    dataset_cloud_QA = None
+    dataset_shadow_QA = None
+    dataset_snow_QA = None
+    dataset_land_water_QA = None
+    dataset_adjacent_cloud_QA = None
 
     # bands
     band1 = None
@@ -83,35 +67,17 @@ class HDF_Scene:
     band_land_water_QA = None
     band_adjacent_cloud_QA = None
 
-    # keys used to find bands in the HDF files
-    key1 = None
-    key2 = None
-    key3 = None
-    key4 = None
-    key5 = None
-    key6 = None
-    key7 = None
-    key_fill_QA = None
-    key_cloud_QA = None
-    key_shadow_QA = None
-    key_snow_QA = None
-    key_land_water_QA = None
-    key_adjacent_cloud_QA = None
-
-    def __init__ (self, fname, log_handler=None):
+    def __init__ (self, xml_file, log_handler=None):
         """Class constructor.
         Description: class constructor verifies the input file exists, then
             opens it, reads the metadata, and establishes pointers to the
             various SDSs.
         
         History:
-          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-              Geographic Science Center
-          Updated on 4/30/2013 by Gail Schmidt, USGS/EROS LSRD Project
-              Modified to utilize a log file if passed along.
-        
+          Created on 3/17/2014 by Gail Schmidt, USGS EROS LSRD Project
+
         Args:
-          fname - name of the input HDF reflectance file to be processed
+          xml_file - name of the input XML reflectance file to be processed
           log_handler - open log file for logging or None for stdout
         
         Returns:
@@ -120,170 +86,138 @@ class HDF_Scene:
         """
 
         # make sure the file exists then open it with GDAL
-        if not os.path.exists(fname):
-            msg = 'Input file does not exist: ' + fname
-            logIt (msg, log_handler)
-            return None
-        
-        self.filename=fname                       # store the filename
-        self.dataset=gdal.Open(self.filename)     # open the file with GDAL
-        if self.dataset is None:
-            msg = 'GDAL could not open input file: ' + self.filename
+        self.xml_file = xml_file               # store the filename
+        if not os.path.exists (xml_file):
+            msg = 'Input XML file does not exist: ' + xml_file
             logIt (msg, log_handler)
             return None
 
-        # extract the metadata for this file
-        self.mdata = self.dataset.GetMetadata()
-        self.month = int(self.mdata['AcquisitionDate'][5:7])
-        self.day = int(self.mdata['AcquisitionDate'][8:10])
-        self.year = int(self.mdata['AcquisitionDate'][0:4])
-
-        # extract the dictionary of subdatasets
-        self.subdatasets = self.dataset.GetMetadata('SUBDATASETS')
-
-        # find the keys for each subdataset
-        sd_pairs = self.subdatasets.items()
-        
-        # loop through each SD dataset and obtain a key to the subdataset in
-        # the HDF file
-        for i in range(0, len(sd_pairs)):
-            sd = sd_pairs[i]
-
-            if sd[1].find('Grid:band1') > 0:
-                self.key1 = sd[0]
-
-            if sd[1].find('Grid:band2') > 0:
-                self.key2 = sd[0]
-
-            if sd[1].find('Grid:band3') > 0:
-                self.key3 = sd[0]
-
-            if sd[1].find('Grid:band4') > 0:
-                self.key4 = sd[0]
-
-            if sd[1].find('Grid:band5') > 0:
-                self.key5 = sd[0]
-
-            # find band6 but don't grab band6_fill_QA
-            if sd[1].find('Grid:band6_fill_QA') > 0 :
-                next
-            elif sd[1].find('Grid:band6') > 0:
-                self.key6 = sd[0]
-
-            if sd[1].find('Grid:band7') > 0:
-                self.key7 = sd[0]
-
-            if sd[1].find('Grid:fill_QA') > 0:
-                self.key_fill_QA = sd[0]
-
-            if sd[1].find('Grid:cloud_QA') > 0:
-                self.key_cloud_QA = sd[0]
-
-            if sd[1].find('Grid:cloud_shadow_QA') > 0:
-                self.key_shadow_QA = sd[0]
-
-            if sd[1].find('Grid:snow_QA') > 0:
-                self.key_snow_QA = sd[0]
-
-            if sd[1].find('Grid:land_water_QA') > 0:
-                self.key_land_water_QA = sd[0]
-
-            if sd[1].find('Grid:adjacent_cloud_QA') > 0:
-                self.key_adjacent_cloud_QA = sd[0]  
-
-        # close the main dataset
-        self.dataset = None
-
-        # validate all the SDSs were found
-        if self.key1 is None:
-            msg = 'Input band1 does not exist in ' + fname
-            logIt (msg, log_handler)
-            return None
-        if self.key2 is None:
-            msg = 'Input band2 does not exist in ' + fname
-            logIt (msg, log_handler)
-            return None
-        if self.key3 is None:
-            msg = 'Input band3 does not exist in ' + fname
-            logIt (msg, log_handler)
-            return None
-        if self.key4 is None:
-            msg = 'Input band4 does not exist in ' + fname
-            logIt (msg, log_handler)
-            return None
-        if self.key5 is None:
-            msg = 'Input band5 does not exist in ' + fname
-            logIt (msg, log_handler)
-            return None
-        if self.key6 is None:
-            msg = 'Input band6 does not exist in ' + fname
-            logIt (msg, log_handler)
-            return None
-        if self.key7 is None:
-            msg = 'Input band7 does not exist in ' + fname
-            logIt (msg, log_handler)
-            return None
-        if self.key_fill_QA is None:
-            msg = 'Input fill_QA band does not exist in ' + fname
-            logIt (msg, log_handler)
-            return None
-        if self.key_cloud_QA is None:
-            msg = 'Input cloud_QA band does not exist in ' + fname
-            logIt (msg, log_handler)
-            return None
-        if self.key_shadow_QA is None:
-            msg = 'Input cloud_shadow_QA band does not exist in ' + fname
-            logIt (msg, log_handler)
-            return None
-        if self.key_snow_QA is None:
-            msg = 'Input snow_QA band does not exist in ' + fname
-            logIt (msg, log_handler)
-            return None
-        if self.key_land_water_QA is None:
-            msg = 'Input land_water_QAband does not exist in ' + fname
-            logIt (msg, log_handler)
-            return None
-        if self.key_adjacent_cloud_QA is None:
-            msg = 'Input adjacent_cloud_QA band does not exist in ' + fname
-            logIt (msg, log_handler)
-            return None
+        # parse the XML file looking for the surface reflectance bands 1-7
+        # and the QA bands.  then pass those files to GDAL for resampling.
+        self.band_dict['band1'] = xml_file.replace ('.xml', '_sr_band1.img')
+        self.band_dict['band2'] = xml_file.replace ('.xml', '_sr_band2.img')
+        self.band_dict['band3'] = xml_file.replace ('.xml', '_sr_band3.img')
+        self.band_dict['band4'] = xml_file.replace ('.xml', '_sr_band4.img')
+        self.band_dict['band5'] = xml_file.replace ('.xml', '_sr_band5.img')
+        self.band_dict['band6'] = xml_file.replace ('.xml', '_toa_band6.img')
+        self.band_dict['band7'] = xml_file.replace ('.xml', '_sr_band7.img')
+        self.band_dict['band_fill'] = xml_file.replace ('.xml', \
+            '_sr_fill_qa.img')
+        self.band_dict['band_cloud'] = xml_file.replace ('.xml', \
+            '_sr_cloud_qa.img')
+        self.band_dict['band_cloud_shadow'] = xml_file.replace ('.xml', \
+            '_sr_cloud_shadow_qa.img')
+        self.band_dict['band_snow'] = xml_file.replace ('.xml', \
+            '_sr_snow_qa.img')
+        self.band_dict['band_land_water'] = xml_file.replace ('.xml', \
+            '_sr_land_water_qa.img')
+        self.band_dict['band_adjacent_cloud'] = xml_file.replace ('.xml', \
+            '_sr_adjacent_cloud_qa.img')
+        print self.band_dict
  
         # open connections to the individual bands
-        self.subdataset1 = gdal.Open(self.subdatasets[self.key1])
-        self.subdataset2 = gdal.Open(self.subdatasets[self.key2])
-        self.subdataset3 = gdal.Open(self.subdatasets[self.key3])
-        self.subdataset4 = gdal.Open(self.subdatasets[self.key4])
-        self.subdataset5 = gdal.Open(self.subdatasets[self.key5])
-        self.subdataset6 = gdal.Open(self.subdatasets[self.key6])
-        self.subdataset7 = gdal.Open(self.subdatasets[self.key7])
-        self.subdataset_fill_QA = gdal.Open(self.subdatasets[self.key_fill_QA])
-        self.subdataset_cloud_QA =  \
-            gdal.Open(self.subdatasets[self.key_cloud_QA])
-        self.subdataset_shadow_QA =  \
-            gdal.Open(self.subdatasets[self.key_shadow_QA])
-        self.subdataset_snow_QA = gdal.Open(self.subdatasets[self.key_snow_QA])
-        self.subdataset_land_water_QA =  \
-            gdal.Open(self.subdatasets[self.key_land_water_QA])
-        self.subdataset_adjacent_cloud_QA =  \
-            gdal.Open(self.subdatasets[self.key_adjacent_cloud_QA])
+        self.dataset1 = gdal.Open(self.band_dict['band1'])
+        if self.dataset1 is None:
+            msg = 'GDAL could not open input file: ' + self.band_dict['band1']
+            logIt (msg, log_handler)
+            return None
+
+        self.dataset2 = gdal.Open(self.band_dict['band2'])
+        if self.dataset2 is None:
+            msg = 'GDAL could not open input file: ' + self.band_dict['band2']
+            logIt (msg, log_handler)
+            return None
+
+        self.dataset3 = gdal.Open(self.band_dict['band3'])
+        if self.dataset3 is None:
+            msg = 'GDAL could not open input file: ' + self.band_dict['band3']
+            logIt (msg, log_handler)
+            return None
+
+        self.dataset4 = gdal.Open(self.band_dict['band4'])
+        if self.dataset4 is None:
+            msg = 'GDAL could not open input file: ' + self.band_dict['band4']
+            logIt (msg, log_handler)
+            return None
+
+        self.dataset5 = gdal.Open(self.band_dict['band5'])
+        if self.dataset5 is None:
+            msg = 'GDAL could not open input file: ' + self.band_dict['band5']
+            logIt (msg, log_handler)
+            return None
+
+        self.dataset6 = gdal.Open(self.band_dict['band6'])
+        if self.dataset6 is None:
+            msg = 'GDAL could not open input file: ' + self.band_dict['band6']
+            logIt (msg, log_handler)
+            return None
+
+        self.dataset7 = gdal.Open(self.band_dict['band7'])
+        if self.dataset7 is None:
+            msg = 'GDAL could not open input file: ' + self.band_dict['band7']
+            logIt (msg, log_handler)
+            return None
+
+        self.dataset_fill_QA = gdal.Open(self.band_dict['band_fill'])
+        if self.dataset_fill_QA is None:
+            msg = 'GDAL could not open input file: ' +  \
+                self.band_dict['band_fill']
+            logIt (msg, log_handler)
+            return None
+
+        self.dataset_cloud_QA = gdal.Open(self.band_dict['band_cloud'])
+        if self.dataset_cloud_QA is None:
+            msg = 'GDAL could not open input file: ' +  \
+                self.band_dict['band_cloud']
+            logIt (msg, log_handler)
+            return None
+
+        self.dataset_shadow_QA = gdal.Open(self.band_dict['band_cloud_shadow'])
+        if self.dataset_shadow_QA is None:
+            msg = 'GDAL could not open input file: ' +  \
+                self.band_dict['band_cloud_shadow']
+            logIt (msg, log_handler)
+            return None
+
+        self.dataset_snow_QA = gdal.Open(self.band_dict['band_snow'])
+        if self.dataset_snow_QA is None:
+            msg = 'GDAL could not open input file: ' +  \
+                self.band_dict['band_snow']
+            logIt (msg, log_handler)
+            return None
+
+        self.dataset_land_water_QA =  \
+            gdal.Open(self.band_dict['band_land_water'])
+        if self.dataset_land_water_QA is None:
+            msg = 'GDAL could not open input file: ' +  \
+                self.band_dict['band_land_water']
+            logIt (msg, log_handler)
+            return None
+
+        self.dataset_adjacent_cloud_QA =  \
+            gdal.Open(self.band_dict['band_adjacent_cloud'])
+        if self.dataset_adjacent_cloud_QA is None:
+            msg = 'GDAL could not open input file: ' +  \
+                self.band_dict['band_adjacent_cloud']
+            logIt (msg, log_handler)
 
         # create connections to the bands
-        self.band1 = self.subdataset1.GetRasterBand(1)
-        self.band2 = self.subdataset2.GetRasterBand(1)
-        self.band3 = self.subdataset3.GetRasterBand(1)
-        self.band4 = self.subdataset4.GetRasterBand(1)
-        self.band5 = self.subdataset5.GetRasterBand(1)
-        self.band6 = self.subdataset6.GetRasterBand(1)
-        self.band7 = self.subdataset7.GetRasterBand(1)
-        self.band_fill_QA = self.subdataset_fill_QA.GetRasterBand(1)
-        self.band_cloud_QA = self.subdataset_cloud_QA.GetRasterBand(1)
-        self.band_shadow_QA = self.subdataset_shadow_QA.GetRasterBand(1)
-        self.band_snow_QA = self.subdataset_snow_QA.GetRasterBand(1)
-        self.band_land_water_QA = self.subdataset_land_water_QA.GetRasterBand(1)
+        self.band1 = self.dataset1.GetRasterBand(1)
+        self.band2 = self.dataset2.GetRasterBand(1)
+        self.band3 = self.dataset3.GetRasterBand(1)
+        self.band4 = self.dataset4.GetRasterBand(1)
+        self.band5 = self.dataset5.GetRasterBand(1)
+        self.band6 = self.dataset6.GetRasterBand(1)
+        self.band7 = self.dataset7.GetRasterBand(1)
+        self.band_fill_QA = self.dataset_fill_QA.GetRasterBand(1)
+        self.band_cloud_QA = self.dataset_cloud_QA.GetRasterBand(1)
+        self.band_shadow_QA = self.dataset_shadow_QA.GetRasterBand(1)
+        self.band_snow_QA = self.dataset_snow_QA.GetRasterBand(1)
+        self.band_land_water_QA = self.dataset_land_water_QA.GetRasterBand(1)
         self.band_adjacent_cloud_QA =  \
-            self.subdataset_adjacent_cloud_QA.GetRasterBand(1)
+            self.dataset_adjacent_cloud_QA.GetRasterBand(1)
 
-        # Verify the bands were actually accessed successfully
+        # verify the bands were actually accessed successfully
         if self.band1 is None:
             msg = 'Input band1 connection failed'
             logIt (msg, log_handler)
@@ -340,33 +274,24 @@ class HDF_Scene:
         # get coordinate information from band 1, get the number of rows
         # and columns, then determine the actual bounding coordinates and
         # the delta X and Y values (from west to east and north to south)
-        gt = self.subdataset1.GetGeoTransform()
+        gt = self.dataset1.GetGeoTransform()
 
-        self.NCol = self.subdataset1.RasterXSize
+        self.NCol = self.dataset1.RasterXSize
         self.dX = gt[1]
         self.WestBoundingCoordinate = gt[0]
         self.EastBoundingCoordinate = self.WestBoundingCoordinate +  \
             (self.NCol * self.dX)
 
-        self.NRow = self.subdataset1.RasterYSize        
+        self.NRow = self.dataset1.RasterYSize        
         self.dY = gt[5]
         self.NorthBoundingCoordinate = gt[3]
         self.SouthBoundingCoordinate = self.NorthBoundingCoordinate +  \
             (self.NRow * self.dY)
 
-        # update the other variables
-        self.WRS_Path = int(self.mdata['WRS_Path'])
-        self.WRS_Row = int(self.mdata['WRS_Row'])
-        self.Satellite = self.mdata['Satellite']
-        self.SolarAzimuth = float(self.mdata['SolarAzimuth'])
-        self.SolarZenith = float(self.mdata['SolarZenith'])
-        self.AcquisitionDate =  \
-            time.strptime(self.mdata['AcquisitionDate'][0:10], "%Y-%m-%d")
-
 
     def __del__ (self):
         """Class destructor.
-        Description: class destructor cleans up all the sub dataset and band
+        Description: class destructor cleans up all the dataset and band
             pointers.
         
         History:
@@ -378,20 +303,19 @@ class HDF_Scene:
         Returns: Nothing
         """
 
-        self.dataset = None
-        self.subdataset1 = None
-        self.subdataset2 = None
-        self.subdataset3 = None
-        self.subdataset4 = None
-        self.subdataset5 = None
-        self.subdataset6 = None
-        self.subdataset7 = None
-        self.subdataset_fill_QA = None
-        self.subdataset_cloud_QA = None
-        self.subdataset_shadow_QA = None
-        self.subdataset_snow_QA = None
-        self.subdataset_land_water_QA = None
-        self.subdataset_adjacent_cloud_QA = None
+        self.dataset1 = None
+        self.dataset2 = None
+        self.dataset3 = None
+        self.dataset4 = None
+        self.dataset5 = None
+        self.dataset6 = None
+        self.dataset7 = None
+        self.dataset_fill_QA = None
+        self.dataset_cloud_QA = None
+        self.dataset_shadow_QA = None
+        self.dataset_snow_QA = None
+        self.dataset_land_water_QA = None
+        self.dataset_adjacent_cloud_QA = None
 
         self.band1 = None
         self.band2 = None
@@ -460,86 +384,6 @@ class HDF_Scene:
         History:
           Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
               Geographic Science Center
-          Updated on 10/30/2013 by Gail Schmidt, USGS/EROS LSRD Project
-              Modified to use fmask band for QA vs. LEDAPS QA bands.
-          Updated on 12/8/2013 by Gail Schmidt, USGS/EROS LSRD Project
-              Modified to back out the fmask band and return to the LEDAPS
-              QA bands.
-        
-        Args:
-          x - x projection coordinate
-          y - y projection coordinate
-        
-        Returns:
-            None - if pixel location does not fall within the coordinates of
-                this scene
-            pixel stack - stack of values for the x,y location as band1, band2,
-                band3, band4, band5, band6, band7, and QA band
-        """
-
-        if (x < self.EastBoundingCoordinate) and  \
-           (x > self.WestBoundingCoordinate) and  \
-           (y < self.NorthBoundingCoordinate) and  \
-           (y > self.SouthBoundingCoordinate):
-
-            # get the i,j pixel for the x,y projection coordinates
-            ij = self.xy2ij(x,y)
-
-            # read the pixel from each of the bands in the scene, including
-            # the QA bands
-            x1 = self.band1.ReadAsArray(ij[0], ij[1], 1, 1)[0,0]
-            x2 = self.band2.ReadAsArray(ij[0], ij[1], 1, 1)[0,0]
-            x3 = self.band3.ReadAsArray(ij[0], ij[1], 1, 1)[0,0]
-            x4 = self.band4.ReadAsArray(ij[0], ij[1], 1, 1)[0,0]
-            x5 = self.band5.ReadAsArray(ij[0], ij[1], 1, 1)[0,0]
-            x6 = self.band6.ReadAsArray(ij[0], ij[1], 1, 1)[0,0]
-            x7 = self.band7.ReadAsArray(ij[0], ij[1], 1, 1)[0,0]
-
-            fill_QA = self.band_fill_QA.ReadAsArray(ij[0], ij[1], 1, 1)[0,0]
-            cloud_QA = self.band_cloud_QA.ReadAsArray(ij[0], ij[1], 1, 1)[0,0] 
-            shadow_QA = self.band_shadow_QA.ReadAsArray(ij[0], ij[1], 1, 1)[0,0]
-            snow_QA = self.band_snow_QA.ReadAsArray(ij[0], ij[1], 1, 1)[0,0]
-            land_water_QA =  \
-                self.band_land_water_QA.ReadAsArray(ij[0], ij[1], 1, 1)[0,0]
-            adjacent_cloud_QA =  \
-                self.band_adjacent_cloud_QA.ReadAsArray(ij[0], ij[1], 1, 1)[0,0]
-
-            # turn the QA values into one overall value with -9999 representing
-            # the noData value
-            QA = 0
-            if land_water_QA > 0:
-                QA = -3
-            if snow_QA > 0:
-                QA = -4
-            if adjacent_cloud_QA > 0:
-                QA = -5
-            if shadow_QA > 0:
-                QA = -6
-            if cloud_QA > 0:
-                QA = -7
-            if fill_QA > 0:    # fill
-                QA = -9999
-                
-            return( {'band1':x1, 'band2':x2, 'band3':x3, 'band4':x4, \
-                'band5':x5, 'band6':x6, 'band7':x7, 'QA':QA} )
-        else:
-            return (None)
-
-
-    def getRowOfBandValues(self, y):
-        """Reads a line of band values at projection y location.
-        Description: getRowOfBandValues reads a row of band values for each
-            of the bands specified at the associated row for the projection
-            y coordinate.  The projection y coordinate is converted to the
-            actual row/line in the current scene, and then that row is read
-            (reading all the samples in the line) and returned.
-        
-        History:
-          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
-              Geographic Science Center
-          Updated on 5/1/2013 by Gail Schmidt, USGS/EROS LSRD Project
-              Modified to validate the y projection coordinate falls within
-              the current scene.
           Updated on 10/30/2013 by Gail Schmidt, USGS/EROS LSRD Project
               Modified to use fmask band for QA vs. LEDAPS QA bands.
           Updated on 12/8/2013 by Gail Schmidt, USGS/EROS LSRD Project
@@ -813,4 +657,61 @@ class HDF_Scene:
             QA[fill_QA > 0] = -9999  # fill
             return QA
 
-#####end of HDF_Scene class#####
+
+    def createQaBand(self, log_handler=None):
+        """Creates a single QA band from the multiple QA bands in the surface
+           reflectance file.
+        Description: createQaBand will create a single QA band using the various
+            QA bands from the surface reflectance product.  This will be an
+            INT16 product and the noData value will be set to -9999.  The
+            name of the band will be {xml_base_name}_mask.img.
+        
+        History:
+          Created in 2013 by Jodi Riegle and Todd Hawbaker, USGS Rocky Mountain
+              Geographic Science Center
+          Updated on 3/18/2014 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified to work with the ESPA internal file format.
+        
+        Inputs:
+          log_handler - open log file for logging or None for stdout
+        
+        Returns:  N/A
+        """
+    
+        # create the name of the QA file from the XML filename
+        qa_file = self.xml_file.replace ('.xml', '_mask.img')
+        self.band_dict['band_qa'] = qa_file
+
+        # create an output file with a single int16 band and get a pointer
+        # to this band
+        driver = gdal.GetDriverByName('ENVI')
+        output_ds = driver.Create (qa_file, self.NCol, self.NRow, 1,  \
+            gdal.GDT_Int16)
+        output_ds.SetGeoTransform (self.dataset1.GetGeoTransform())
+###        output_ds.SetProjection (self.dataset1.GetProjection())
+        output_band_QA = output_ds.GetRasterBand(1)
+
+        # initialize the noData value to -9999
+        output_band_QA.SetNoDataValue(-9999)
+
+        # read each surface reflectance QA band, then generate the overall QA
+        # band, which is a combination of all the QA values (negative values
+        # flag any non-clear pixels and -9999 represents the fill pixels).
+        vals = self.getBandValues ('band_qa', log_handler)
+        output_band_QA.WriteArray(vals, 0, 0)
+
+        # close the datasets so we can copy over the ENVI header file
+        vals = None
+        output_band_QA = None
+        output_ds = None
+        driver = None
+
+        # the GDAL SetGeoTransform and SetProjection don't play completely
+        # well with our ENVI header.  just copy the ENVI head for band1 to
+        # the ENVI header for the mask band.
+        qa_hdr = qa_file.replace ('.img', '.hdr')
+        band_hdr = qa_file.replace ('_mask.img', '_sr_band1.hdr')
+        shutil.copyfile (band_hdr, qa_hdr)
+
+        return
+#####end of XML_Scene class#####
