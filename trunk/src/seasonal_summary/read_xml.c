@@ -41,7 +41,7 @@ int read_xml
     Espa_global_meta_t *gmeta = NULL;   /* pointer to global meta */
 
     /* Validate the input metadata file */
-    if (validate_xml_file (xml_infile, ESPA_SCHEMA) != SUCCESS)
+    if (validate_xml_file (xml_infile) != SUCCESS)
     {  /* Error messages already written */
         return (ERROR);
     }
