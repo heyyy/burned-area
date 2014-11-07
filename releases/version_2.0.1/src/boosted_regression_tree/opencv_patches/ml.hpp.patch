@@ -1,0 +1,49 @@
+# Patch file for OpenCV 2.4.0 to add the probability mapping method
+# OpenCV-2.4.0/modules/ml/include/opencv2/ml
+--- ml.hpp	2012-04-18 18:54:23.000000000 -0500
++++ ml_new.hpp	2013-08-08 09:01:16.477014960 -0500
+@@ -1588,6 +1588,33 @@
+             int k=-1 ) const;
+ 
+     /*
++    // Response value prediction probability.
++    // Parallel version (in the case of TBB existence)
++    //
++    // API
++    // virtual float predict_prob( const CvMat* sample, const CvMat* missing=0,
++             CvSlice slice = CV_WHOLE_SEQ, int k=-1 ) const;
++    
++    // INPUT
++    // sample         - input sample of the same type as in the training set.
++    // missing        - missing values mask. missing=0 if there are no
++    //                   missing values in sample vector.
++    // slice           - part of the ensemble used for prediction.
++    //                   slice = CV_WHOLE_SEQ when all trees are used.
++    // k               - number of ensemble used.
++    //                   k is in {0,1,..,<count of output classes-1>}.
++    //                   in the case of classification problem 
++    //                   <count of output classes-1> ensembles are built.
++    //                   function gives the prediction probability of the
++    //                   k-th ensemble only.
++    // OUTPUT
++    // RESULT
++    // Predicted value.
++    */        
++    virtual float predict_prob( const CvMat* sample, int k=0,
++            const CvMat* missing=0, CvSlice slice = CV_WHOLE_SEQ ) const;
++
++    /*
+     // Deletes all the data.
+     //
+     // API
+@@ -1671,6 +1698,10 @@
+     CV_WRAP virtual float predict( const cv::Mat& sample, const cv::Mat& missing=cv::Mat(),
+                            const cv::Range& slice = cv::Range::all(),
+                            int k=-1 ) const;
++
++    CV_WRAP virtual float predict_prob( const cv::Mat& sample, int k=0,
++                          const cv::Mat& missing=cv::Mat(),
++                          const cv::Range& slice = cv::Range::all() ) const;
+     
+ protected:
+ 
