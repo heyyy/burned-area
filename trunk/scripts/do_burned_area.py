@@ -135,7 +135,16 @@ class BurnedArea():
             msg = 'Config directory does not exist: %s. Creating ...' %  \
                 config_dir
             logIt (msg, self.log_handler)
-            os.makedirs(config_dir, 0755)
+            try:
+                os.makedirs(config_dir, 0755)
+            except:
+                # recheck just in case there is another thread that made the
+                # config directory already
+                if not os.path.exists(config_dir):
+                    msg = 'Unable to create config directory: %s. ' %  \
+                        'Exiting ...' % config_dir
+                    logIt (msg, self.log_handler)
+                    return ERROR
 
         temp_file = tempfile.NamedTemporaryFile(mode='w', prefix='temp',
             suffix=self.config_file, dir=config_dir, delete=True)
