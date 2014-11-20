@@ -1,0 +1,56 @@
+#------------------------------------------------------------------------------
+# Makefile for sample HDF code
+#------------------------------------------------------------------------------
+
+# Set up compile options
+CXX = g++
+RM = rm -f
+EXTRA = -Wall -g
+
+# Define the include files
+INC = const.h error.h input.h input_rb.h mystring.h output.h predict.h \
+      PredictBurnedArea.h
+INCDIR  = -I. -I$(XML2INC) -I$(ESPAINC) -I$(OPENCVINC) -I$(BOOST_INC)
+NCFLAGS = $(EXTRA) $(INCDIR)
+
+# Define the source code and object files
+SRC = error.cpp \
+      FileIO.cpp \
+      input.cpp \
+      input_rb.cpp \
+      mystring.cpp \
+      output.cpp \
+      predict.cpp \
+      PredictBurnedArea.cpp \
+      predict_burned_area.cpp
+
+OBJ = $(SRC:.cpp=.o)
+
+# Define the object libraries
+LIB   = -L$(ESPALIB) -l_espa_raw_binary -l_espa_common -L$(XML2LIB) -lxml2  \
+        -L$(BOOST_LIB) -lboost_program_options \
+        -L$(OPENCVLIB) -lopencv_ml -lopencv_highgui -lopencv_core \
+        -lz -lrt -lpthread -lm
+
+# Define the executable
+EXE = predict_burned_area
+
+# Target for the executable
+all: $(EXE)
+
+predict_burned_area: $(OBJ) $(INC)
+	$(CXX) $(EXTRA) -o $(EXE) $(OBJ) $(LIB)
+
+install:
+	install -d $(BIN)
+	install -m 755 $(EXE) $(BIN)
+
+
+clean:
+	$(RM) $(OBJ) $(EXE)
+
+$(OBJ): $(INC)
+
+.cpp.o:
+	$(CXX) $(NCFLAGS) -c $<
+
