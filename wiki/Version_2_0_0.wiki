@@ -8,7 +8,7 @@ Release Date: June 9, 2014
 * Burned area source code - available via the [https://code.google.com/p/burned-area/source/checkout burned-area Google Projects Source] link
 
   * Non-members may check out a read-only working copy anonymously over HTTP.
-  * svn checkout http://burned-area.googlecode.com/svn/tags/version_2.0.0 burned-area-read-only 
+  * svn checkout http://burned-area.googlecode.com/svn/releases/version_2.0.0 burned-area-read-only 
 
 === Installation ===
 Same installation instructions as for Version 1.0.0, however a high-level Makefile is now available for the overall burned-area source code.  Thus the user can utilize the Makefile at the top level and it will traverse into the subdirectories to build the source code as needed.  In addition the ESPA raw binary libraries and tools in the [https://code.google.com/p/espa-common/ espa_common Google Project] are needed.  The user will need to build the src/raw_binary code to create the libraries used for building the current version of the spectral indices application.
