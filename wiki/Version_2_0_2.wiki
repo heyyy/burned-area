@@ -8,7 +8,7 @@ Release Date: Dec. 23, 2014
 * Burned area source code - available via the [https://code.google.com/p/burned-area/source/checkout burned-area Google Projects Source] link
 
   * Non-members may check out a read-only working copy anonymously over HTTP.
-  * svn checkout http://burned-area.googlecode.com/svn/tags/version_2.0.2 burned-area-read-only 
+  * svn checkout http://burned-area.googlecode.com/svn/releases/version_2.0.2 burned-area-read-only 
 
 === Installation ===
 Same installation instructions as for Version 2.0.0.
