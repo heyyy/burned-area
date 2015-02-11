@@ -33,6 +33,10 @@ NUM_SR_BANDS = 13
 # Updated on March 11, 2014 by Gail Schmidt, USGS/EROS
 # Modified the scripts to process ESPA input raw binary data products vs.
 #   the original HDF file format.
+# Updated on Feb. 11, 2015 by Gail Schmidt, USGS/EROS
+# Modified the recfromcsv calls to not specify the datatype and to instead
+#   use the automatically-determined datatype from the read itself.  Also
+#   removed the fopen for the CSV file since it isn't needed.
 #
 # Usage: process_temporal_stack.py --help prints the help message
 ############################################################################
@@ -508,10 +512,7 @@ class temporalBAStack():
 
         # open and read the stack file
         startTime = time.time()
-        f_in = open (stack_file, 'r')
-        self.csv_data = recfromcsv (stack_file, delimiter=',', names=True,  \
-            dtype="string")
-        f_in = None
+        self.csv_data = recfromcsv (stack_file, delimiter=',', names=True)
         if self.csv_data is None:
             msg = 'Error reading the stack file: ' + stack_file
             logIt (msg, self.log_handler)
@@ -876,10 +877,7 @@ class temporalBAStack():
 
         # open and read the stack file
         startTime = time.time()
-        f_in = open (stack_file, 'r')
-        self.csv_data = recfromcsv (stack_file, delimiter=',', names=True,  \
-            dtype="string")
-        f_in = None
+        self.csv_data = recfromcsv (stack_file, delimiter=',', names=True)
         if self.csv_data is None:
             msg = 'Error reading the stack file: ' + stack_file
             logIt (msg, self.log_handler)

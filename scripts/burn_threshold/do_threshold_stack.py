@@ -18,6 +18,9 @@
 #   Updated on 4/14/2014 by Gail Schmidt, USGS/EROS
 #       Modified to utilize the ESPA raw binary file format
 #       Modified to run the scenes in parallel
+#   Updated on 2/11/2015 by Gail Schmidt, USGS/EROS
+#       Modified the recfromcsv calls to not specify the datatype and to
+#       instead use the automatically-determined datatype from the read itself.
 #############################################################################
 
 import sys
@@ -657,8 +660,7 @@ class BurnAreaThreshold():
         os.chdir (output_dir)
 
         # open the stack file
-        stack = numpy.recfromcsv(stack_file, delimiter=",", names=True,  \
-            dtype="string")
+        stack = numpy.recfromcsv(stack_file, delimiter=",", names=True)
         
         # use the minimum and maximum years in the stack if the start year and
         # end year were not specified on the command line.  start year needs

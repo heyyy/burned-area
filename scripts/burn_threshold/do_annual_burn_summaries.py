@@ -15,6 +15,9 @@
 #       burned area products
 #   Updated on 5/19/2014 by Gail Schmimdt, USGS/EROS
 #       Changed the use of burn scar to burned area
+#   Updated on 2/11/2015 by Gail Schmidt, USGS/EROS
+#       Modified the recfromcsv calls to not specify the datatype and to
+#       instead use the automatically-determined datatype from the read itself.
 #############################################################################
 
 import sys
@@ -605,8 +608,7 @@ class AnnualBurnSummary():
         start_time0 = time.time()
     
         # open the stack file
-        stack = numpy.recfromcsv(stack_file, delimiter=",", names=True,  \
-            dtype="string")
+        stack = numpy.recfromcsv(stack_file, delimiter=",", names=True)
         
         # use the minimum and maximum years in the stack if the start year and
         # end year were not specified on the command line.  start year needs
