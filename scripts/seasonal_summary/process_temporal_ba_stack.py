@@ -27,7 +27,7 @@ NUM_SR_BANDS = 13
 #############################################################################
 # Created on April 29, 2013 by Gail Schmidt, USGS/EROS
 # Created class to hold the methods which process various aspects of the
-# temporal stack for burned area processing.
+#   temporal stack for burned area processing.
 #
 # History:
 # Updated on March 11, 2014 by Gail Schmidt, USGS/EROS
@@ -37,6 +37,9 @@ NUM_SR_BANDS = 13
 # Modified the recfromcsv calls to not specify the datatype and to instead
 #   use the automatically-determined datatype from the read itself.  Also
 #   removed the fopen for the CSV file since it isn't needed.
+# Updated on Feb. 18, 2015 by Gail Schmidt, USGS/EROS
+# Modified to also exclude high RMSE and high cloud cover scenes in addition
+#   to the current L1G exclusion.
 #
 # Usage: process_temporal_stack.py --help prints the help message
 ############################################################################
@@ -104,6 +107,82 @@ class temporalBAStack():
         return False
 
 
+    def is_scene_high_rmse (self, mtl_file):
+        """Looks at the MTL file and determines if the scene has a high RMSE.
+        Description: is_scene_high_rmse will read the GEOMETRIC_RMSE_MODEL from
+            the metadata file and return True or False, depending on whether
+            the RMSE is greater than the allowed threshold of 10.0.
+
+        History:
+          Created on 2/17/2015 by Gail Schmidt, USGS/EROS LSRD Project
+        
+        Args:
+          mtl_file - name of the metadata file to read and parse
+
+        Returns:
+            True - scene has high RMSE
+            False - scene has low RMSE
+        """
+
+        # open and read the input metadata file
+        metadata_file = open(mtl_file, "r")
+        text_list = metadata_file.readlines()
+        metadata_file.close()
+        num_lines = len(text_list)
+
+        # loop through each of the lines and check for the GEOMETRIC_RMSE_MODEL
+        # field
+        for i in range(num_lines):
+            curr_line = text_list[i].rstrip('\n')
+            if '=' in curr_line:
+                (field, field_value) = curr_line.split('=')
+                field = field.strip()
+                if field == 'GEOMETRIC_RMSE_MODEL':
+                    field_value = field_value.replace('"', '').strip()
+                    if float (field_value) > 10.0:
+                        return True
+
+        return False
+
+
+    def is_scene_high_cloud_cover (self, mtl_file):
+        """Looks at the MTL file and determines if the scene has a high
+           percentage of clouds.
+        Description: is_scene_high_cloud_cover will read the CLOUD_COVER from
+            the metadata file and return True or False, depending on whether
+            the cloud cover is greater than the allowed threshold of 80%.
+
+        History:
+          Created on 2/17/2015 by Gail Schmidt, USGS/EROS LSRD Project
+        
+        Args:
+          mtl_file - name of the metadata file to read and parse
+
+        Returns:
+            True - scene has high cloud cover percentage
+            False - scene has low cloud cover percentage
+        """
+
+        # open and read the input metadata file
+        metadata_file = open(mtl_file, "r")
+        text_list = metadata_file.readlines()
+        metadata_file.close()
+        num_lines = len(text_list)
+
+        # loop through each of the lines and check for the CLOUD_COVER field
+        for i in range(num_lines):
+            curr_line = text_list[i].rstrip('\n')
+            if '=' in curr_line:
+                (field, field_value) = curr_line.split('=')
+                field = field.strip()
+                if field == 'CLOUD_COVER':
+                    field_value = field_value.replace('"', '').strip()
+                    if float (field_value) > 80.0:
+                        return True
+
+        return False
+
+
     def exclude_l1g_files (self):
         """Loops through the HDF files in the input directory and excludes
            the L1G scenes, leaving the L1T scenes.
@@ -159,6 +238,118 @@ class temporalBAStack():
                     logIt (msg, self.log_handler)
                     for data in glob.glob(self.input_dir + scene_name + '*'):
                         shutil.move (data, l1g_dir)
+
+
+    def exclude_rmse_files (self):
+        """Loops through the HDF files in the input directory and excludes
+           the high RMSE scenes.
+        Description: exclude_rmse_files will loop through the HDF files in the
+            input_dir, read the RMSE from the associated _MTL.txt file,
+            and move the sr and _MTL.txt file for that scene to a subdirectory
+            called 'exclude_rmse'.
+
+        History:
+          Created on 2/18/2015 by Gail Schmidt, USGS/EROS LSRD Project
+
+        Args: None
+
+        Returns:
+            ERROR - error excluding the high RMSE files
+            SUCCESS - successful processing
+        """
+
+        # loop through the HDF files in the input directory
+        rmse_dir = self.input_dir + 'exclude_rmse/'
+        for f_in in sort(os.listdir(self.input_dir)):
+            if f_in.endswith(".xml") and not f_in.endswith(".aux.xml"):
+                input_file = self.input_dir + f_in
+                scene_file = f_in
+
+                # get the scene name from the current file
+                # (Ex. LT50170391984072XXX07.xml)
+                base_file = os.path.basename(scene_file)
+                scene_name = base_file.replace('.xml', '')
+
+                # determine the _MTL.txt filename
+                mtl_name = scene_name + '_MTL.txt'
+                input_mtl_file = self.input_dir + mtl_name
+
+                # read the _MTL.txt file and determine if the scene has a
+                # high RMSE
+                is_high_rmse = self.is_scene_high_rmse (input_mtl_file)
+
+                # if the scene has a high RMSE, then move the scene and MTL
+                # file to the exclude_rmse subdirectory
+                if is_high_rmse:
+                    # create the RMSE exclude directory if it doesn't exist
+                    if not os.path.exists(rmse_dir):
+                        msg = 'RMSE exclude directory does not exist: %s. '  \
+                            'Creating ...' % rmse_dir
+                        logIt (msg, self.log_handler)
+                        os.makedirs(rmse_dir, 0755)
+
+                    # move the scene files to the exclude subdirectory
+                    all_files = self.input_dir + scene_name + '*'
+                    msg = 'Moving %s to %s' % (all_files, rmse_dir)
+                    logIt (msg, self.log_handler)
+                    for data in glob.glob(self.input_dir + scene_name + '*'):
+                        shutil.move (data, rmse_dir)
+
+
+    def exclude_cloud_cover_files (self):
+        """Loops through the HDF files in the input directory and excludes
+           the high cloud cover scenes.
+        Description: exclude_cloud_cover_files will loop through the HDF files
+            in the input_dir, read the cloud cover from the associated _MTL.txt
+            file, and move the sr and _MTL.txt file for that scene to a
+            subdirectory called 'exclude_cloud_cover'.
+
+        History:
+          Created on 2/18/2015 by Gail Schmidt, USGS/EROS LSRD Project
+
+        Args: None
+
+        Returns:
+            ERROR - error excluding the high cloud cover files
+            SUCCESS - successful processing
+        """
+
+        # loop through the HDF files in the input directory
+        cc_dir = self.input_dir + 'exclude_cloud_cover/'
+        for f_in in sort(os.listdir(self.input_dir)):
+            if f_in.endswith(".xml") and not f_in.endswith(".aux.xml"):
+                input_file = self.input_dir + f_in
+                scene_file = f_in
+
+                # get the scene name from the current file
+                # (Ex. LT50170391984072XXX07.xml)
+                base_file = os.path.basename(scene_file)
+                scene_name = base_file.replace('.xml', '')
+
+                # determine the _MTL.txt filename
+                mtl_name = scene_name + '_MTL.txt'
+                input_mtl_file = self.input_dir + mtl_name
+
+                # read the _MTL.txt file and determine if the scene has a
+                # high cloud cover
+                is_high_cc = self.is_scene_high_cloud_cover (input_mtl_file)
+
+                # if the scene has a high cloud cover, then move the scene and
+                # MTL file to the exclude_cloud_cover subdirectory
+                if is_high_cc:
+                    # create cloud cover exclude directory if it doesn't exist
+                    if not os.path.exists(cc_dir):
+                        msg = 'Cloud cover exclude directory does not exist: ' \
+                            '%s.  Creating ...' % cc_dir
+                        logIt (msg, self.log_handler)
+                        os.makedirs(cc_dir, 0755)
+
+                    # move the scene files to the exclude subdirectory
+                    all_files = self.input_dir + scene_name + '*'
+                    msg = 'Moving %s to %s' % (all_files, cc_dir)
+                    logIt (msg, self.log_handler)
+                    for data in glob.glob(self.input_dir + scene_name + '*'):
+                        shutil.move (data, cc_dir)
 
 
     def generate_list (self, list_file):
@@ -1111,7 +1302,8 @@ class temporalBAStack():
         return SUCCESS
 
 
-    def processStack (self, input_dir=None, exclude_l1g=None, logfile=None,  \
+    def processStack (self, input_dir=None, exclude_l1g=None,  \
+        exclude_rmse=None, exclude_cloud_cover=None, logfile=None,  \
         num_processors=1, usebin=None):
         """Processes the temporal stack of data to generate seasonal summaries
            and annual maximums for each year in the stack.
@@ -1129,6 +1321,8 @@ class temporalBAStack():
               Cleaned up the temporary reflectance and mask files in the
               subdirectories.  These are the files that were reprojected to
               the common geographic extents.
+          Updated on 2/18/2015 by Gail Schmidt, USGS/EROS LSRD Project
+              Added support for excluding high RMSE and high cloud cover scenes.
         
         Args:
           input_dir - name of the directory in which to find the surface
@@ -1138,6 +1332,12 @@ class temporalBAStack():
               processing stack and only the L1T-based files are processed.
               These L1G files are also moved to a directory called exclude_l1g
               in the input directory.
+          exclude_rmse - if True, then the high RMSE scenes are excluded from
+              the processing stack.  These files are also moved to a directory
+              called exclude_rmse in the input directory.
+          exclude_cloud_cover - if True, then the high cloud cover scenes are
+              excluded from the processing stack.  These files are also moved
+              to a directory called exclude_cloud_cover in the input directory.
           logfile - name of the logfile for logging information; if None then
               the output will be written to stdout
           num_processors - how many processors should be used for parallel
@@ -1193,6 +1393,18 @@ class temporalBAStack():
                      'temporal stack and only the L1T files are processed. ' \
                      'These L1G files are also moved to a directory called ' \
                      'exclude_l1g in the input directory.')
+            parser.add_argument ('--exclude_rmse', dest='exclude_rmse',
+                default=False, action='store_true',
+                help='if True, then the high RMSE scenes are excluded from '  \
+                     'the temporal stack. These high RMSE files are also '  \
+                     'moved to a directory called exclude_rmse in the input '  \
+                     'directory.')
+            parser.add_argument ('--exclude_cloud_cover',
+                dest='exclude_cloud_cover', default=False, action='store_true',
+                help='if True, then the high cloud cover scenes are excluded ' \
+                     'from the temporal stack. These high cloud cover files ' \
+                     'are also moved to a directory called '  \
+                     'exclude_cloud_cover in the input directory.')
 
             options = parser.parse_args()
     
@@ -1200,6 +1412,8 @@ class temporalBAStack():
             logfile = options.logfile
             usebin = options.usebin
             exclude_l1g = options.exclude_l1g
+            exclude_rmse = options.exclude_rmse
+            exclude_cloud_cover = options.exclude_cloud_cover
 
             # input directory
             input_dir = options.input_dir
@@ -1266,9 +1480,16 @@ class temporalBAStack():
         mydir = os.getcwd()
         os.chdir (input_dir)
 
-        # go to the input_directory and exclude the L1G files, if specified
+        # go to the input_directory and exclude the L1G, high RMSE, and/or
+        # high cloud cover files, if specified
         if exclude_l1g:
             self.exclude_l1g_files()
+
+        if exclude_rmse:
+            self.exclude_rmse_files()
+
+        if exclude_cloud_cover:
+            self.exclude_cloud_cover_files()
 
         # generate the list of XML files that will be processed from the
         # current directory
