@@ -248,6 +248,11 @@ class BurnAreaThreshold():
           Updated on Nov. 26, 2013 by Gail Schmidt, USGS/EROS LSRD Project
               Modified to use int32 arrays vs. int64 arrays for the burn
               classification images
+          Updated on Feb. 13, 2015 by Gail Schmidt, USGS/EROS LSRD Project
+              Modified the skimage.measure.regionprops call to not use the
+              deprecated 'properties' parameter.  Also changed the properties
+              values to match the correct names of the dynamic list of props
+              which is now created.
         
         Args:
           bp_image - input image of burn probabilities
@@ -292,14 +297,14 @@ class BurnAreaThreshold():
         # get list of region pixel coordinates, use the first pixel from each
         # as the seed for the region
         bp_region_coords = skimage.measure.regionprops(  \
-            label_image=bp_seed_regions, properties=['Area','Coordinates'])
+            label_image=bp_seed_regions)
 
         # loop through regions and flood fill to expand them where they are of
         # an appropriate size
         for i in range(0, len(bp_region_coords)):
-            temp_label = bp_region_coords[i]['Label'] 
-            temp_area = bp_region_coords[i]['Area']
-            temp_coords = bp_region_coords[i]['Coordinates'][0]
+            temp_label = bp_region_coords[i]['label'] 
+            temp_area = bp_region_coords[i]['area']
+            temp_coords = bp_region_coords[i]['coords'][0]
             
             # if the number of pixels in this region exceeds the seed size
             # threshold then process the region by flood-filling to grow the
@@ -325,12 +330,10 @@ class BurnAreaThreshold():
         bc2 = bp_regions > 0
         bp_regions2 = numpy.zeros_like(bc2, dtype=numpy.int32)
         n_labels = scipy.ndimage.label(bc2, output=bp_regions2)
-        
-        prop_names = ['Area','FilledArea','MaxIntensity','MeanIntensity',  \
-            'MinIntensity']       # ,'Solidity','ConvexArea']
+        prop_names = ['area','filled_area','max_intensity','mean_intensity',  \
+            'min_intensity']
         bp_region2_props = skimage.measure.regionprops(  \
-            label_image=bp_regions2, properties=prop_names,  \
-            intensity_image=bp_image)
+            label_image=bp_regions2, intensity_image=bp_image)
         
         # define the RAT (raster attribute table)
         #print 'Creating raster attribute table...'
@@ -349,7 +352,7 @@ class BurnAreaThreshold():
         #print 'Populating raster attribute table...'
         for i in range(0, n_labels):
             # label id
-            label_rat.SetValueAsInt(i, 0, bp_region2_props[i]['Label'])
+            label_rat.SetValueAsInt(i, 0, bp_region2_props[i]['label'])
             
             for j in range(0, len(prop_names)):
                 temp_prop = prop_names[j]
