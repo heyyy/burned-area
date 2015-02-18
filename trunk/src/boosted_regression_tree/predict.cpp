@@ -80,6 +80,8 @@ Date          Programmer       Reason
 NOTES:
   1. It's assumed the configuration parameters (class members) have already
      been initialized.
+  2. The order of the inputs in the CSV model is documented in
+     PredictBurnedArea.h and the number of inputs is identified in that file.
 *****************************************************************************/
 bool PredictBurnedArea::trainModel ()
 {
