@@ -204,6 +204,10 @@ class BurnedArea():
           Modified on April 8, 2014 by Gail Schmidt, USGS/EROS LSRD Project
             Updated to process products in the ESPA internal file format vs.
             the previous HDF format
+          Modified on Feb. 18, 2015 by Gail Schmidt, USGS/EROS LSRD Project
+            Updated to support the exclude_rmse and exclude_cloud_cover
+            options in processStack. These are turned on for the call to
+            process seasonal summaries and annual maximums.
 
         Args:
           sr_list_file - input file listing the surface reflectance scenes
@@ -416,7 +420,8 @@ class BurnedArea():
         # run the seasonal summaries and annual maximums for this stack
         msg = '\nProcessing seasonal summaries and annual maximums ...'
         status = temporalBAStack().processStack(input_dir=input_dir,  \
-            exclude_l1g=True, logfile=logfile, num_processors=num_processors)
+            exclude_l1g=True, exclude_rmse=True, exclude_cloud_cover=True,  \
+            logfile=logfile, num_processors=num_processors)
         if status != SUCCESS:
             msg = 'Error running seasonal summaries and annual maximums'
             logIt (msg, self.log_handler)

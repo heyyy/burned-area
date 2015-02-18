@@ -15,9 +15,6 @@
 #       burned area products
 #   Updated on 5/19/2014 by Gail Schmimdt, USGS/EROS
 #       Changed the use of burn scar to burned area
-#   Updated on 2/11/2015 by Gail Schmidt, USGS/EROS
-#       Modified the recfromcsv calls to not specify the datatype and to
-#       instead use the automatically-determined datatype from the read itself.
 #############################################################################
 
 import sys
@@ -463,6 +460,10 @@ class AnnualBurnSummary():
               extent of the stack and therefore are one common extent.
               Removed the writing of data in blocks and instead process data
               as a line at a time.
+          Updated on 2/11/2015 by Gail Schmidt, USGS/EROS
+              Modified the recfromcsv calls to not specify the datatype and to
+              instead use the automatically-determined datatype from the read
+              itself.
         
         Args:
           stack_file - input CSV file with information about the files to be
@@ -621,7 +622,7 @@ class AnnualBurnSummary():
         if end_year is None:
             end_year = numpy.max(stack['year'])
         stack_mask = (stack['year'] >= start_year) & (stack['year'] <= end_year)
-        stack2 = stack[ stack_mask, :]
+        stack2 = stack[stack_mask]
 
         # given that all burn products in this temporal stack have the same
         # scene extents and projection information, just obtain that
