@@ -54,6 +54,11 @@ typedef enum {PREDMAT_B1=0, PREDMAT_B2, PREDMAT_B3, PREDMAT_B4, PREDMAT_B5,
 /* This is the current number of CSV inputs that we are expecting, not counting
    the class response index.  This is for the CSV training inputs, but is also
    used for filling the sample matrix for the actual predictions. */
+/* The headers cannot be left on the CSV file, but they are expected to be the
+   following in order (where the last value is a 0 or 1 to represent whether
+   or not this is a fire pixel). There are 51 fields in the header, however
+   only 50 of then are input and the last one is output.
+   band1,band2,band3,band4,band5,band7,ndvi,ndmi,nbr,nbr2,ly_wi_b3,ly_wi_b4,ly_wi_b5,ly_wi_b7,ly_wi_ndvi,ly_wi_ndmi,ly_wi_nbr,ly_wi_nbr2,ly_sp_b3,ly_sp_b4,ly_sp_b5,ly_sp_b7,ly_sp_ndvi,ly_sp_ndmi,ly_sp_nbr,ly_sp_nbr2,ly_su_b3,ly_su_b4,ly_su_b5,ly_su_b7,ly_su_ndvi,ly_su_ndmi,ly_su_nbr,ly_su_nbr2,ly_fa_b3,ly_fa_b4,ly_fa_b5,ly_fa_b7,ly_fa_ndvi,ly_fa_ndmi,ly_fa_nbr,ly_fa_nbr2,ly_max_ndvi,ly_max_ndmi,ly_max_nbr,ly_max_nbr2,dndvi,dndmi,dnbr,dnbr2,fire */
 #define EXPECTED_CSV_INPUTS 50
 
 /* Typedefs for the integer types used by this application */
