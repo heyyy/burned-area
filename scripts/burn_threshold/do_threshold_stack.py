@@ -678,7 +678,7 @@ class BurnAreaThreshold():
             end_year = numpy.max(stack['year'])
         
         stack_mask = (stack['year'] >= start_year) & (stack['year'] <= end_year)
-        stack2 = stack[ stack_mask, :]
+        stack2 = stack[stack_mask]
         
         # read the input data from the stack, for the years specified
         msg = 'Processing burn probabilities for %d-%d' % (start_year, end_year)
