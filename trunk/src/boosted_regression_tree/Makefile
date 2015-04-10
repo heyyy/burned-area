@@ -5,7 +5,8 @@
 # Set up compile options
 CXX = g++
 RM = rm -f
-EXTRA = -Wall -g
+EXTRA = -Wall -O2
+#EXTRA = -Wall -g
 
 # Define the include files
 INC = const.h error.h input.h input_rb.h mystring.h output.h predict.h \

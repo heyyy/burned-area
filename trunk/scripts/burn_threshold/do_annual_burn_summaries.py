@@ -460,11 +460,11 @@ class AnnualBurnSummary():
               extent of the stack and therefore are one common extent.
               Removed the writing of data in blocks and instead process data
               as a line at a time.
-          Updated on 2/11/2015 by Gail Schmidt, USGS/EROS
+          Updated on Feb. 11, 2015 by Gail Schmidt, USGS/EROS LSRD Project
               Modified the recfromcsv calls to not specify the datatype and to
               instead use the automatically-determined datatype from the read
               itself.
-        
+
         Args:
           stack_file - input CSV file with information about the files to be
               processed.  this is generated as part of the seasonal summaries
@@ -609,8 +609,8 @@ class AnnualBurnSummary():
         start_time0 = time.time()
     
         # open the stack file
-        stack = numpy.recfromcsv(stack_file, delimiter=",", names=True)
-        
+        stack = numpy.recfromcsv(stack_file, delimiter=',', names=True)
+
         # use the minimum and maximum years in the stack if the start year and
         # end year were not specified on the command line.  start year needs
         # to be one more than the actual starting year in the stack since the
@@ -704,7 +704,7 @@ class AnnualBurnSummary():
             logIt (msg, log_handler)
                 
             stack_mask = stack2['year'] == year
-            stack3 = stack2[ stack_mask, :]    
+            stack3 = stack2[stack_mask, :]    
 
             # initialize the input and output datasets
             input_datasets = numpy.empty( (stack2.shape[0],2), dtype=object )
