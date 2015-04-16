@@ -8,12 +8,12 @@
 # an annual basis.
 #
 # History:
-#   Updated on 12/2/2013 by Gail Schmidt, USGS/EROS
+#   Updated on 12/2/2013 by Gail Schmidt, USGS/EROS LSRD Project
 #       Modified to incorporate into the ESPA environment
-#   Updated on 5/15/2014 by Gail Schmidt, USGS/EROS
+#   Updated on 5/15/2014 by Gail Schmidt, USGS/EROS LSRD Project
 #       Modified to clean up the .img.aux.xml files created by GDAL for the
 #       burned area products
-#   Updated on 5/19/2014 by Gail Schmimdt, USGS/EROS
+#   Updated on 5/19/2014 by Gail Schmimdt, USGS/EROS LSRD Project
 #       Changed the use of burn scar to burned area
 #############################################################################
 
@@ -89,7 +89,7 @@ def convert_imageXY_to_mapXY (image_x, image_y, transform):
 
 
 #############################################################################
-# Created on December 2, 2013 by Gail Schmidt, USGS/EROS
+# Created on December 2, 2013 by Gail Schmidt, USGS/EROS LSRD Project
 # Turned into a class to run the overall annual burn summaries.
 #
 # History:
@@ -704,7 +704,7 @@ class AnnualBurnSummary():
             logIt (msg, log_handler)
                 
             stack_mask = stack2['year'] == year
-            stack3 = stack2[stack_mask, :]    
+            stack3 = stack2[stack_mask]
 
             # initialize the input and output datasets
             input_datasets = numpy.empty( (stack2.shape[0],2), dtype=object )
