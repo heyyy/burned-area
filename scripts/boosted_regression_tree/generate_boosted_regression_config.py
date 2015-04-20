@@ -121,6 +121,12 @@ class BoostedRegressionConfig():
                 return ERROR
             input_mask_file = options.input_mask_file
 
+            if options.output_dir is None:
+                parser.error ('missing the output directory command-line  ' \
+                    'argument');
+                return ERROR
+            output_dir = options.output_dir
+
             if options.model_file is None:
                 parser.error ('missing the model file command-line argument');
                 return ERROR
