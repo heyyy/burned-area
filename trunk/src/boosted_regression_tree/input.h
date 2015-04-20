@@ -23,7 +23,7 @@ NOTES:
 
 #include <stdlib.h>
 #include <stdio.h>
-#include "common.h"
+#include "espa_common.h"
 #include "PredictBurnedArea.h"
 
 /* Prototypes */
