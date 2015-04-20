@@ -25,7 +25,7 @@ NOTES:
 
 #include <stdlib.h>
 #include <stdio.h>
-#include "common.h"
+#include "espa_common.h"
 #include "input.h"
 #include "PredictBurnedArea.h"
 
