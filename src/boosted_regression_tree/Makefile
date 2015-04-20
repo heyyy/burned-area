@@ -31,7 +31,7 @@ OBJ = $(SRC:.cpp=.o)
 LIB   = -L$(ESPALIB) -l_espa_raw_binary -l_espa_common -L$(XML2LIB) -lxml2  \
         -L$(BOOST_LIB) -lboost_program_options \
         -L$(OPENCVLIB) -lopencv_ml -lopencv_highgui -lopencv_core \
-        -lz -lrt -lpthread -lm
+        -L$(ZLIBLIB) -lz -lrt -lpthread -lm
 
 # Define the executable
 EXE = predict_burned_area
