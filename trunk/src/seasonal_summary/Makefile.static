@@ -22,7 +22,7 @@ OBJ2 = $(SRC2:.c=.o)
 
 # Define the object libraries
 LIB   = -L$(ESPALIB) -l_espa_raw_binary -l_espa_common -L$(XML2LIB) -lxml2 \
-        -L$(LZMALIB) -llzma -lz -lm
+        -L$(LZMALIB) -llzma -L$(ZLIBLIB) -lz -lm
 
 # Define the executable
 EXE = determine_max_extent generate_stack
