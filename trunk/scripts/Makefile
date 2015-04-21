@@ -8,11 +8,11 @@
 all:
 
 install:
-	install -d $(BIN)
-	install -m 755 boosted_regression_tree/*.py $(BIN)
-	install -m 755 burn_threshold/*.py $(BIN)
-	install -m 755 seasonal_summary/*.py $(BIN)
-	install -m 755 *.py $(BIN)
+	install -d $(PREFIX)/bin
+	install -m 755 boosted_regression_tree/*.py $(PREFIX)/bin
+	install -m 755 burn_threshold/*.py $(PREFIX)/bin
+	install -m 755 seasonal_summary/*.py $(PREFIX)/bin
+	install -m 755 *.py $(PREFIX)/bin
 
 clean:
 
