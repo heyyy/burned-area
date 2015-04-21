@@ -37,8 +37,8 @@ generate_stack: $(OBJ2) $(INC2)
 	$(CC) $(EXTRA) -o generate_stack $(OBJ2) $(LIB)
 
 install:
-	install -d $(BIN)
-	install -m 755 $(EXE) $(BIN)
+	install -d $(PREFIX)/bin
+	install -m 755 $(EXE) $(PREFIX)/bin
 
 clean:
 	$(RM) *.o $(EXE)

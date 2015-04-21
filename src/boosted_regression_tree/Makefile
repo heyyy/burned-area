@@ -43,8 +43,8 @@ predict_burned_area: $(OBJ) $(INC)
 	$(CXX) $(EXTRA) -o $(EXE) $(OBJ) $(LIB)
 
 install:
-	install -d $(BIN)
-	install -m 755 $(EXE) $(BIN)
+	install -d $(PREFIX)/bin
+	install -m 755 $(EXE) $(PREFIX)/bin
 
 
 clean:
