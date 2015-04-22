@@ -14,7 +14,7 @@ Release Date: May 27, 2015
 Same installation instructions as for Version 2.0.0.
 
 === Dependencies ===
-Same dependencies as for Version 2.0.0.
+Same dependencies as for Version 2.0.0. Need to define $PREFIX to point to the directory in which you want the executables, static data, etc. to be installed.
 
 === Data Preprocessing ===
 This version of the burned area application requires the input Landsat products to be in the ESPA internal file format.
