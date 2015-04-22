@@ -1,0 +1,41 @@
+#summary Version 2.1.0 of the burned area ECV software.
+
+== Burned-Area Version 2.1.0 Release Notes ==
+Release Date: May 27, 2015
+
+=== Downloads ===
+
+* Burned area source code - available via the [https://code.google.com/p/burned-area/source/checkout burned-area Google Projects Source] link
+
+  * Non-members may check out a read-only working copy anonymously over HTTP.
+  * svn checkout http://burned-area.googlecode.com/svn/releases/version_2.1.0 burned-area-read-only 
+
+=== Installation ===
+Same installation instructions as for Version 2.0.0.
+
+=== Dependencies ===
+Same dependencies as for Version 2.0.0.
+
+=== Data Preprocessing ===
+This version of the burned area application requires the input Landsat products to be in the ESPA internal file format.
+
+=== Data Postprocessing ===
+After compiling the espa-common raw_binary libraries and tools, the convert_espa_to_gtif and convert_espa_to_hdf command-line tools can be used to convert the ESPA internal file format to HDF or GeoTIFF.  Otherwise the data will remain in the ESPA internal file format, which includes each band in the ENVI file format (i.e. raw binary file with associated ENVI header file) and an overall XML metadata file.
+
+=== Associated Scripts ===
+Same scripts as for Version 2.0.0.
+
+=== Verification Data ===
+
+=== User Manual ===
+
+=== Product Guide ===
+
+
+== Changes From Previous Version ==
+====Updates on May 27, 2015 - USGS EROS====
+  * burned-area
+    # Cleaned up code from the change in numpy and scikit environment for the Denver BA group.still incomplete, and the default is to use the mountain west model.
+    # Added the ability to exclude high RMSE and high cloud scenes.  This exclusion is turned on in the do_burned_area.py script.
+    # Updated to use espa_common.h vs. common.h.
+    # Updated to install in $PREFIX/bin vs. $BIN
